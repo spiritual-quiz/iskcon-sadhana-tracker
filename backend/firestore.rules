@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'counsellor' || getUserData().role == 'counsellor');
+    }
+    
+    function isApproved() {
+      return isAuthenticated() && 
+        (getUserData().status == 'approved' || isAdmin());
+    }
+
+    // 1. User Profiles Collection
+    match /users/{userId} {
+      // Counselees can read their own profile; Admin can read all profiles
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Registration: User can create their initial profile ONLY with role='counselee' and status='pending'
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+        request.resource.data.role == 'counselee' &&
+        request.resource.data.status == 'pending';
+        
+      // Updates: Counselees can only update permitted fields (displayName, phoneNumber, publicAppreciationConsent)
+      // Counselees CANNOT change role, status, counsellorId, or declaredRounds
+      allow update: if (isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'counsellorId', 'declaredRounds']))
+        || isAdmin();
+        
+      allow delete: if isAdmin();
+    }
+
+    // 2. Invitation Codes
+    match /invitations/{code} {
+      // Any authenticated user can read an invitation code to validate it during registration
+      allow read: if isAuthenticated();
+      // Only Admin can create, update, or revoke invitation codes
+      // Counselees can only increment usedCount and add their UID to usedByUids during registration
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount', 'usedByUids'])
+      );
+    }
+
+    // 3. Daily Sadhana Entries (STRICT PRIVACY)
+    match /sadhana_entries/{entryId} {
+      // Visible ONLY to the owner and administrator. NEVER readable by other counselees!
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Creating or updating: Owner can submit their daily card; Admin can audit/correct
+      allow create: if isApproved() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isApproved() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // 4. Shared Community Summaries (Permitted public summaries without private fields)
+    match /shared_weekly_summaries/{summaryId} {
+      allow read: if isApproved();
+      allow write: if isApproved() && (request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /shared_monthly_summaries/{summaryId} {
+      allow read: if isApproved();
+      allow write: if isApproved() && (request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // 5. Weekly Activity Attendance
+    match /weekly_attendance/{attendanceId} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // 6. Monthly Satsanga Attendance
+    match /monthly_satsanga/{attendanceId} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // 7. Monitoring Alerts (Admin Only)
+    match /monitoring_alerts/{alertId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 8. Follow-up History
+    match /follow_ups/{followUpId} {
+      // Counselee can read their own received follow-ups; Admin can read and write all
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 9. Sadhana Appreciation
+    match /appreciations/{cardId} {
+      // Published cards with devotee consent are readable by approved devotees
+      allow read: if isApproved() && (resource.data.isPublished == true || isAdmin());
+      // Admin can publish & edit; Devotee can toggle consent
+      allow write: if isAdmin() || (
+        isAuthenticated() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['counseleeConsent'])
+      );
+    }
+
+    // 10. Birthday Notification Records
+    match /birthday_notifications/{notifId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

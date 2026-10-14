@@ -1,0 +1,244 @@
+import { Grade, SadhanaEntry } from '../types/sadhana';
+import { SCORING_RULES } from '../constants/scoring';
+
+export interface SadhanaInput {
+  declaredRounds: number;
+  completedRounds: number;
+  completionTimeStr?: string; // HH:mm format (24-hour)
+  readingMinutes: number;
+  hearingMinutes: number;
+  sleepTimeStr?: string;
+  wakeUpTimeStr?: string;
+  restMinutes?: number;
+}
+
+export interface CalculatedSadhanaScore {
+  japaMarks: number;
+  readingMarks: number;
+  hearingMarks: number;
+  dailyTotalScore: number;
+  percentage: number;
+  grade: Grade;
+  isComplete: boolean;
+  isZeroScore: boolean;
+  validationErrors: string[];
+}
+
+/**
+ * Calculates Japa marks strictly adhering to the prompt rules:
+ * - Completed rounds must reach or exceed declared commitment.
+ * - Time brackets (Asia/Kolkata):
+ *   - Before 7:00 AM: 10 marks
+ *   - Exactly 7:00 AM to before 10:00 AM: 5 marks
+ *   - Exactly 10:00 AM to before 1:00 PM (13:00): 3 marks
+ *   - Exactly 1:00 PM (13:00) or later: 1 mark
+ * - Incomplete commitment: 0 marks
+ */
+export function calculateJapaMarks(
+  declaredRounds: number,
+  completedRounds: number,
+  completionTimeStr?: string
+): { marks: number; isHonored: boolean; reason: string } {
+  if (declaredRounds <= 0) {
+    return { marks: 0, isHonored: false, reason: 'Declared commitment must be greater than 0' };
+  }
+
+  if (completedRounds < declaredRounds) {
+    return {
+      marks: 0,
+      isHonored: false,
+      reason: `Chanted ${completedRounds}/${declaredRounds} rounds (commitment not completed)`,
+    };
+  }
+
+  if (!completionTimeStr || !completionTimeStr.includes(':')) {
+    return { marks: 0, isHonored: false, reason: 'Completion time missing' };
+  }
+
+  const [hours, minutes] = completionTimeStr.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return { marks: 0, isHonored: false, reason: 'Invalid completion time format' };
+  }
+
+  const totalMinutes = hours * 60 + minutes;
+
+  // 7:00 AM is 7 * 60 = 420 minutes
+  if (totalMinutes < 420) {
+    return { marks: 10, isHonored: true, reason: 'Completed before 7:00 AM (10 marks)' };
+  }
+
+  // 10:00 AM is 10 * 60 = 600 minutes
+  if (totalMinutes < 600) {
+    return { marks: 5, isHonored: true, reason: 'Completed between 7:00 AM and 9:59 AM (5 marks)' };
+  }
+
+  // 1:00 PM is 13 * 60 = 780 minutes
+  if (totalMinutes < 780) {
+    return { marks: 3, isHonored: true, reason: 'Completed between 10:00 AM and 12:59 PM (3 marks)' };
+  }
+
+  // 1:00 PM or later
+  return { marks: 1, isHonored: true, reason: 'Completed at 1:00 PM or later (1 mark)' };
+}
+
+/**
+ * Calculates Srila Prabhupada book reading marks:
+ * min(10, (minutes / 30) * 10)
+ */
+export function calculateReadingMarks(minutes: number): number {
+  if (minutes <= 0) return 0;
+  const rawMarks = (minutes / 30) * 10;
+  const clamped = Math.min(10, rawMarks);
+  return Number(clamped.toFixed(2));
+}
+
+/**
+ * Calculates Spiritual hearing marks:
+ * min(10, (minutes / 30) * 10)
+ */
+export function calculateHearingMarks(minutes: number): number {
+  if (minutes <= 0) return 0;
+  const rawMarks = (minutes / 30) * 10;
+  const clamped = Math.min(10, rawMarks);
+  return Number(clamped.toFixed(2));
+}
+
+/**
+ * Calculates Grade from percentage:
+ * 90%–100%: A
+ * 80% to < 90%: B
+ * 70% to < 80%: C
+ * 60% to < 70%: D
+ * Below 60%: E
+ */
+export function calculateGrade(percentage: number): Grade {
+  if (percentage >= 90.0) return 'A';
+  if (percentage >= 80.0) return 'B';
+  if (percentage >= 70.0) return 'C';
+  if (percentage >= 60.0) return 'D';
+  return 'E';
+}
+
+/**
+ * Evaluates a complete daily sadhana entry
+ */
+export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScore {
+  const errors: string[] = [];
+
+  if (input.declaredRounds <= 0) {
+    errors.push('Declared round commitment must be at least 1 round.');
+  }
+
+  if (input.completedRounds < 0) {
+    errors.push('Completed rounds cannot be negative.');
+  }
+
+  if (input.readingMinutes < 0) {
+    errors.push('Reading duration cannot be negative.');
+  }
+
+  if (input.hearingMinutes < 0) {
+    errors.push('Hearing duration cannot be negative.');
+  }
+
+  const japaResult = calculateJapaMarks(
+    input.declaredRounds,
+    input.completedRounds,
+    input.completionTimeStr
+  );
+
+  const readingMarks = calculateReadingMarks(input.readingMinutes);
+  const hearingMarks = calculateHearingMarks(input.hearingMinutes);
+
+  const dailyTotalScore = Number((japaResult.marks + readingMarks + hearingMarks).toFixed(2));
+  const percentage = Number(((dailyTotalScore / SCORING_RULES.maxDailyScore) * 100).toFixed(1));
+  const grade = calculateGrade(percentage);
+
+  const isComplete = input.completedRounds > 0 || input.readingMinutes > 0 || input.hearingMinutes > 0;
+  const isZeroScore = dailyTotalScore === 0;
+
+  return {
+    japaMarks: japaResult.marks,
+    readingMarks,
+    hearingMarks,
+    dailyTotalScore,
+    percentage,
+    grade,
+    isComplete,
+    isZeroScore,
+    validationErrors: errors,
+  };
+}
+
+/**
+ * Calculates weekly total score and grade incorporating weekly programmes
+ */
+export function calculateWeeklyScoreAndGrade(params: {
+  dailyScores: number[]; // up to 7 scores, max 30 each
+  weeklyClassAttended: boolean;
+  morningProgrammeAttended: boolean;
+}): {
+  totalScore: number;
+  maxAvailableMarks: number;
+  percentage: number;
+  grade: Grade;
+} {
+  const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
+  const classMarks = params.weeklyClassAttended ? 10 : 0;
+  const morningMarks = params.morningProgrammeAttended ? 10 : 0;
+
+  const totalScore = Number((dailyTotal + classMarks + morningMarks).toFixed(2));
+  // 7 days * 30 = 210, + 10 (class) + 10 (morning) = 230 max available
+  const maxAvailableMarks = 7 * 30 + 10 + 10;
+  const percentage = Number(((totalScore / maxAvailableMarks) * 100).toFixed(1));
+  const grade = calculateGrade(percentage);
+
+  return {
+    totalScore,
+    maxAvailableMarks,
+    percentage,
+    grade,
+  };
+}
+
+/**
+ * Calculates monthly score and grade incorporating weekly programmes and monthly satsanga
+ */
+export function calculateMonthlyScoreAndGrade(params: {
+  dailyScores: number[]; // all days of the month
+  totalDaysInMonth: number;
+  weeklyClassesScheduled: number;
+  weeklyClassesAttended: number;
+  morningProgrammesScheduled: number;
+  morningProgrammesAttended: number;
+  satsangaScheduled: boolean;
+  satsangaAttended: boolean;
+}): {
+  totalScore: number;
+  maxAvailableMarks: number;
+  percentage: number;
+  grade: Grade;
+} {
+  const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
+  const classMarks = params.weeklyClassesAttended * 10;
+  const morningMarks = params.morningProgrammesAttended * 10;
+  const satsangaMarks = params.satsangaScheduled && params.satsangaAttended ? 10 : 0;
+
+  const totalScore = Number((dailyTotal + classMarks + morningMarks + satsangaMarks).toFixed(2));
+
+  const maxAvailableMarks =
+    params.totalDaysInMonth * 30 +
+    params.weeklyClassesScheduled * 10 +
+    params.morningProgrammesScheduled * 10 +
+    (params.satsangaScheduled ? 10 : 0);
+
+  const percentage = maxAvailableMarks > 0 ? Number(((totalScore / maxAvailableMarks) * 100).toFixed(1)) : 0;
+  const grade = calculateGrade(percentage);
+
+  return {
+    totalScore,
+    maxAvailableMarks,
+    percentage,
+    grade,
+  };
+}
