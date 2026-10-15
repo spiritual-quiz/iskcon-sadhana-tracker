@@ -81,11 +81,9 @@ const styles = StyleSheet.create({
     ...THEME.shadows.medium,
   },
   logoImage: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 2,
-    borderColor: THEME.colors.gold,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     marginBottom: 8,
   },
   brandTitle: {
