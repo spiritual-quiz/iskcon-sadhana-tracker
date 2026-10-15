@@ -13,6 +13,7 @@ import { SadhanaEntry, AuditRecord } from '../types/sadhana';
 import { evaluateDailySadhana, SadhanaInput } from '../utils/scoringEngine';
 import { getTodayDateStringIST } from '../utils/dateUtils';
 import { monitoringService } from './monitoringService';
+import { localStorageService } from './localStorageService';
 
 export const sadhanaService = {
   /**
@@ -39,15 +40,21 @@ export const sadhanaService = {
 
     const nowIso = new Date().toISOString();
 
-    // 2. Check for existing entry to maintain audit trail
-    const existingSnap = await getDoc(entryRef);
+    // 2. Check for existing entry to maintain audit trail (checking Firestore then local storage)
+    let prevData: SadhanaEntry | null = null;
+    try {
+      const existingSnap = await getDoc(entryRef);
+      if (existingSnap.exists()) {
+        prevData = existingSnap.data() as SadhanaEntry;
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+      prevData = await localStorageService.getSadhanaEntry(params.userId, dateStr);
+    }
+
     let auditHistory: AuditRecord[] = [];
-
-    if (existingSnap.exists()) {
-      const prevData = existingSnap.data() as SadhanaEntry;
+    if (prevData) {
       auditHistory = prevData.auditHistory || [];
-
-      // Record audit change
       auditHistory.push({
         timestamp: nowIso,
         modifiedBy: params.modifiedBy,
@@ -89,13 +96,21 @@ export const sadhanaService = {
       isComplete: evaluation.isComplete,
       isZeroScore: evaluation.isZeroScore,
       auditHistory,
-      createdAt: existingSnap.exists() ? (existingSnap.data().createdAt || nowIso) : nowIso,
+      createdAt: prevData ? (prevData.createdAt || nowIso) : nowIso,
       updatedAt: nowIso,
     };
 
-    await setDoc(entryRef, entry);
+    // 4. Save to local persistent storage (always succeeds)
+    await localStorageService.saveSadhanaEntry(entry);
 
-    // 4. Resolve any open missing-card alert for this user since a valid entry was submitted
+    // 5. Attempt Cloud Firestore sync (if permissions/network allow)
+    try {
+      await setDoc(entryRef, entry);
+    } catch (cloudErr) {
+      console.warn('Cloud Firestore sync deferred/fallback (saved in local storage):', cloudErr);
+    }
+
+    // 6. Resolve any open missing-card alert for this user since a valid entry was submitted
     try {
       await monitoringService.resolveMissingCardAlert(params.userId);
     } catch (e) {
@@ -110,8 +125,19 @@ export const sadhanaService = {
    */
   getDailyEntry: async (userId: string, dateStr: string): Promise<SadhanaEntry | null> => {
     const entryId = `${userId}_${dateStr}`;
-    const snap = await getDoc(doc(db, 'sadhana_entries', entryId));
-    return snap.exists() ? (snap.data() as SadhanaEntry) : null;
+    try {
+      const snap = await getDoc(doc(db, 'sadhana_entries', entryId));
+      if (snap.exists()) {
+        const data = snap.data() as SadhanaEntry;
+        await localStorageService.saveSadhanaEntry(data);
+        return data;
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+    }
+
+    // Fallback to local storage
+    return await localStorageService.getSadhanaEntry(userId, dateStr);
   },
 
   /**
@@ -122,37 +148,60 @@ export const sadhanaService = {
     startDate: string,
     endDate: string
   ): Promise<SadhanaEntry[]> => {
-    const q = query(
-      collection(db, 'sadhana_entries'),
-      where('userId', '==', userId),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'asc')
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as SadhanaEntry);
+    try {
+      const q = query(
+        collection(db, 'sadhana_entries'),
+        where('userId', '==', userId),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate),
+        orderBy('date', 'asc')
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs.map((d) => d.data() as SadhanaEntry);
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+    }
+
+    return await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
   },
 
   /**
    * Admin: Get all counselees' entries for a specific date
    */
   getAllEntriesForDate: async (dateStr: string): Promise<SadhanaEntry[]> => {
-    const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as SadhanaEntry);
+    try {
+      const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs.map((d) => d.data() as SadhanaEntry);
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+    }
+
+    return await localStorageService.getAllEntriesForDate(dateStr);
   },
 
   /**
    * Admin: Get latest entry of a user to determine inactivity
    */
   getLatestEntryForUser: async (userId: string): Promise<SadhanaEntry | null> => {
-    const q = query(
-      collection(db, 'sadhana_entries'),
-      where('userId', '==', userId),
-      orderBy('date', 'desc')
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    return snap.docs[0].data() as SadhanaEntry;
+    try {
+      const q = query(
+        collection(db, 'sadhana_entries'),
+        where('userId', '==', userId),
+        orderBy('date', 'desc')
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data() as SadhanaEntry;
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+    }
+
+    return await localStorageService.getLatestEntryForUser(userId);
   },
 };

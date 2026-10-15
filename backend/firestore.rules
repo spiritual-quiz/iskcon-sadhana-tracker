@@ -11,18 +11,24 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function hasUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.role == 'counsellor' || getUserData().role == 'counsellor');
+        (request.auth.token.role == 'counsellor' || 
+         (hasUserData() && getUserData().role == 'counsellor'));
     }
     
     function isApproved() {
       return isAuthenticated() && 
-        (getUserData().status == 'approved' || isAdmin());
+        (isAdmin() || 
+         (hasUserData() && getUserData().status == 'approved'));
     }
 
     // 1. User Profiles Collection

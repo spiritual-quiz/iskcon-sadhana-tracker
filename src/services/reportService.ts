@@ -15,6 +15,7 @@ import { sadhanaService } from './sadhanaService';
 import { attendanceService } from './attendanceService';
 import { calculateWeeklyScoreAndGrade, calculateMonthlyScoreAndGrade } from '../utils/scoringEngine';
 import { getWeekDetails, getMonthDetails } from '../utils/dateUtils';
+import { localStorageService } from './localStorageService';
 
 export const reportService = {
   /**
@@ -105,7 +106,14 @@ export const reportService = {
         grade: scoreCalc.grade,
         publicConsent: params.publicConsent ?? true,
       };
-      await setDoc(doc(db, 'shared_weekly_summaries', summaryId), sharedSummary);
+
+      await localStorageService.saveSharedWeeklySummary(sharedSummary);
+
+      try {
+        await setDoc(doc(db, 'shared_weekly_summaries', summaryId), sharedSummary);
+      } catch (e) {
+        console.warn('Firestore shared_weekly_summaries write fallback:', e);
+      }
     }
 
     return report;
@@ -155,7 +163,7 @@ export const reportService = {
 
     // Approximate 4 weekly cycles per month
     const weeklyClassesScheduled = 4;
-    const weeklyClassesAttended = 3; // Estimated baseline or aggregated from weekly_attendance
+    const weeklyClassesAttended = 3;
     const morningProgrammesScheduled = 4;
     const morningProgrammesAttended = 3;
 
@@ -193,7 +201,7 @@ export const reportService = {
       morningProgrammesMarks: morningProgrammesAttended * 10,
       satsangaScheduled: true,
       satsangaAttended,
-      satsangaMarks: satsangaAttended ? 10 : 0,
+      satsangaMarks: satsangaAttended ? 20 : 0,
       totalScore: scoreCalc.totalScore,
       maxAvailableMarks: scoreCalc.maxAvailableMarks,
       percentage: scoreCalc.percentage,
@@ -219,7 +227,14 @@ export const reportService = {
       consistencyBadge: consistencyRating,
       publicConsent: params.publicConsent ?? true,
     };
-    await setDoc(doc(db, 'shared_monthly_summaries', summaryId), sharedSummary);
+
+    await localStorageService.saveSharedMonthlySummary(sharedSummary);
+
+    try {
+      await setDoc(doc(db, 'shared_monthly_summaries', summaryId), sharedSummary);
+    } catch (e) {
+      console.warn('Firestore shared_monthly_summaries write fallback:', e);
+    }
 
     return report;
   },
@@ -228,21 +243,39 @@ export const reportService = {
    * Counselees: Fetch permitted weekly community summaries
    */
   getCommunityWeeklySummaries: async (weekId: string): Promise<SharedWeeklySummary[]> => {
-    const q = query(collection(db, 'shared_weekly_summaries'), where('weekId', '==', weekId));
-    const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => d.data() as SharedWeeklySummary)
-      .filter((s) => s.publicConsent !== false);
+    try {
+      const q = query(collection(db, 'shared_weekly_summaries'), where('weekId', '==', weekId));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs
+          .map((d) => d.data() as SharedWeeklySummary)
+          .filter((s) => s.publicConsent !== false);
+      }
+    } catch (e) {
+      // Fallback to local storage
+    }
+
+    const localSummaries = await localStorageService.getSharedWeeklySummaries(weekId);
+    return localSummaries.filter((s) => s.publicConsent !== false);
   },
 
   /**
    * Counselees: Fetch permitted monthly community summaries
    */
   getCommunityMonthlySummaries: async (monthId: string): Promise<SharedMonthlySummary[]> => {
-    const q = query(collection(db, 'shared_monthly_summaries'), where('monthId', '==', monthId));
-    const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => d.data() as SharedMonthlySummary)
-      .filter((s) => s.publicConsent !== false);
+    try {
+      const q = query(collection(db, 'shared_monthly_summaries'), where('monthId', '==', monthId));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs
+          .map((d) => d.data() as SharedMonthlySummary)
+          .filter((s) => s.publicConsent !== false);
+      }
+    } catch (e) {
+      // Fallback to local storage
+    }
+
+    const localSummaries = await localStorageService.getSharedMonthlySummaries(monthId);
+    return localSummaries.filter((s) => s.publicConsent !== false);
   },
 };

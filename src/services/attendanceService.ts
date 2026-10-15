@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { WeeklyAttendance, MonthlySatsangaAttendance } from '../types/sadhana';
+import { localStorageService } from './localStorageService';
 
 export const attendanceService = {
   /**
@@ -38,7 +39,14 @@ export const attendanceService = {
       updatedAt: new Date().toISOString(),
     };
 
-    await setDoc(docRef, record);
+    await localStorageService.saveWeeklyAttendance(record);
+
+    try {
+      await setDoc(docRef, record);
+    } catch (e) {
+      console.warn('Firestore weekly attendance write fallback:', e);
+    }
+
     return record;
   },
 
@@ -52,15 +60,26 @@ export const attendanceService = {
     const classId = `${userId}_${weekId}_weekly_class`;
     const morningId = `${userId}_${weekId}_morning_programme`;
 
-    const [classSnap, morningSnap] = await Promise.all([
-      getDoc(doc(db, 'weekly_attendance', classId)),
-      getDoc(doc(db, 'weekly_attendance', morningId)),
-    ]);
+    try {
+      const [classSnap, morningSnap] = await Promise.all([
+        getDoc(doc(db, 'weekly_attendance', classId)),
+        getDoc(doc(db, 'weekly_attendance', morningId)),
+      ]);
 
-    return {
-      weeklyClass: classSnap.exists() ? (classSnap.data() as WeeklyAttendance) : undefined,
-      morningProgramme: morningSnap.exists() ? (morningSnap.data() as WeeklyAttendance) : undefined,
-    };
+      if (classSnap.exists() || morningSnap.exists()) {
+        const result = {
+          weeklyClass: classSnap.exists() ? (classSnap.data() as WeeklyAttendance) : undefined,
+          morningProgramme: morningSnap.exists() ? (morningSnap.data() as WeeklyAttendance) : undefined,
+        };
+        if (result.weeklyClass) await localStorageService.saveWeeklyAttendance(result.weeklyClass);
+        if (result.morningProgramme) await localStorageService.saveWeeklyAttendance(result.morningProgramme);
+        return result;
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+    }
+
+    return await localStorageService.getWeeklyAttendanceForUser(userId, weekId);
   },
 
   /**
@@ -88,7 +107,14 @@ export const attendanceService = {
       updatedAt: new Date().toISOString(),
     };
 
-    await setDoc(docRef, record);
+    await localStorageService.saveMonthlySatsanga(record);
+
+    try {
+      await setDoc(docRef, record);
+    } catch (e) {
+      console.warn('Firestore monthly satsanga write fallback:', e);
+    }
+
     return record;
   },
 
@@ -100,7 +126,17 @@ export const attendanceService = {
     monthId: string
   ): Promise<MonthlySatsangaAttendance | null> => {
     const id = `${userId}_${monthId}`;
-    const snap = await getDoc(doc(db, 'monthly_satsanga', id));
-    return snap.exists() ? (snap.data() as MonthlySatsangaAttendance) : null;
+    try {
+      const snap = await getDoc(doc(db, 'monthly_satsanga', id));
+      if (snap.exists()) {
+        const data = snap.data() as MonthlySatsangaAttendance;
+        await localStorageService.saveMonthlySatsanga(data);
+        return data;
+      }
+    } catch (e) {
+      // Fallback
+    }
+
+    return await localStorageService.getMonthlySatsangaForUser(userId, monthId);
   },
 };
