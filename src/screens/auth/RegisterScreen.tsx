@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,32 +11,89 @@ import {
   Platform,
   ScrollView,
   Image,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
-import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
+import {
+  calculateAge,
+  calculateConnectionDuration,
+  formatDateToDevoteeFormat,
+} from '../../utils/dateUtils';
 import { validateInvitationCode } from '../../services/invitationService';
+import { DateSelectorModal } from '../../components/DateSelectorModal';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const { register } = useAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
 
+  // Invitation Code
   const [invitationCode, setInvitationCode] = useState('');
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [codeValidated, setCodeValidated] = useState(false);
 
+  // Profile details
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState(''); // YYYY-MM-DD
-  const [iskconConnectDate, setIskconConnectDate] = useState(''); // YYYY-MM-DD
   const [declaredRounds, setDeclaredRounds] = useState('16');
+
+  // Scrolling Date Picker States
+  const [dateOfBirthDisplay, setDateOfBirthDisplay] = useState(''); // e.g. 10-May-1988
+  const [dateOfBirthIso, setDateOfBirthIso] = useState(''); // e.g. 1988-05-10
+  const [showDobPicker, setShowDobPicker] = useState(false);
+
+  const [iskconConnectDisplay, setIskconConnectDisplay] = useState(''); // e.g. 15-Jan-2018
+  const [iskconConnectIso, setIskconConnectIso] = useState(''); // e.g. 2018-01-15
+  const [showConnectPicker, setShowConnectPicker] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Keyboard avoidance and auto-scroll tracking
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const fieldPositions = useRef<{ [key: string]: number }>({});
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleFieldLayout = (key: string, y: number) => {
+    fieldPositions.current[key] = y;
+  };
+
+  const handleFieldFocus = (key: string) => {
+    const y = fieldPositions.current[key];
+    if (y !== undefined && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, y - 40),
+          animated: true,
+        });
+      }, 120);
+    }
+  };
+
   // Live dynamic calculations
-  const dynamicAge = calculateAge(dateOfBirth);
-  const dynamicConnection = calculateConnectionDuration(iskconConnectDate);
+  const dynamicAge = calculateAge(dateOfBirthDisplay || dateOfBirthIso);
+  const dynamicConnection = calculateConnectionDuration(iskconConnectDisplay || iskconConnectIso);
 
   const handleVerifyInvitation = async () => {
     if (!invitationCode.trim()) {
@@ -77,8 +134,8 @@ export const RegisterScreen = ({ navigation }: any) => {
         displayName: displayName.trim(),
         phoneNumber: phoneNumber.trim(),
         invitationCode: invitationCode.trim(),
-        dateOfBirth: dateOfBirth.trim() || undefined,
-        iskconConnectDate: iskconConnectDate.trim() || undefined,
+        dateOfBirth: dateOfBirthIso || undefined,
+        iskconConnectDate: iskconConnectIso || undefined,
         declaredRounds: rounds,
       });
 
@@ -98,8 +155,17 @@ export const RegisterScreen = ({ navigation }: any) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Header */}
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 36 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      >
+        {/* Header with Official Logo */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={20} color={THEME.colors.primary} />
@@ -114,7 +180,10 @@ export const RegisterScreen = ({ navigation }: any) => {
         </View>
 
         {/* Step 1: Invitation Code */}
-        <View style={styles.card}>
+        <View
+          style={styles.card}
+          onLayout={(e) => handleFieldLayout('invitationCard', e.nativeEvent.layout.y)}
+        >
           <Text style={styles.cardSectionTitle}>Step 1: Counsellor Invitation Code</Text>
           <Text style={styles.helperText}>
             Enter the invitation code (e.g. KRISHNA7 or SADHANA16) provided by your counsellor.
@@ -129,6 +198,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 setInvitationCode(val.toUpperCase());
                 setCodeValidated(false);
               }}
+              onFocus={() => handleFieldFocus('invitationCard')}
               autoCapitalize="characters"
               maxLength={12}
             />
@@ -152,89 +222,167 @@ export const RegisterScreen = ({ navigation }: any) => {
         <View style={styles.card}>
           <Text style={styles.cardSectionTitle}>Step 2: Devotee Profile Details</Text>
 
-          <View style={styles.inputGroup}>
+          {/* Name */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('name', e.nativeEvent.layout.y)}
+          >
             <Text style={styles.inputLabel}>Initiated / Devotional Name *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="e.g. Ramesh Das"
               value={displayName}
               onChangeText={setDisplayName}
+              onFocus={() => handleFieldFocus('name')}
             />
           </View>
 
-          <View style={styles.inputGroup}>
+          {/* Email */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('email', e.nativeEvent.layout.y)}
+          >
             <Text style={styles.inputLabel}>Email Address *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="devotee@iskcon.org"
               value={email}
               onChangeText={setEmail}
+              onFocus={() => handleFieldFocus('email')}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
 
-          <View style={styles.inputGroup}>
+          {/* Password */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('password', e.nativeEvent.layout.y)}
+          >
             <Text style={styles.inputLabel}>Create Password *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="••••••••"
               value={password}
               onChangeText={setPassword}
+              onFocus={() => handleFieldFocus('password')}
               secureTextEntry
             />
           </View>
 
-          <View style={styles.inputGroup}>
+          {/* WhatsApp / Phone */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('phone', e.nativeEvent.layout.y)}
+          >
             <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="+919876543210"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
+              onFocus={() => handleFieldFocus('phone')}
               keyboardType="phone-pad"
             />
           </View>
 
-          <View style={styles.inputGroup}>
+          {/* Daily Rounds */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('rounds', e.nativeEvent.layout.y)}
+          >
             <Text style={styles.inputLabel}>Daily Japa Commitment (Rounds) *</Text>
             <TextInput
               style={styles.textInput}
               placeholder="16"
               value={declaredRounds}
               onChangeText={setDeclaredRounds}
+              onFocus={() => handleFieldFocus('rounds')}
               keyboardType="numeric"
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Date of Birth (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="1995-08-25"
-              value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-            />
-            {dynamicAge !== null && (
-              <Text style={styles.dynamicCalculationText}>Age: {dynamicAge} years</Text>
+          {/* Date of Birth Scrolling Selector */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('dob', e.nativeEvent.layout.y)}
+          >
+            <Text style={styles.inputLabel}>Date of Birth (Day-Month-Year)</Text>
+            <TouchableOpacity
+              style={styles.dateSelectorCard}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowDobPicker(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dateSelectorContent}>
+                <Ionicons name="calendar" size={18} color={THEME.colors.primary} />
+                <Text
+                  style={[
+                    styles.dateSelectorText,
+                    !dateOfBirthDisplay && styles.dateSelectorPlaceholder,
+                  ]}
+                >
+                  {dateOfBirthDisplay ? dateOfBirthDisplay : 'Scroll & Select (e.g. 10-May-1988)'}
+                </Text>
+              </View>
+              <View style={styles.dateBadge}>
+                <Text style={styles.dateBadgeText}>Choose Date</Text>
+                <Ionicons name="chevron-forward" size={14} color={THEME.colors.goldDark} />
+              </View>
+            </TouchableOpacity>
+            {dynamicAge !== null && dynamicAge > 0 && (
+              <View style={styles.calculationBadge}>
+                <Ionicons name="sparkles" size={12} color={THEME.colors.goldDark} />
+                <Text style={styles.dynamicCalculationText}>Current Age: {dynamicAge} years</Text>
+              </View>
             )}
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Date of Association with ISKCON (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="2020-01-15"
-              value={iskconConnectDate}
-              onChangeText={setIskconConnectDate}
-            />
-            {dynamicConnection && (
-              <Text style={styles.dynamicCalculationText}>
-                Devotional Association: {dynamicConnection.text}
-              </Text>
+          {/* Date of Association with ISKCON Scrolling Selector */}
+          <View
+            style={styles.inputGroup}
+            onLayout={(e) => handleFieldLayout('association', e.nativeEvent.layout.y)}
+          >
+            <Text style={styles.inputLabel}>Date of Association with ISKCON</Text>
+            <TouchableOpacity
+              style={styles.dateSelectorCard}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowConnectPicker(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dateSelectorContent}>
+                <Ionicons name="heart" size={18} color={THEME.colors.goldDark} />
+                <Text
+                  style={[
+                    styles.dateSelectorText,
+                    !iskconConnectDisplay && styles.dateSelectorPlaceholder,
+                  ]}
+                >
+                  {iskconConnectDisplay
+                    ? iskconConnectDisplay
+                    : 'Scroll & Select (e.g. 15-Jan-2018)'}
+                </Text>
+              </View>
+              <View style={styles.dateBadge}>
+                <Text style={styles.dateBadgeText}>Choose Date</Text>
+                <Ionicons name="chevron-forward" size={14} color={THEME.colors.goldDark} />
+              </View>
+            </TouchableOpacity>
+            {dynamicConnection && dynamicConnection.years + dynamicConnection.months > 0 && (
+              <View style={styles.calculationBadge}>
+                <Ionicons name="sparkles" size={12} color={THEME.colors.goldDark} />
+                <Text style={styles.dynamicCalculationText}>
+                  Devotional Association: {dynamicConnection.text}
+                </Text>
+              </View>
             )}
           </View>
 
+          {/* Submit Button */}
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleRegister}
@@ -248,6 +396,38 @@ export const RegisterScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Date of Birth Picker Modal */}
+      <DateSelectorModal
+        visible={showDobPicker}
+        title="Select Date of Birth"
+        subtitle="Scroll Date, Month & Year (e.g. 10-May-1988)"
+        initialDate={dateOfBirthIso || dateOfBirthDisplay || '1990-05-10'}
+        minYear={1930}
+        maxYear={new Date().getFullYear()}
+        mode="birth"
+        onSelectDate={(displayStr, isoStr) => {
+          setDateOfBirthDisplay(displayStr);
+          setDateOfBirthIso(isoStr);
+        }}
+        onClose={() => setShowDobPicker(false)}
+      />
+
+      {/* Date of Association with ISKCON Picker Modal */}
+      <DateSelectorModal
+        visible={showConnectPicker}
+        title="Date of Association with ISKCON"
+        subtitle="Scroll Date, Month & Year (e.g. 15-Jan-2018)"
+        initialDate={iskconConnectIso || iskconConnectDisplay || '2018-01-15'}
+        minYear={1966}
+        maxYear={new Date().getFullYear()}
+        mode="association"
+        onSelectDate={(displayStr, isoStr) => {
+          setIskconConnectDisplay(displayStr);
+          setIskconConnectIso(isoStr);
+        }}
+        onClose={() => setShowConnectPicker(false)}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -260,7 +440,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 12,
     paddingTop: 12,
-    paddingBottom: 28,
+    paddingBottom: 36,
   },
   header: {
     flexDirection: 'row',
@@ -354,11 +534,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: THEME.colors.text,
   },
+  dateSelectorCard: {
+    height: 44,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateSelectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  dateSelectorText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+  },
+  dateSelectorPlaceholder: {
+    fontSize: 12,
+    fontWeight: 'normal',
+    color: THEME.colors.textMuted,
+  },
+  dateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 2,
+  },
+  dateBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: THEME.colors.goldDark,
+  },
+  calculationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
   dynamicCalculationText: {
     fontSize: 11,
     color: THEME.colors.goldDark,
     fontWeight: 'bold',
-    marginTop: 2,
   },
   submitButton: {
     backgroundColor: THEME.colors.primary,

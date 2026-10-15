@@ -38,13 +38,88 @@ export function getCurrentTimeIST(): string {
   return `${hours}:${minutes}`;
 }
 
+export const MONTH_NAMES_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
 /**
- * Calculates current dynamic age from YYYY-MM-DD
+ * Parses date string in either 'YYYY-MM-DD' or 'DD-MMM-YYYY' format.
+ * Returns { year, month, day } where month is 1-indexed (1-12).
+ */
+export function parseDateComponents(dateStr?: string): { year: number; month: number; day: number } | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  
+  // Format: 10-May-1988 or 10-MAY-1988 or 1-May-1988
+  if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(trimmed)) {
+    const [dStr, mStr, yStr] = trimmed.split('-');
+    const day = parseInt(dStr, 10);
+    const year = parseInt(yStr, 10);
+    const monthIndex = MONTH_NAMES_SHORT.findIndex(
+      (m) => m.toLowerCase() === mStr.toLowerCase()
+    );
+    if (monthIndex >= 0 && day >= 1 && day <= 31 && year > 1900) {
+      return { year, month: monthIndex + 1, day };
+    }
+  }
+
+  // Format: YYYY-MM-DD
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmed)) {
+    const [yStr, mStr, dStr] = trimmed.split('-');
+    const year = parseInt(yStr, 10);
+    const month = parseInt(mStr, 10);
+    const day = parseInt(dStr, 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year > 1900) {
+      return { year, month, day };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Formats components or ISO date string to devotee format: '10-May-1988'
+ */
+export function formatDateToDevoteeFormat(dateInput: string | { year: number; month: number; day: number }): string {
+  if (typeof dateInput === 'string') {
+    const parts = parseDateComponents(dateInput);
+    if (!parts) return dateInput;
+    const dd = String(parts.day).padStart(2, '0');
+    const mmm = MONTH_NAMES_SHORT[parts.month - 1];
+    return `${dd}-${mmm}-${parts.year}`;
+  }
+  const dd = String(dateInput.day).padStart(2, '0');
+  const mmm = MONTH_NAMES_SHORT[dateInput.month - 1];
+  return `${dd}-${mmm}-${dateInput.year}`;
+}
+
+/**
+ * Formats components or devotee format to ISO 'YYYY-MM-DD'
+ */
+export function formatDevoteeDateToISO(dateInput: string | { year: number; month: number; day: number }): string {
+  if (typeof dateInput === 'string') {
+    const parts = parseDateComponents(dateInput);
+    if (!parts) return dateInput;
+    const yyyy = String(parts.year);
+    const mm = String(parts.month).padStart(2, '0');
+    const dd = String(parts.day).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  const yyyy = String(dateInput.year);
+  const mm = String(dateInput.month).padStart(2, '0');
+  const dd = String(dateInput.day).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Calculates current dynamic age from YYYY-MM-DD or DD-MMM-YYYY (e.g. 10-May-1988)
  */
 export function calculateAge(dobString?: string): number {
   if (!dobString) return 0;
-  const [year, month, day] = dobString.split('-').map(Number);
-  if (!year || !month || !day) return 0;
+  const parts = parseDateComponents(dobString);
+  if (!parts) return 0;
+  const { year, month, day } = parts;
   
   const today = getNowInIST();
   let age = today.getFullYear() - year;
@@ -58,12 +133,13 @@ export function calculateAge(dobString?: string): number {
 }
 
 /**
- * Calculates dynamic connection duration in years & months from YYYY-MM-DD
+ * Calculates dynamic connection duration in years & months from YYYY-MM-DD or DD-MMM-YYYY
  */
 export function calculateConnectionDuration(connectDateString?: string): { years: number; months: number; text: string } {
   if (!connectDateString) return { years: 0, months: 0, text: '0 years' };
-  const [year, month, day] = connectDateString.split('-').map(Number);
-  if (!year || !month || !day) return { years: 0, months: 0, text: '0 years' };
+  const parts = parseDateComponents(connectDateString);
+  if (!parts) return { years: 0, months: 0, text: '0 years' };
+  const { year, month, day } = parts;
   
   const today = getNowInIST();
   let years = today.getFullYear() - year;
@@ -102,12 +178,15 @@ export function isLeapYear(year: number): boolean {
 
 /**
  * Determines the birthday date for a counselee in a target year.
- * Handles Feb 29 birthdays on Feb 28 in non-leap years.
+ * Handles Feb 29 birthdays on Feb 28 in non-leap years. Supports YYYY-MM-DD and DD-MMM-YYYY.
  */
 export function getBirthdayInYear(dobString: string, targetYear: number): { dateString: string; isLeapAdjusted: boolean } {
-  const parts = dobString.split('-').map(Number);
-  const birthMonth = parts[1];
-  const birthDay = parts[2];
+  const parts = parseDateComponents(dobString);
+  if (!parts) {
+    return { dateString: `${targetYear}-01-01`, isLeapAdjusted: false };
+  }
+  const birthMonth = parts.month;
+  const birthDay = parts.day;
 
   if (birthMonth === 2 && birthDay === 29 && !isLeapYear(targetYear)) {
     return {

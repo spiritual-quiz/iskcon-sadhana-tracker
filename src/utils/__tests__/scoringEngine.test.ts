@@ -14,6 +14,9 @@ import {
   calculateConnectionDuration,
   getBirthdayInYear,
   getDaysDifference,
+  parseDateComponents,
+  formatDateToDevoteeFormat,
+  formatDevoteeDateToISO,
 } from '../dateUtils';
 
 describe('Scoring Engine Unit Tests', () => {
@@ -260,5 +263,48 @@ describe('Date Utilities & Sleep Duration', () => {
   test('calculates missing days difference accurately', () => {
     const diff = getDaysDifference('2026-10-10', '2026-10-14');
     expect(diff).toBe(4);
+  });
+
+  describe('Devotee Date Formats & Scrolling Picker Conversions', () => {
+    test('parses DD-MMM-YYYY format like 10-May-1988 accurately', () => {
+      const parsed = parseDateComponents('10-May-1988');
+      expect(parsed).toEqual({ day: 10, month: 5, year: 1988 });
+    });
+
+    test('parses ISO format 1988-05-10 accurately', () => {
+      const parsed = parseDateComponents('1988-05-10');
+      expect(parsed).toEqual({ day: 10, month: 5, year: 1988 });
+    });
+
+    test('formats ISO date to devotee format (10-May-1988)', () => {
+      const formatted = formatDateToDevoteeFormat('1988-05-10');
+      expect(formatted).toBe('10-May-1988');
+    });
+
+    test('formats devotee format to ISO (1988-05-10)', () => {
+      const iso = formatDevoteeDateToISO('10-May-1988');
+      expect(iso).toBe('1988-05-10');
+    });
+
+    test('calculateAge produces identical results for 10-May-1988 and 1988-05-10', () => {
+      const ageFromDevoteeFormat = calculateAge('10-May-1988');
+      const ageFromIsoFormat = calculateAge('1988-05-10');
+      expect(ageFromDevoteeFormat).toBeGreaterThan(0);
+      expect(ageFromDevoteeFormat).toBe(ageFromIsoFormat);
+    });
+
+    test('calculateConnectionDuration produces identical results for 15-Jan-2018 and 2018-01-15', () => {
+      const duration1 = calculateConnectionDuration('15-Jan-2018');
+      const duration2 = calculateConnectionDuration('2018-01-15');
+      expect(duration1.years).toBe(duration2.years);
+      expect(duration1.months).toBe(duration2.months);
+      expect(duration1.text).toBe(duration2.text);
+    });
+
+    test('birthday calculations work seamlessly with 29-Feb-1996', () => {
+      const bday = getBirthdayInYear('29-Feb-1996', 2025);
+      expect(bday.dateString).toBe('2025-02-28');
+      expect(bday.isLeapAdjusted).toBe(true);
+    });
   });
 });
