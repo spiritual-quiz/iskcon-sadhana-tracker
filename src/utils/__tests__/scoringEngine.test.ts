@@ -2,6 +2,7 @@ import {
   calculateJapaMarks,
   calculateReadingMarks,
   calculateHearingMarks,
+  calculateSleepMarks,
   calculateGrade,
   evaluateDailySadhana,
   calculateWeeklyScoreAndGrade,
@@ -105,6 +106,33 @@ describe('Scoring Engine Unit Tests', () => {
     });
   });
 
+  describe('Option D: Sleep & Rest Scoring', () => {
+    test('up to 7 hours awards 10 marks', () => {
+      expect(calculateSleepMarks(390).marks).toBe(10); // 6.5 hours
+      expect(calculateSleepMarks(420).marks).toBe(10); // exactly 7 hours
+    });
+
+    test('7 to 8 hours awards 8 marks', () => {
+      expect(calculateSleepMarks(450).marks).toBe(8); // 7.5 hours
+      expect(calculateSleepMarks(480).marks).toBe(8); // 8.0 hours
+    });
+
+    test('above 8 hours to < 10 hours awards 5 marks', () => {
+      expect(calculateSleepMarks(510).marks).toBe(5); // 8.5 hours
+      expect(calculateSleepMarks(540).marks).toBe(5); // 9 hours
+      expect(calculateSleepMarks(570).marks).toBe(5); // 9.5 hours
+    });
+
+    test('10 hours or more awards 0 marks', () => {
+      expect(calculateSleepMarks(600).marks).toBe(0); // 10.0 hours
+      expect(calculateSleepMarks(660).marks).toBe(0); // 11.0 hours
+    });
+
+    test('0 minutes awards 0 marks', () => {
+      expect(calculateSleepMarks(0).marks).toBe(0);
+    });
+  });
+
   describe('Grade Boundaries', () => {
     test('A: 90% to 100%', () => {
       expect(calculateGrade(100)).toBe('A');
@@ -133,66 +161,74 @@ describe('Scoring Engine Unit Tests', () => {
   });
 
   describe('Daily Sadhana Evaluation Integration', () => {
-    test('perfect sadhana yields 30/30, 100%, Grade A', () => {
+    test('perfect sadhana yields 40/40, 100%, Grade A', () => {
       const result = evaluateDailySadhana({
         declaredRounds: 16,
         completedRounds: 16,
-        completionTimeStr: '06:30',
-        readingMinutes: 30,
-        hearingMinutes: 30,
+        completionTimeStr: '06:30', // 10
+        readingMinutes: 30, // 10
+        hearingMinutes: 30, // 10
+        sleepTimeStr: '21:30',
+        wakeUpTimeStr: '04:00', // 6.5 hours -> 10 marks
+        restMinutes: 0,
       });
 
-      expect(result.dailyTotalScore).toBe(30);
+      expect(result.dailyTotalScore).toBe(40);
       expect(result.percentage).toBe(100);
       expect(result.grade).toBe('A');
+      expect(result.sleepMarks).toBe(10);
       expect(result.isZeroScore).toBe(false);
     });
 
-    test('partial japa and partial reading calculates precisely', () => {
+    test('partial japa, reading, hearing, and 8h sleep calculates out of 40', () => {
       const result = evaluateDailySadhana({
         declaredRounds: 16,
         completedRounds: 16,
         completionTimeStr: '08:30', // 5 marks
         readingMinutes: 15, // 5 marks
-        hearingMinutes: 0, // 0 marks
+        hearingMinutes: 15, // 5 marks
+        sleepTimeStr: '22:00',
+        wakeUpTimeStr: '06:00', // 8.0 hours -> 8 marks
+        restMinutes: 0,
       });
 
       expect(result.japaMarks).toBe(5);
       expect(result.readingMarks).toBe(5);
-      expect(result.hearingMarks).toBe(0);
-      expect(result.dailyTotalScore).toBe(10);
-      expect(result.percentage).toBe(33.3);
+      expect(result.hearingMarks).toBe(5);
+      expect(result.sleepMarks).toBe(8);
+      expect(result.dailyTotalScore).toBe(23); // 23/40 = 57.5% -> E
+      expect(result.percentage).toBe(57.5);
       expect(result.grade).toBe('E');
     });
   });
 
   describe('Weekly Programme Scoring', () => {
-    test('calculates 7 days plus weekly class and morning programme out of 230', () => {
-      const dailyScores = [30, 30, 30, 30, 30, 30, 30]; // 210
+    test('calculates 7 days plus weekly class and morning programme out of 300', () => {
+      const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
         weeklyClassAttended: true, // +10
         morningProgrammeAttended: true, // +10
       });
 
-      expect(weekly.totalScore).toBe(230);
-      expect(weekly.maxAvailableMarks).toBe(230);
+      expect(weekly.totalScore).toBe(300);
+      expect(weekly.maxAvailableMarks).toBe(300);
       expect(weekly.percentage).toBe(100);
       expect(weekly.grade).toBe('A');
     });
 
-    test('zero attendance on weekly activities correctly reflects in score without duplicates', () => {
-      const dailyScores = [20, 20, 20, 20, 20, 20, 20]; // 140
+    test('partial weekly score out of 300', () => {
+      const dailyScores = [30, 30, 30, 30, 30, 30, 30]; // 210
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
-        weeklyClassAttended: false,
+        weeklyClassAttended: true, // +10
         morningProgrammeAttended: false,
       });
 
-      expect(weekly.totalScore).toBe(140);
-      expect(weekly.maxAvailableMarks).toBe(230);
-      expect(weekly.percentage).toBe(60.9);
-      expect(weekly.grade).toBe('D');
+      expect(weekly.totalScore).toBe(220);
+      expect(weekly.maxAvailableMarks).toBe(300);
+      expect(weekly.percentage).toBe(73.3);
+      expect(weekly.grade).toBe('C');
     });
   });
 });

@@ -27,13 +27,15 @@ export interface SadhanaEntry {
   hearingMinutes: number;
   hearingMarks: number; // 0 to 10
   
-  // D. Sleep & Rest (Informational, does not affect daily score)
+  // D. Sleep & Rest
   sleepTimeStr?: string; // e.g. "21:30"
   wakeUpTimeStr?: string; // e.g. "04:00"
   restMinutes: number; // daytime rest in minutes
+  sleepMarks: number; // 0, 5, 8, or 10 marks
+  totalSleepMinutes?: number;
   
   // E. Score Totals
-  dailyTotalScore: number; // 0 to 30
+  dailyTotalScore: number; // 0 to 40
   percentage: number; // 0 to 100%
   grade: Grade;
   

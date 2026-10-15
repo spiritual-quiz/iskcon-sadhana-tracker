@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -71,11 +72,11 @@ export const RegisterScreen = ({ navigation }: any) => {
     setIsSubmitting(true);
     try {
       await register({
-        invitationCode: invitationCode.trim(),
-        displayName: displayName.trim(),
         email: email.trim(),
         password,
+        displayName: displayName.trim(),
         phoneNumber: phoneNumber.trim(),
+        invitationCode: invitationCode.trim(),
         dateOfBirth: dateOfBirth.trim() || undefined,
         iskconConnectDate: iskconConnectDate.trim() || undefined,
         declaredRounds: rounds,
@@ -101,22 +102,28 @@ export const RegisterScreen = ({ navigation }: any) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={THEME.colors.primary} />
+            <Ionicons name="arrow-back" size={20} color={THEME.colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Devotee Registration</Text>
+          <View style={styles.headerBrandRow}>
+            <Image source={require('../../../assets/logo.png')} style={styles.miniLogo} />
+            <View>
+              <Text style={styles.headerTitle}>Bhakti Unnati</Text>
+              <Text style={styles.headerSubtitle}>Advancement in Devotion</Text>
+            </View>
+          </View>
         </View>
 
         {/* Step 1: Invitation Code */}
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>Step 1: Invitation Code</Text>
+          <Text style={styles.cardSectionTitle}>Step 1: Counsellor Invitation Code</Text>
           <Text style={styles.helperText}>
-            Enter the 8-character invitation code provided by your counsellor.
+            Enter the invitation code (e.g. KRISHNA7 or SADHANA16) provided by your counsellor.
           </Text>
 
           <View style={styles.invitationRow}>
             <TextInput
               style={[styles.textInput, styles.invitationInput]}
-              placeholder="e.g. KRISHNA7"
+              placeholder="KRISHNA7"
               value={invitationCode}
               onChangeText={(val) => {
                 setInvitationCode(val.toUpperCase());
@@ -131,7 +138,7 @@ export const RegisterScreen = ({ navigation }: any) => {
               disabled={isValidatingCode}
             >
               {isValidatingCode ? (
-                <ActivityIndicator size="small" color={THEME.colors.textInverse} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={styles.verifyButtonText}>
                   {codeValidated ? 'Verified ✓' : 'Verify'}
@@ -141,28 +148,17 @@ export const RegisterScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* Step 2: Devotee Profile Details */}
+        {/* Step 2: Personal & Spiritual Profile */}
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>Step 2: Profile & Credentials</Text>
+          <Text style={styles.cardSectionTitle}>Step 2: Devotee Profile Details</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Full Legal or Devotional Name *</Text>
+            <Text style={styles.inputLabel}>Initiated / Devotional Name *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g. Ramesh Kumar / Radharani Dasi"
+              placeholder="e.g. Ramesh Das"
               value={displayName}
               onChangeText={setDisplayName}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Mobile Phone Number *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. +91 98765 43210"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              keyboardType="phone-pad"
             />
           </View>
 
@@ -170,7 +166,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             <Text style={styles.inputLabel}>Email Address *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="devotee@example.com"
+              placeholder="devotee@iskcon.org"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -179,13 +175,35 @@ export const RegisterScreen = ({ navigation }: any) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password *</Text>
+            <Text style={styles.inputLabel}>Create Password *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="Create a secure password"
+              placeholder="••••••••"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="+919876543210"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Daily Japa Commitment (Rounds) *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="16"
+              value={declaredRounds}
+              onChangeText={setDeclaredRounds}
+              keyboardType="numeric"
             />
           </View>
 
@@ -197,49 +215,33 @@ export const RegisterScreen = ({ navigation }: any) => {
               value={dateOfBirth}
               onChangeText={setDateOfBirth}
             />
-            {dateOfBirth.length === 10 && (
-              <Text style={styles.dynamicCalculationText}>
-                Calculated Age: {dynamicAge} years
-              </Text>
+            {dynamicAge !== null && (
+              <Text style={styles.dynamicCalculationText}>Age: {dynamicAge} years</Text>
             )}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Date Connected with ISKCON (YYYY-MM-DD)</Text>
+            <Text style={styles.inputLabel}>Date of Association with ISKCON (YYYY-MM-DD)</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="2018-05-10"
+              placeholder="2020-01-15"
               value={iskconConnectDate}
               onChangeText={setIskconConnectDate}
             />
-            {iskconConnectDate.length === 10 && (
+            {dynamicConnection && (
               <Text style={styles.dynamicCalculationText}>
-                Connected Duration: {dynamicConnection.text}
+                Devotional Association: {dynamicConnection.text}
               </Text>
             )}
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Declared Daily Chanting Rounds Commitment *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="16"
-              value={declaredRounds}
-              onChangeText={setDeclaredRounds}
-              keyboardType="number-pad"
-            />
-            <Text style={styles.helperText}>
-              Daily marks require completing this exact commitment.
-            </Text>
-          </View>
-
           <TouchableOpacity
-            style={styles.submitButton}
+            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleRegister}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={THEME.colors.textInverse} />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={styles.submitButtonText}>Submit for Counsellor Approval</Text>
             )}
@@ -256,42 +258,56 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.background,
   },
   scrollContent: {
-    padding: THEME.spacing.base,
-    paddingBottom: THEME.spacing.xxl,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 28,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: THEME.spacing.base,
+    marginBottom: 12,
   },
   backBtn: {
     padding: 6,
-    marginRight: THEME.spacing.sm,
+    marginRight: 8,
+  },
+  headerBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   headerTitle: {
-    fontSize: THEME.typography.sizes.xl,
-    fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
-  },
-  card: {
-    backgroundColor: THEME.colors.card,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.base,
-    marginBottom: THEME.spacing.base,
-    borderWidth: 1,
-    borderColor: THEME.colors.border,
-    ...THEME.shadows.soft,
-  },
-  cardSectionTitle: {
-    fontSize: THEME.typography.sizes.base,
+    fontSize: 16,
     fontWeight: 'bold',
     color: THEME.colors.primary,
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: THEME.colors.goldDark,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  cardSectionTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
     marginBottom: 4,
   },
   helperText: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 11,
     color: THEME.colors.textMuted,
-    marginBottom: THEME.spacing.sm,
+    marginBottom: 8,
   },
   invitationRow: {
     flexDirection: 'row',
@@ -299,15 +315,15 @@ const styles = StyleSheet.create({
   },
   invitationInput: {
     flex: 1,
-    marginRight: THEME.spacing.sm,
+    marginRight: 8,
     fontWeight: 'bold',
-    letterSpacing: 2,
+    letterSpacing: 1.5,
   },
   verifyButton: {
     backgroundColor: THEME.colors.primary,
-    paddingHorizontal: THEME.spacing.base,
-    height: 48,
-    borderRadius: THEME.borderRadius.md,
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -315,47 +331,49 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.success,
   },
   verifyButtonText: {
-    color: THEME.colors.textInverse,
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    fontSize: THEME.typography.sizes.sm,
+    fontSize: 12,
   },
   inputGroup: {
-    marginBottom: THEME.spacing.md,
+    marginBottom: 10,
   },
   inputLabel: {
-    fontSize: THEME.typography.sizes.xs,
-    fontWeight: 'bold',
-    color: THEME.colors.textMuted,
-    marginBottom: 4,
+    fontSize: 11,
+    fontWeight: '600',
+    color: THEME.colors.text,
+    marginBottom: 3,
   },
   textInput: {
-    height: 48,
-    backgroundColor: THEME.colors.surfaceVariant,
+    height: 40,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: THEME.borderRadius.md,
-    paddingHorizontal: THEME.spacing.base,
-    fontSize: THEME.typography.sizes.base,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 13,
     color: THEME.colors.text,
   },
   dynamicCalculationText: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 11,
     color: THEME.colors.goldDark,
     fontWeight: 'bold',
-    marginTop: 4,
+    marginTop: 2,
   },
   submitButton: {
     backgroundColor: THEME.colors.primary,
-    height: 50,
-    borderRadius: THEME.borderRadius.md,
+    height: 44,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: THEME.spacing.md,
-    ...THEME.shadows.soft,
+    marginTop: 10,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
   submitButtonText: {
-    color: THEME.colors.textInverse,
-    fontSize: THEME.typography.sizes.base,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

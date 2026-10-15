@@ -1,5 +1,5 @@
 export const SCORING_RULES = {
-  maxDailyScore: 30,
+  maxDailyScore: 40, // 10 (Japa) + 10 (Reading) + 10 (Hearing) + 10 (Sleep & Rest)
   japa: {
     maxMarks: 10,
     brackets: [
@@ -17,6 +17,16 @@ export const SCORING_RULES = {
     maxMarks: 10,
     targetMinutes: 30,
   },
+  sleep: {
+    maxMarks: 10,
+    // 7 hours overall 10 marks, 8 hours 8 marks, above 9 hours 5 marks, 10 hours 0 marks
+    brackets: [
+      { maxHours: 7.0, marks: 10, label: '≤ 7 hours (10 marks)' },
+      { maxHours: 8.0, marks: 8, label: '7 to 8 hours (8 marks)' },
+      { maxHours: 9.99, marks: 5, label: 'Above 8 to < 10 hours (5 marks)' },
+      { maxHours: 24.0, marks: 0, label: '≥ 10 hours (0 marks)' },
+    ],
+  },
   weeklyClass: {
     maxMarks: 10,
   },
@@ -24,7 +34,7 @@ export const SCORING_RULES = {
     maxMarks: 10,
   },
   monthlySatsanga: {
-    maxMarks: 10,
+    maxMarks: 20,
   },
   grades: [
     { grade: 'A', minPercentage: 90.0, maxPercentage: 100.0, label: 'Excellent' },

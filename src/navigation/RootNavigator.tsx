@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
@@ -19,11 +19,16 @@ export const RootNavigator = () => {
   if (isLoading) {
     return (
       <View style={styles.splashContainer}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="flower-outline" size={54} color={THEME.colors.gold} />
+        <View style={styles.logoCircle}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
-        <Text style={styles.splashTitle}>ISKCON Sadhana Tracker</Text>
-        <Text style={styles.splashSubtitle}>Connecting Devotees to Sincere Sadhana</Text>
+        <Text style={styles.splashTitle}>Bhakti Unnati</Text>
+        <Text style={styles.splashSubtitle}>Advancement in Devotion</Text>
+        <Text style={styles.institutionTag}>Bhaktivedanta Rajavidyalaya</Text>
         <ActivityIndicator size="large" color={THEME.colors.gold} style={styles.loader} />
       </View>
     );
@@ -62,32 +67,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: THEME.spacing.xl,
   },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: THEME.colors.primaryDark,
+  logoCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: THEME.colors.gold,
-    marginBottom: THEME.spacing.base,
+    marginBottom: 16,
+    padding: 4,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
   },
   splashTitle: {
-    fontSize: THEME.typography.sizes.xxl,
+    fontSize: 26,
     fontWeight: 'bold',
     color: THEME.colors.textInverse,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   splashSubtitle: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 13,
     color: THEME.colors.goldLight,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  institutionTag: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    marginTop: 2,
     fontStyle: 'italic',
   },
   loader: {
-    marginTop: THEME.spacing.xl,
+    marginTop: 24,
   },
 });

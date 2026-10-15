@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -21,11 +21,16 @@ export const AwaitingApprovalScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="time-outline" size={48} color={THEME.colors.gold} />
-        </View>
+        <Image
+          source={require('../../../assets/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
 
-        <Text style={styles.title}>Awaiting Approval</Text>
+        <Text style={styles.brandTitle}>Bhakti Unnati</Text>
+        <Text style={styles.brandSubtitle}>Advancement in Devotion</Text>
+
+        <Text style={styles.title}>Awaiting Counsellor Approval</Text>
         <Text style={styles.devoteeName}>Hare Krishna, {user?.displayName || 'Devotee'}!</Text>
 
         <Text style={styles.message}>
@@ -75,16 +80,24 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
     ...THEME.shadows.medium,
   },
-  iconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: THEME.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
+  logoImage: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 2,
     borderColor: THEME.colors.gold,
-    marginBottom: THEME.spacing.base,
+    marginBottom: 8,
+  },
+  brandTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    color: THEME.colors.goldDark,
+    fontWeight: '600',
+    marginBottom: 16,
   },
   title: {
     fontSize: THEME.typography.sizes.xxl,

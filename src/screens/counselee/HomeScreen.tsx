@@ -63,7 +63,7 @@ export const HomeScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <Header
-        title="ISKCON Sadhana"
+        title="Bhakti Unnati"
         subtitle={`Hare Krishna, ${user?.displayName || 'Devotee'}`}
         rightAction={{
           iconName: 'notifications-outline',
@@ -96,7 +96,7 @@ export const HomeScreen = ({ navigation }: any) => {
               </Text>
               <Text style={styles.bannerSubtitle}>
                 {todayEntry
-                  ? `Score: ${todayEntry.dailyTotalScore}/30 (Grade ${todayEntry.grade})`
+                  ? `Score: ${todayEntry.dailyTotalScore}/40 (Grade ${todayEntry.grade})`
                   : 'Track your japa, reading, hearing & rest today'}
               </Text>
             </View>

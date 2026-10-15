@@ -1,5 +1,6 @@
-import { Grade, SadhanaEntry } from '../types/sadhana';
+import { Grade } from '../types/sadhana';
 import { SCORING_RULES } from '../constants/scoring';
+import { calculateSleepDurationMinutes } from './dateUtils';
 
 export interface SadhanaInput {
   declaredRounds: number;
@@ -16,7 +17,9 @@ export interface CalculatedSadhanaScore {
   japaMarks: number;
   readingMarks: number;
   hearingMarks: number;
-  dailyTotalScore: number;
+  sleepMarks: number;
+  totalRestMinutes: number;
+  dailyTotalScore: number; // 0 to 40
   percentage: number;
   grade: Grade;
   isComplete: boolean;
@@ -104,6 +107,35 @@ export function calculateHearingMarks(minutes: number): number {
 }
 
 /**
+ * Calculates Sleep & Rest marks adhering to user specifications:
+ * - 7 hours overall: 10 marks
+ * - 8 hours: 8 marks
+ * - Above 8 to < 10 hours: 5 marks
+ * - 10 hours or more: 0 marks
+ */
+export function calculateSleepMarks(totalMinutes: number): {
+  marks: number;
+  hours: number;
+  reason: string;
+} {
+  if (totalMinutes <= 0) {
+    return { marks: 0, hours: 0, reason: 'No rest or sleep recorded' };
+  }
+  const hours = Number((totalMinutes / 60).toFixed(2));
+
+  if (hours <= 7.0) {
+    return { marks: 10, hours, reason: `Optimal rest (${hours}h ≤ 7h): 10 marks` };
+  }
+  if (hours <= 8.0) {
+    return { marks: 8, hours, reason: `Moderate rest (${hours}h ≤ 8h): 8 marks` };
+  }
+  if (hours < 10.0) {
+    return { marks: 5, hours, reason: `High rest (${hours}h < 10h): 5 marks` };
+  }
+  return { marks: 0, hours, reason: `Excess rest (${hours}h ≥ 10h): 0 marks` };
+}
+
+/**
  * Calculates Grade from percentage:
  * 90%–100%: A
  * 80% to < 90%: B
@@ -120,7 +152,8 @@ export function calculateGrade(percentage: number): Grade {
 }
 
 /**
- * Evaluates a complete daily sadhana entry
+ * Evaluates a complete daily sadhana entry with 40-mark scale:
+ * 10 Japa + 10 Reading + 10 Hearing + 10 Sleep/Rest
  */
 export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScore {
   const errors: string[] = [];
@@ -150,17 +183,32 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
   const readingMarks = calculateReadingMarks(input.readingMinutes);
   const hearingMarks = calculateHearingMarks(input.hearingMinutes);
 
-  const dailyTotalScore = Number((japaResult.marks + readingMarks + hearingMarks).toFixed(2));
+  let nightSleepMinutes = 0;
+  if (input.sleepTimeStr && input.wakeUpTimeStr) {
+    nightSleepMinutes = calculateSleepDurationMinutes(input.sleepTimeStr, input.wakeUpTimeStr);
+  }
+  const totalRestMinutes = nightSleepMinutes + (input.restMinutes || 0);
+  const sleepResult = calculateSleepMarks(totalRestMinutes);
+
+  const dailyTotalScore = Number(
+    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks).toFixed(2)
+  );
   const percentage = Number(((dailyTotalScore / SCORING_RULES.maxDailyScore) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
-  const isComplete = input.completedRounds > 0 || input.readingMinutes > 0 || input.hearingMinutes > 0;
+  const isComplete =
+    input.completedRounds > 0 ||
+    input.readingMinutes > 0 ||
+    input.hearingMinutes > 0 ||
+    totalRestMinutes > 0;
   const isZeroScore = dailyTotalScore === 0;
 
   return {
     japaMarks: japaResult.marks,
     readingMarks,
     hearingMarks,
+    sleepMarks: sleepResult.marks,
+    totalRestMinutes,
     dailyTotalScore,
     percentage,
     grade,
@@ -172,9 +220,10 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
 
 /**
  * Calculates weekly total score and grade incorporating weekly programmes
+ * 7 days * 40 = 280, + 10 (class) + 10 (morning) = 300 max available
  */
 export function calculateWeeklyScoreAndGrade(params: {
-  dailyScores: number[]; // up to 7 scores, max 30 each
+  dailyScores: number[]; // up to 7 scores, max 40 each
   weeklyClassAttended: boolean;
   morningProgrammeAttended: boolean;
 }): {
@@ -188,8 +237,8 @@ export function calculateWeeklyScoreAndGrade(params: {
   const morningMarks = params.morningProgrammeAttended ? 10 : 0;
 
   const totalScore = Number((dailyTotal + classMarks + morningMarks).toFixed(2));
-  // 7 days * 30 = 210, + 10 (class) + 10 (morning) = 230 max available
-  const maxAvailableMarks = 7 * 30 + 10 + 10;
+  // 7 days * 40 = 280, + 10 (class) + 10 (morning) = 300 max available
+  const maxAvailableMarks = 7 * SCORING_RULES.maxDailyScore + 10 + 10;
   const percentage = Number(((totalScore / maxAvailableMarks) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
@@ -222,15 +271,15 @@ export function calculateMonthlyScoreAndGrade(params: {
   const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
   const classMarks = params.weeklyClassesAttended * 10;
   const morningMarks = params.morningProgrammesAttended * 10;
-  const satsangaMarks = params.satsangaScheduled && params.satsangaAttended ? 10 : 0;
+  const satsangaMarks = params.satsangaScheduled && params.satsangaAttended ? 20 : 0;
 
   const totalScore = Number((dailyTotal + classMarks + morningMarks + satsangaMarks).toFixed(2));
 
   const maxAvailableMarks =
-    params.totalDaysInMonth * 30 +
+    params.totalDaysInMonth * SCORING_RULES.maxDailyScore +
     params.weeklyClassesScheduled * 10 +
     params.morningProgrammesScheduled * 10 +
-    (params.satsangaScheduled ? 10 : 0);
+    (params.satsangaScheduled ? 20 : 0);
 
   const percentage = maxAvailableMarks > 0 ? Number(((totalScore / maxAvailableMarks) * 100).toFixed(1)) : 0;
   const grade = calculateGrade(percentage);

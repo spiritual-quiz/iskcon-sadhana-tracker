@@ -12,13 +12,13 @@ export interface WeeklyReport {
   totalRounds: number;
   totalReadingMinutes: number;
   totalHearingMinutes: number;
-  dailySadhanaScore: number; // max 7 * 30 = 210
+  dailySadhanaScore: number; // max 7 * 40 = 280
   weeklyClassAttendance: boolean;
   weeklyClassMarks: number; // 0 or 10
   morningProgrammeAttendance: boolean;
   morningProgrammeMarks: number; // 0 or 10
   totalScore: number;
-  maxAvailableMarks: number; // e.g. 210 + 10 + 10 = 230
+  maxAvailableMarks: number; // e.g. 280 + 10 + 10 = 300
   percentage: number;
   grade: Grade;
   missingReportDays: number;

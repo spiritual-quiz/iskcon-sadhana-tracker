@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 
 interface HeaderProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   showBack?: boolean;
   onBackPress?: () => void;
@@ -15,8 +15,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  title,
-  subtitle,
+  title = 'Bhakti Unnati',
+  subtitle = 'Advancement in Devotion',
   showBack,
   onBackPress,
   rightAction,
@@ -26,11 +26,15 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.topRow}>
         {showBack ? (
           <TouchableOpacity onPress={onBackPress} style={styles.iconButton}>
-            <Ionicons name="arrow-back" size={24} color={THEME.colors.gold} />
+            <Ionicons name="arrow-back" size={22} color={THEME.colors.gold} />
           </TouchableOpacity>
         ) : (
-          <View style={styles.iconPlaceholder}>
-            <Ionicons name="flower-outline" size={22} color={THEME.colors.gold} />
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         )}
 
@@ -47,10 +51,10 @@ export const Header: React.FC<HeaderProps> = ({
 
         {rightAction ? (
           <TouchableOpacity onPress={rightAction.onPress} style={styles.iconButton}>
-            <Ionicons name={rightAction.iconName} size={22} color={THEME.colors.gold} />
+            <Ionicons name={rightAction.iconName} size={20} color={THEME.colors.gold} />
           </TouchableOpacity>
         ) : (
-          <View style={styles.iconPlaceholder} />
+          <View style={styles.rightPlaceholder} />
         )}
       </View>
     </View>
@@ -60,10 +64,10 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: THEME.colors.primary,
-    paddingHorizontal: THEME.spacing.base,
-    paddingTop: THEME.spacing.md,
-    paddingBottom: THEME.spacing.base,
-    borderBottomWidth: 2,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1.5,
     borderBottomColor: THEME.colors.gold,
   },
   topRow: {
@@ -71,21 +75,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  logoContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: THEME.colors.gold,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 17,
+  },
   titleContainer: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: THEME.spacing.sm,
+    marginHorizontal: 8,
   },
   title: {
     color: THEME.colors.textInverse,
-    fontSize: THEME.typography.sizes.lg,
+    fontSize: 16,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   subtitle: {
     color: THEME.colors.goldLight,
-    fontSize: THEME.typography.sizes.xs,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
+    letterSpacing: 0.2,
   },
   iconButton: {
     width: 36,
@@ -95,10 +116,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconPlaceholder: {
+  rightPlaceholder: {
     width: 36,
     height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -44,29 +45,31 @@ export const LoginScreen = ({ navigation }: any) => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Devotional Branding Header */}
+        {/* Branding Header with Official Logo */}
         <View style={styles.brandContainer}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="flower-outline" size={44} color={THEME.colors.gold} />
+          <View style={styles.logoCircle}>
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
-          <Text style={styles.brandTitle}>ISKCON Sadhana Tracker</Text>
-          <Text style={styles.mantraText}>
-            Hare Krishna Hare Krishna Krishna Krishna Hare Hare{'\n'}
-            Hare Rama Hare Rama Rama Rama Hare Hare
-          </Text>
+          <Text style={styles.brandTitle}>Bhakti Unnati</Text>
+          <Text style={styles.brandSubtitle}>Advancement in Devotion</Text>
+          <Text style={styles.institutionName}>Bhaktivedanta Rajavidyalaya</Text>
         </View>
 
         {/* Form Container */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Devotee Login</Text>
+          <Text style={styles.cardTitle}>Sign In</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email Address</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color={THEME.colors.textMuted} style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={18} color={THEME.colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
-                placeholder="devotee@example.com"
+                placeholder="devotee@iskcon.org"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -78,10 +81,10 @@ export const LoginScreen = ({ navigation }: any) => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color={THEME.colors.textMuted} style={styles.inputIcon} />
+              <Ionicons name="lock-closed-outline" size={18} color={THEME.colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -89,36 +92,40 @@ export const LoginScreen = ({ navigation }: any) => {
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
+                  size={18}
                   color={THEME.colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* Login Button */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={THEME.colors.textInverse} />
+              <ActivityIndicator color={THEME.colors.textInverse} size="small" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.loginButtonText}>Log In</Text>
             )}
           </TouchableOpacity>
 
+          {/* Register Prompt */}
           <View style={styles.registerPrompt}>
-            <Text style={styles.registerPromptText}>New counselee with an invitation code?</Text>
+            <Text style={styles.registerPromptText}>New devotee counselee?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLinkText}>Register Here</Text>
+              <Text style={styles.registerLinkText}>Register with Invitation Code</Text>
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Dedicated to His Divine Grace A.C. Bhaktivedanta Swami Prabhupāda
+            Hare Krishna Hare Krishna Krishna Krishna Hare Hare{'\n'}
+            Hare Rama Hare Rama Rama Rama Hare Hare
           </Text>
         </View>
       </ScrollView>
@@ -132,81 +139,103 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.background,
   },
   scrollContent: {
-    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
+    alignItems: 'center',
     justifyContent: 'center',
-    padding: THEME.spacing.base,
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: THEME.spacing.lg,
+    marginBottom: 20,
   },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: THEME.colors.primary,
+  logoCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#FFFFFF',
+    padding: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: THEME.colors.gold,
-    marginBottom: THEME.spacing.md,
-    ...THEME.shadows.medium,
+    marginBottom: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 42,
   },
   brandTitle: {
-    fontSize: THEME.typography.sizes.title,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
-    textAlign: 'center',
+    color: THEME.colors.primary,
+    letterSpacing: 0.5,
   },
-  mantraText: {
-    fontSize: THEME.typography.sizes.xs,
+  brandSubtitle: {
+    fontSize: 12,
     color: THEME.colors.goldDark,
-    textAlign: 'center',
-    marginTop: 6,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    marginTop: 2,
+  },
+  institutionName: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
     fontStyle: 'italic',
-    lineHeight: 18,
+    marginTop: 2,
   },
   card: {
-    backgroundColor: THEME.colors.card,
-    borderRadius: THEME.borderRadius.xl,
-    padding: THEME.spacing.xl,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    ...THEME.shadows.soft,
+    borderColor: '#E5E7EB',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   cardTitle: {
-    fontSize: THEME.typography.sizes.xl,
+    fontSize: 16,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
-    marginBottom: THEME.spacing.base,
+    marginBottom: 14,
     textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: THEME.spacing.base,
+    marginBottom: 12,
   },
   inputLabel: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 11,
     fontWeight: 'bold',
     color: THEME.colors.textMuted,
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: 'uppercase',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.surfaceVariant,
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: THEME.borderRadius.md,
-    paddingHorizontal: THEME.spacing.md,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
   },
   inputIcon: {
-    marginRight: THEME.spacing.sm,
+    marginRight: 6,
   },
   textInput: {
     flex: 1,
-    height: 48,
-    fontSize: THEME.typography.sizes.base,
+    height: 42,
+    fontSize: 14,
     color: THEME.colors.text,
   },
   eyeIcon: {
@@ -214,40 +243,40 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     backgroundColor: THEME.colors.primary,
-    height: 50,
-    borderRadius: THEME.borderRadius.md,
+    height: 44,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: THEME.spacing.md,
-    ...THEME.shadows.soft,
+    marginTop: 8,
   },
   loginButtonText: {
-    color: THEME.colors.textInverse,
-    fontSize: THEME.typography.sizes.base,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: 'bold',
   },
   registerPrompt: {
-    marginTop: THEME.spacing.lg,
+    marginTop: 14,
     alignItems: 'center',
   },
   registerPromptText: {
-    fontSize: THEME.typography.sizes.sm,
+    fontSize: 12,
     color: THEME.colors.textMuted,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   registerLinkText: {
-    fontSize: THEME.typography.sizes.base,
+    fontSize: 13,
     color: THEME.colors.primary,
     fontWeight: 'bold',
     textDecorationLine: 'underline',
   },
   footer: {
-    marginTop: THEME.spacing.xl,
+    marginTop: 18,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 11,
     color: THEME.colors.textMuted,
     textAlign: 'center',
+    lineHeight: 16,
   },
 });

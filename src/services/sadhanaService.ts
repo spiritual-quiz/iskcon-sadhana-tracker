@@ -90,6 +90,8 @@ export const sadhanaService = {
       sleepTimeStr: params.input.sleepTimeStr || '',
       wakeUpTimeStr: params.input.wakeUpTimeStr || '',
       restMinutes: params.input.restMinutes || 0,
+      sleepMarks: evaluation.sleepMarks,
+      totalSleepMinutes: evaluation.totalRestMinutes,
       dailyTotalScore: evaluation.dailyTotalScore,
       percentage: evaluation.percentage,
       grade: evaluation.grade,

@@ -109,7 +109,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
         >
           <View style={styles.infoBanner}>
             <Text style={styles.infoBannerText}>
-              Weekly Max Marks: 230 (Daily: 210, Weekly Class: 10, Morning Programme: 10).
+              Weekly Max Marks: 300 (Daily: 280, Weekly Class: 10, Morning Programme: 10).
               Tap attendance pills to mark devotee attendance.
             </Text>
           </View>

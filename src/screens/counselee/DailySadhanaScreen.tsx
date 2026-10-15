@@ -8,28 +8,36 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { Header } from '../../components/Header';
-import { ScoreCard } from '../../components/ScoreCard';
 import { useAuth } from '../../context/AuthContext';
 import { sadhanaService } from '../../services/sadhanaService';
 import { evaluateDailySadhana } from '../../utils/scoringEngine';
 import {
   getTodayDateStringIST,
-  getCurrentTimeIST,
   calculateSleepDurationMinutes,
   formatMinutesToHours,
 } from '../../utils/dateUtils';
 import { SadhanaEntry } from '../../types/sadhana';
+import { TimeSelectorModal } from '../../components/TimeSelectorModal';
+import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const todayStr = getTodayDateStringIST();
 
+  // Date selection states
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+
+  // Time picker modal states
+  const [timePickerTarget, setTimePickerTarget] = useState<
+    'japa' | 'sleep' | 'wake' | null
+  >(null);
+
+  // Form states
   const [declaredRounds, setDeclaredRounds] = useState<string>(
     user?.declaredRounds ? String(user.declaredRounds) : '16'
   );
@@ -62,14 +70,14 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       if (entry) {
         setDeclaredRounds(String(entry.declaredRounds));
         setCompletedRounds(String(entry.completedRounds));
-        setCompletionTime(entry.completionTimeStr || '');
+        setCompletionTime(entry.completionTimeStr || '06:30');
         setReadingMinutes(String(entry.readingMinutes));
         setHearingMinutes(String(entry.hearingMinutes));
-        setSleepTime(entry.sleepTimeStr || '');
-        setWakeUpTime(entry.wakeUpTimeStr || '');
+        setSleepTime(entry.sleepTimeStr || '21:30');
+        setWakeUpTime(entry.wakeUpTimeStr || '04:00');
         setRestMinutes(String(entry.restMinutes || 0));
       } else {
-        // Reset to default for new entry
+        // Reset defaults for fresh entry
         setDeclaredRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
         setCompletedRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
         setCompletionTime('06:30');
@@ -87,7 +95,20 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     }
   };
 
-  // Live score calculation
+  // Helper date generators for quick pills
+  const getYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split('T')[0];
+  };
+
+  const getDayBeforeYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return d.toISOString().split('T')[0];
+  };
+
+  // Live score calculation (out of 40)
   const numDeclared = parseInt(declaredRounds, 10) || 16;
   const numCompleted = parseInt(completedRounds, 10) || 0;
   const numReading = parseInt(readingMinutes, 10) || 0;
@@ -106,6 +127,19 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   });
 
   const sleepDurationMins = calculateSleepDurationMinutes(sleepTime.trim(), wakeUpTime.trim());
+  const totalRestDurationMins = sleepDurationMins + numRest;
+
+  // Format 24-hr time to friendly 12-hr for display
+  const formatFriendlyTime = (t24: string) => {
+    if (!t24 || !t24.includes(':')) return t24;
+    const [hStr, mStr] = t24.split(':');
+    let h = parseInt(hStr, 10);
+    const m = mStr.padStart(2, '0');
+    const period = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return `${h12}:${m} ${period}`;
+  };
 
   const handleSave = async () => {
     if (!user?.uid) return;
@@ -123,7 +157,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     if (existingEntry && !correctionReason.trim()) {
       Alert.alert(
         'Correction Note Required',
-        'You are updating an existing entry. Please enter a brief note explaining the update.'
+        'You are updating an existing entry for this date. Please enter a brief reason for the update.'
       );
       return;
     }
@@ -151,7 +185,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       setExistingEntry(saved);
       Alert.alert(
         'Sadhana Submitted!',
-        `Your sadhana card for ${selectedDate} has been saved.\nScore: ${saved.dailyTotalScore}/30 (${saved.percentage}%, Grade ${saved.grade})`
+        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/40 (${saved.percentage}%, Grade ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${saved.readingMarks}/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10`
       );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save daily sadhana.');
@@ -160,21 +194,144 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     }
   };
 
+  // Presets for Time Selectors
+  const japaPresets = [
+    { label: '5:30 AM', time: '05:30' },
+    { label: '6:00 AM', time: '06:00' },
+    { label: '6:30 AM', time: '06:30' },
+    { label: '7:00 AM', time: '07:00' },
+    { label: '8:00 AM', time: '08:00' },
+    { label: '9:30 AM', time: '09:30' },
+    { label: '11:00 AM', time: '11:00' },
+    { label: '1:00 PM', time: '13:00' },
+  ];
+
+  const sleepPresets = [
+    { label: '9:00 PM', time: '21:00' },
+    { label: '9:30 PM', time: '21:30' },
+    { label: '10:00 PM', time: '22:00' },
+    { label: '10:30 PM', time: '22:30' },
+    { label: '11:00 PM', time: '23:00' },
+  ];
+
+  const wakePresets = [
+    { label: '3:30 AM', time: '03:30' },
+    { label: '4:00 AM', time: '04:00' },
+    { label: '4:30 AM', time: '04:30' },
+    { label: '5:00 AM', time: '05:00' },
+    { label: '5:30 AM', time: '05:30' },
+    { label: '6:00 AM', time: '06:00' },
+  ];
+
   return (
     <View style={styles.container}>
       <Header
-        title="My Daily Sadhana"
-        subtitle={`Asia/Kolkata: ${selectedDate}`}
+        title="Bhakti Unnati"
+        subtitle={`Daily Sadhana: ${selectedDate}`}
         rightAction={{
-          iconName: 'calendar-outline',
-          onPress: () => {
-            Alert.alert(
-              'Select Entry Date',
-              `Current Date: ${selectedDate}\nTo record for today, keep ${todayStr}.`
-            );
-          },
+          iconName: 'calendar',
+          onPress: () => setShowDatePicker(true),
         }}
       />
+
+      {/* Date Selection Bar */}
+      <View style={styles.dateBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateBarScroll}>
+          <TouchableOpacity
+            style={[styles.datePill, selectedDate === todayStr && styles.datePillActive]}
+            onPress={() => setSelectedDate(todayStr)}
+          >
+            <Ionicons
+              name="today"
+              size={13}
+              color={selectedDate === todayStr ? '#FFFFFF' : THEME.colors.primary}
+            />
+            <Text style={[styles.datePillText, selectedDate === todayStr && styles.datePillTextActive]}>
+              Today
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.datePill, selectedDate === getYesterdayStr() && styles.datePillActive]}
+            onPress={() => setSelectedDate(getYesterdayStr())}
+          >
+            <Text
+              style={[
+                styles.datePillText,
+                selectedDate === getYesterdayStr() && styles.datePillTextActive,
+              ]}
+            >
+              Yesterday
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.datePill,
+              selectedDate === getDayBeforeYesterdayStr() && styles.datePillActive,
+            ]}
+            onPress={() => setSelectedDate(getDayBeforeYesterdayStr())}
+          >
+            <Text
+              style={[
+                styles.datePillText,
+                selectedDate === getDayBeforeYesterdayStr() && styles.datePillTextActive,
+              ]}
+            >
+              2 Days Ago
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.datePill,
+              styles.calendarPill,
+              selectedDate !== todayStr &&
+                selectedDate !== getYesterdayStr() &&
+                selectedDate !== getDayBeforeYesterdayStr() &&
+                styles.datePillActive,
+            ]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={13}
+              color={
+                selectedDate !== todayStr &&
+                selectedDate !== getYesterdayStr() &&
+                selectedDate !== getDayBeforeYesterdayStr()
+                  ? '#FFFFFF'
+                  : THEME.colors.goldDark
+              }
+            />
+            <Text
+              style={[
+                styles.datePillText,
+                selectedDate !== todayStr &&
+                  selectedDate !== getYesterdayStr() &&
+                  selectedDate !== getDayBeforeYesterdayStr() &&
+                  styles.datePillTextActive,
+              ]}
+            >
+              {selectedDate !== todayStr &&
+              selectedDate !== getYesterdayStr() &&
+              selectedDate !== getDayBeforeYesterdayStr()
+                ? selectedDate
+                : 'Custom Day...'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
+      {/* Editing Past Date Indicator */}
+      {selectedDate !== todayStr && (
+        <View style={styles.pastDateBanner}>
+          <Ionicons name="information-circle-outline" size={16} color={THEME.colors.primary} />
+          <Text style={styles.pastDateBannerText}>
+            Submitting for past date: <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text>
+          </Text>
+        </View>
+      )}
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -182,216 +339,342 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <Text style={styles.loadingText}>Loading sadhana record...</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          {/* Live Calculated Score Card */}
-          <ScoreCard
-            title="Live Daily Score Preview"
-            score={liveEvaluation.dailyTotalScore}
-            maxScore={30}
-            percentage={liveEvaluation.percentage}
-            grade={liveEvaluation.grade}
-            breakdown={{
-              japa: liveEvaluation.japaMarks,
-              reading: liveEvaluation.readingMarks,
-              hearing: liveEvaluation.hearingMarks,
-            }}
-          />
-
-          {existingEntry && (
-            <View style={styles.existingNotice}>
-              <Ionicons name="information-circle-outline" size={18} color={THEME.colors.primary} />
-              <Text style={styles.existingNoticeText}>
-                Entry already submitted for this date. Updating will record an audit entry.
-              </Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Live Score Preview Header Card */}
+          <View style={styles.summaryCard}>
+            <View style={styles.scoreRow}>
+              <View>
+                <Text style={styles.scoreLabel}>Daily Score Preview</Text>
+                <Text style={styles.scoreValue}>
+                  {liveEvaluation.dailyTotalScore}
+                  <Text style={styles.scoreDenom}> / 40</Text>
+                </Text>
+              </View>
+              <View style={[styles.gradeBadge, { backgroundColor: THEME.colors.primary }]}>
+                <Text style={styles.gradeText}>Grade {liveEvaluation.grade}</Text>
+                <Text style={styles.percentText}>{liveEvaluation.percentage}%</Text>
+              </View>
             </View>
-          )}
+
+            {/* Quick Breakdown Pills */}
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownChip}>
+                <Text style={styles.breakdownChipLabel}>Japa</Text>
+                <Text style={styles.breakdownChipValue}>{liveEvaluation.japaMarks}/10</Text>
+              </View>
+              <View style={styles.breakdownChip}>
+                <Text style={styles.breakdownChipLabel}>Read</Text>
+                <Text style={styles.breakdownChipValue}>{liveEvaluation.readingMarks}/10</Text>
+              </View>
+              <View style={styles.breakdownChip}>
+                <Text style={styles.breakdownChipLabel}>Hear</Text>
+                <Text style={styles.breakdownChipValue}>{liveEvaluation.hearingMarks}/10</Text>
+              </View>
+              <View style={styles.breakdownChip}>
+                <Text style={styles.breakdownChipLabel}>Sleep</Text>
+                <Text style={styles.breakdownChipValue}>{liveEvaluation.sleepMarks}/10</Text>
+              </View>
+            </View>
+          </View>
 
           {/* Section A: Japa Chanting */}
-          <View style={styles.sectionCard}>
+          <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="radio-button-on" size={20} color={THEME.colors.gold} />
-              <Text style={styles.sectionTitle}>A. Japa — Chanting (Max 10 Marks)</Text>
+              <View style={styles.sectionIcon}>
+                <Ionicons name="disc-outline" size={18} color={THEME.colors.gold} />
+              </View>
+              <Text style={styles.sectionTitle}>A. Japa - Chanting</Text>
+              <View style={styles.marksBadge}>
+                <Text style={styles.marksBadgeText}>{liveEvaluation.japaMarks}/10 M</Text>
+              </View>
             </View>
 
             <View style={styles.inputRow}>
-              <View style={styles.inputCol}>
-                <Text style={styles.label}>Declared Rounds</Text>
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Declared (Commitment)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={styles.textInput}
+                  keyboardType="numeric"
                   value={declaredRounds}
                   onChangeText={setDeclaredRounds}
-                  keyboardType="number-pad"
+                  placeholder="16"
                 />
               </View>
-              <View style={styles.inputCol}>
-                <Text style={styles.label}>Completed Rounds</Text>
+
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Completed Rounds</Text>
                 <TextInput
-                  style={styles.input}
+                  style={styles.textInput}
+                  keyboardType="numeric"
                   value={completedRounds}
                   onChangeText={setCompletedRounds}
-                  keyboardType="number-pad"
+                  placeholder="16"
                 />
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Completion Time (HH:mm, 24-hr IST)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 06:45"
-                value={completionTime}
-                onChangeText={setCompletionTime}
-              />
-            </View>
+            {/* Completion Time Button */}
+            <Text style={styles.inputLabel}>Completion Time</Text>
+            <TouchableOpacity
+              style={styles.timePickerButton}
+              onPress={() => setTimePickerTarget('japa')}
+            >
+              <Ionicons name="time" size={18} color={THEME.colors.primary} />
+              <Text style={styles.timePickerButtonText}>
+                {formatFriendlyTime(completionTime)} ({completionTime})
+              </Text>
+              <View style={styles.changeTimeBadge}>
+                <Text style={styles.changeTimeBadgeText}>Select</Text>
+              </View>
+            </TouchableOpacity>
 
-            <View style={styles.bracketGuide}>
-              <Text style={styles.bracketGuideTitle}>Japa Time Brackets (Completed commitment):</Text>
-              <Text style={styles.bracketItem}>• Before 7:00 AM → 10 Marks</Text>
-              <Text style={styles.bracketItem}>• 7:00 AM to 9:59 AM → 5 Marks</Text>
-              <Text style={styles.bracketItem}>• 10:00 AM to 12:59 PM → 3 Marks</Text>
-              <Text style={styles.bracketItem}>• 1:00 PM or later → 1 Mark</Text>
-              <Text style={styles.bracketItem}>• Incomplete commitment → 0 Marks</Text>
-            </View>
-
-            <Text style={styles.japaMarksResult}>
-              Awarded: <Text style={styles.highlightText}>{liveEvaluation.japaMarks} / 10 marks</Text>
+            <Text style={styles.hintText}>
+              &lt;7 AM: 10 marks • 7-10 AM: 5 marks • 10 AM-1 PM: 3 marks • After 1 PM: 1 mark
             </Text>
           </View>
 
           {/* Section B: Reading */}
-          <View style={styles.sectionCard}>
+          <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="book-outline" size={20} color={THEME.colors.primary} />
-              <Text style={styles.sectionTitle}>B. Reading — Srila Prabhupada's Books</Text>
+              <View style={styles.sectionIcon}>
+                <Ionicons name="book-outline" size={18} color={THEME.colors.gold} />
+              </View>
+              <Text style={styles.sectionTitle}>B. Reading Prabhupada's Books</Text>
+              <View style={styles.marksBadge}>
+                <Text style={styles.marksBadgeText}>{liveEvaluation.readingMarks}/10 M</Text>
+              </View>
             </View>
-            <Text style={styles.helperText}>
-              Target: 30 minutes for full 10 marks (proportionate marks for less).
-            </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Minutes Read Today</Text>
+            <Text style={styles.inputLabel}>Reading Duration (Minutes)</Text>
+            <View style={styles.minuteInputRow}>
               <TextInput
-                style={styles.input}
-                placeholder="30"
+                style={[styles.textInput, { flex: 1 }]}
+                keyboardType="numeric"
                 value={readingMinutes}
                 onChangeText={setReadingMinutes}
-                keyboardType="number-pad"
+                placeholder="30"
               />
+              {/* Quick duration chips */}
+              <View style={styles.quickDurationRow}>
+                {['15', '30', '45', '60'].map((mins) => (
+                  <TouchableOpacity
+                    key={mins}
+                    style={[styles.durChip, readingMinutes === mins && styles.durChipActive]}
+                    onPress={() => setReadingMinutes(mins)}
+                  >
+                    <Text
+                      style={[styles.durChipText, readingMinutes === mins && styles.durChipTextActive]}
+                    >
+                      {mins}m
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-
-            <Text style={styles.japaMarksResult}>
-              Awarded: <Text style={styles.highlightText}>{liveEvaluation.readingMarks} / 10 marks</Text>
-            </Text>
+            <Text style={styles.hintText}>Target: 30 minutes for full 10 marks (proportional)</Text>
           </View>
 
           {/* Section C: Hearing */}
-          <View style={styles.sectionCard}>
+          <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="headset-outline" size={20} color={THEME.colors.primary} />
-              <Text style={styles.sectionTitle}>C. Hearing — Classes & Lectures</Text>
+              <View style={styles.sectionIcon}>
+                <Ionicons name="headset-outline" size={18} color={THEME.colors.gold} />
+              </View>
+              <Text style={styles.sectionTitle}>C. Spiritual Hearing / Lectures</Text>
+              <View style={styles.marksBadge}>
+                <Text style={styles.marksBadgeText}>{liveEvaluation.hearingMarks}/10 M</Text>
+              </View>
             </View>
-            <Text style={styles.helperText}>
-              Target: 30 minutes for full 10 marks (proportionate marks for less).
-            </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Minutes Heard Today</Text>
+            <Text style={styles.inputLabel}>Hearing Duration (Minutes)</Text>
+            <View style={styles.minuteInputRow}>
               <TextInput
-                style={styles.input}
-                placeholder="30"
+                style={[styles.textInput, { flex: 1 }]}
+                keyboardType="numeric"
                 value={hearingMinutes}
                 onChangeText={setHearingMinutes}
-                keyboardType="number-pad"
+                placeholder="30"
               />
+              <View style={styles.quickDurationRow}>
+                {['15', '30', '45', '60'].map((mins) => (
+                  <TouchableOpacity
+                    key={mins}
+                    style={[styles.durChip, hearingMinutes === mins && styles.durChipActive]}
+                    onPress={() => setHearingMinutes(mins)}
+                  >
+                    <Text
+                      style={[styles.durChipText, hearingMinutes === mins && styles.durChipTextActive]}
+                    >
+                      {mins}m
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-
-            <Text style={styles.japaMarksResult}>
-              Awarded: <Text style={styles.highlightText}>{liveEvaluation.hearingMarks} / 10 marks</Text>
-            </Text>
+            <Text style={styles.hintText}>Target: 30 minutes for full 10 marks (proportional)</Text>
           </View>
 
-          {/* Section D: Sleep, Wake-up & Daytime Rest */}
-          <View style={styles.sectionCard}>
+          {/* Section D: Sleep & Rest */}
+          <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="moon-outline" size={20} color={THEME.colors.textMuted} />
-              <Text style={styles.sectionTitle}>D. Sleep & Rest (Informational)</Text>
+              <View style={styles.sectionIcon}>
+                <Ionicons name="moon-outline" size={18} color={THEME.colors.gold} />
+              </View>
+              <Text style={styles.sectionTitle}>D. Sleep & Rest Routine</Text>
+              <View style={styles.marksBadge}>
+                <Text style={styles.marksBadgeText}>{liveEvaluation.sleepMarks}/10 M</Text>
+              </View>
             </View>
-            <Text style={styles.helperText}>
-              Records healthy rest habits. Has zero impact on your sadhana score.
-            </Text>
 
             <View style={styles.inputRow}>
-              <View style={styles.inputCol}>
-                <Text style={styles.label}>Sleep Time (HH:mm)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="21:30"
-                  value={sleepTime}
-                  onChangeText={setSleepTime}
-                />
+              {/* Bedtime Button */}
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Bedtime</Text>
+                <TouchableOpacity
+                  style={styles.timePickerButtonCompact}
+                  onPress={() => setTimePickerTarget('sleep')}
+                >
+                  <Ionicons name="moon" size={14} color={THEME.colors.primary} />
+                  <Text style={styles.timePickerButtonTextCompact}>
+                    {formatFriendlyTime(sleepTime)}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.inputCol}>
-                <Text style={styles.label}>Wake-up (HH:mm)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="04:00"
-                  value={wakeUpTime}
-                  onChangeText={setWakeUpTime}
-                />
+
+              {/* Wake Up Time Button */}
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Wake Up</Text>
+                <TouchableOpacity
+                  style={styles.timePickerButtonCompact}
+                  onPress={() => setTimePickerTarget('wake')}
+                >
+                  <Ionicons name="sunny" size={14} color={THEME.colors.goldDark} />
+                  <Text style={styles.timePickerButtonTextCompact}>
+                    {formatFriendlyTime(wakeUpTime)}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Daytime Rest (Minutes)</Text>
+            {/* Daytime Rest */}
+            <Text style={styles.inputLabel}>Daytime Rest (Minutes)</Text>
+            <View style={styles.minuteInputRow}>
               <TextInput
-                style={styles.input}
-                placeholder="0"
+                style={[styles.textInput, { flex: 1 }]}
+                keyboardType="numeric"
                 value={restMinutes}
                 onChangeText={setRestMinutes}
-                keyboardType="number-pad"
+                placeholder="0"
               />
+              <View style={styles.quickDurationRow}>
+                {['0', '15', '30', '45', '60'].map((mins) => (
+                  <TouchableOpacity
+                    key={mins}
+                    style={[styles.durChip, restMinutes === mins && styles.durChipActive]}
+                    onPress={() => setRestMinutes(mins)}
+                  >
+                    <Text
+                      style={[styles.durChipText, restMinutes === mins && styles.durChipTextActive]}
+                    >
+                      {mins}m
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            {sleepDurationMins > 0 && (
-              <Text style={styles.sleepDurationText}>
-                Calculated Overnight Rest: {formatMinutesToHours(sleepDurationMins)}
+            {/* Rest Summary Banner */}
+            <View style={styles.restSummaryBox}>
+              <View style={styles.restSummaryHeader}>
+                <Ionicons name="bed-outline" size={16} color={THEME.colors.primary} />
+                <Text style={styles.restSummaryText}>
+                  Total Rest: <Text style={{ fontWeight: 'bold' }}>{formatMinutesToHours(totalRestDurationMins)}</Text>
+                  {'  '}(Night: {formatMinutesToHours(sleepDurationMins)} + Day: {numRest}m)
+                </Text>
+              </View>
+              <Text style={styles.restMarksNote}>
+                Marks Awarded: <Text style={{ fontWeight: 'bold', color: THEME.colors.primary }}>{liveEvaluation.sleepMarks}/10</Text>
+                {'  '}(≤7h: 10M • 8h: 8M • &gt;8 to &lt;10h: 5M • ≥10h: 0M)
               </Text>
-            )}
+            </View>
           </View>
 
-          {/* Section E: Audit Correction Note if existing */}
+          {/* Audit Reason if Editing Existing */}
           {existingEntry && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Correction Note (Required for updates)</Text>
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="pencil-outline" size={18} color={THEME.colors.warning} />
+                <Text style={styles.sectionTitle}>Correction / Update Reason</Text>
+              </View>
               <TextInput
-                style={[styles.input, styles.reasonInput]}
-                placeholder="e.g. Corrected japa completion time..."
+                style={[styles.textInput, { height: 60 }]}
+                multiline
                 value={correctionReason}
                 onChangeText={setCorrectionReason}
-                multiline
+                placeholder="Briefly state reason for updating this record..."
               />
             </View>
           )}
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={styles.saveButton}
+            style={[styles.submitButton, isSaving && styles.submitButtonDisabled]}
             onPress={handleSave}
             disabled={isSaving}
           >
             {isSaving ? (
-              <ActivityIndicator color={THEME.colors.textInverse} />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Ionicons name="checkmark-done" size={20} color={THEME.colors.textInverse} />
-                <Text style={styles.saveButtonText}>
-                  {existingEntry ? 'Update Sadhana Record' : 'Submit Daily Sadhana'}
+                <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
+                <Text style={styles.submitButtonText}>
+                  {existingEntry ? 'Update Sadhana Card' : 'Submit Daily Sadhana'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
         </ScrollView>
       )}
+
+      {/* Date Picker Modal */}
+      <PastDateSelectorModal
+        visible={showDatePicker}
+        selectedDate={selectedDate}
+        onSelectDate={(newDate) => setSelectedDate(newDate)}
+        onClose={() => setShowDatePicker(false)}
+      />
+
+      {/* Time Picker Modal */}
+      <TimeSelectorModal
+        visible={timePickerTarget !== null}
+        title={
+          timePickerTarget === 'japa'
+            ? 'Select Japa Completion Time'
+            : timePickerTarget === 'sleep'
+            ? 'Select Bedtime (Night Sleep)'
+            : 'Select Wake-up Time (Morning)'
+        }
+        initialTime={
+          timePickerTarget === 'japa'
+            ? completionTime
+            : timePickerTarget === 'sleep'
+            ? sleepTime
+            : wakeUpTime
+        }
+        presets={
+          timePickerTarget === 'japa'
+            ? japaPresets
+            : timePickerTarget === 'sleep'
+            ? sleepPresets
+            : wakePresets
+        }
+        onSelectTime={(newTime24) => {
+          if (timePickerTarget === 'japa') setCompletionTime(newTime24);
+          else if (timePickerTarget === 'sleep') setSleepTime(newTime24);
+          else if (timePickerTarget === 'wake') setWakeUpTime(newTime24);
+        }}
+        onClose={() => setTimePickerTarget(null)}
+      />
     </View>
   );
 };
@@ -401,137 +684,325 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.background,
   },
+  dateBar: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EBEBEB',
+    paddingVertical: 6,
+  },
+  dateBarScroll: {
+    paddingHorizontal: 10,
+    gap: 8,
+    flexDirection: 'row',
+  },
+  datePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 4,
+  },
+  datePillActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primaryDark,
+  },
+  datePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  datePillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  calendarPill: {
+    borderColor: THEME.colors.goldLight,
+  },
+  pastDateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.goldLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  pastDateBannerText: {
+    fontSize: 12,
+    color: THEME.colors.primaryDark,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
-    marginTop: THEME.spacing.sm,
+    marginTop: 10,
+    fontSize: 13,
     color: THEME.colors.textMuted,
   },
   scrollContent: {
-    padding: THEME.spacing.base,
-    paddingBottom: THEME.spacing.xxl,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 30,
   },
-  existingNotice: {
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  scoreRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: THEME.colors.primaryUltraLight,
-    padding: THEME.spacing.sm,
-    borderRadius: THEME.borderRadius.md,
-    marginBottom: THEME.spacing.base,
-    borderWidth: 1,
-    borderColor: THEME.colors.primaryLight,
+    marginBottom: 8,
   },
-  existingNoticeText: {
-    fontSize: THEME.typography.sizes.xs,
+  scoreLabel: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  scoreValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: THEME.colors.primary,
-    marginLeft: 6,
-    flex: 1,
   },
-  sectionCard: {
-    backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.base,
-    marginBottom: THEME.spacing.base,
+  scoreDenom: {
+    fontSize: 14,
+    color: THEME.colors.textMuted,
+    fontWeight: 'normal',
+  },
+  gradeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  gradeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  percentText: {
+    color: THEME.colors.goldLight,
+    fontSize: 11,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  breakdownChip: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 5,
+    alignItems: 'center',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    ...THEME.shadows.soft,
+    borderColor: '#E5E7EB',
+  },
+  breakdownChipLabel: {
+    fontSize: 10,
+    color: THEME.colors.textMuted,
+  },
+  breakdownChipValue: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+    marginTop: 1,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  sectionIcon: {
+    marginRight: 6,
   },
   sectionTitle: {
-    fontSize: THEME.typography.sizes.base,
+    flex: 1,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
-    marginLeft: 6,
+    color: THEME.colors.primary,
   },
-  helperText: {
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
-    marginBottom: THEME.spacing.sm,
+  marksBadge: {
+    backgroundColor: THEME.colors.primaryUltraLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(27, 77, 62, 0.2)',
+  },
+  marksBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
   },
   inputRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 8,
   },
-  inputCol: {
+  halfInput: {
     flex: 1,
-    marginRight: 6,
   },
-  inputGroup: {
-    marginVertical: 6,
-  },
-  label: {
-    fontSize: THEME.typography.sizes.xs,
-    fontWeight: 'bold',
-    color: THEME.colors.textMuted,
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
     marginBottom: 4,
   },
-  input: {
-    backgroundColor: THEME.colors.surfaceVariant,
+  textInput: {
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    borderRadius: THEME.borderRadius.md,
-    height: 46,
-    paddingHorizontal: THEME.spacing.md,
-    fontSize: THEME.typography.sizes.base,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 14,
     color: THEME.colors.text,
   },
-  bracketGuide: {
-    backgroundColor: THEME.colors.surfaceVariant,
-    padding: THEME.spacing.sm,
-    borderRadius: THEME.borderRadius.sm,
-    marginVertical: 8,
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    marginBottom: 4,
   },
-  bracketGuideTitle: {
+  timePickerButtonText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: THEME.colors.text,
+    marginLeft: 8,
+  },
+  timePickerButtonCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 9,
+    gap: 4,
+  },
+  timePickerButtonTextCompact: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  changeTimeBadge: {
+    backgroundColor: THEME.colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  changeTimeBadgeText: {
+    color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
+    fontWeight: '600',
+  },
+  minuteInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  quickDurationRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  durChip: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  durChipActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primaryDark,
+  },
+  durChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  durChipTextActive: {
+    color: '#FFFFFF',
+  },
+  hintText: {
+    fontSize: 10.5,
+    color: THEME.colors.textMuted,
+    marginTop: 2,
+  },
+  restSummaryBox: {
+    backgroundColor: THEME.colors.primaryUltraLight,
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(27, 77, 62, 0.15)',
+  },
+  restSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 2,
   },
-  bracketItem: {
-    fontSize: 11,
-    color: THEME.colors.textMuted,
-    lineHeight: 16,
-  },
-  japaMarksResult: {
-    fontSize: THEME.typography.sizes.sm,
-    color: THEME.colors.textMuted,
-    marginTop: 4,
-  },
-  highlightText: {
+  restSummaryText: {
+    fontSize: 11.5,
     color: THEME.colors.primary,
-    fontWeight: 'bold',
   },
-  sleepDurationText: {
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.primary,
-    fontWeight: 'bold',
-    marginTop: 6,
+  restMarksNote: {
+    fontSize: 10.5,
+    color: THEME.colors.textMuted,
+    marginTop: 2,
   },
-  reasonInput: {
-    height: 60,
-    paddingTop: 8,
-  },
-  saveButton: {
+  submitButton: {
+    backgroundColor: THEME.colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: THEME.colors.primary,
-    height: 52,
-    borderRadius: THEME.borderRadius.md,
-    marginTop: THEME.spacing.sm,
-    ...THEME.shadows.medium,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 6,
+    elevation: 3,
   },
-  saveButtonText: {
-    color: THEME.colors.textInverse,
-    fontSize: THEME.typography.sizes.base,
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: 'bold',
-    marginLeft: 8,
   },
 });

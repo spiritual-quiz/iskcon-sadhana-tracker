@@ -107,7 +107,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                     <View>
                       <Text style={styles.devoteeName}>{item.counseleeName || 'Devotee'}</Text>
                       <Text style={styles.cardScore}>
-                        {item.dailyTotalScore} / 30 marks ({item.percentage}%)
+                        {item.dailyTotalScore} / 40 marks ({item.percentage}%)
                       </Text>
                     </View>
                     <StatusBadge type="grade" value={item.grade} />
@@ -135,7 +135,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                     <View style={styles.detailItem}>
                       <Text style={styles.detailLabel}>Sleep & Rest</Text>
                       <Text style={styles.detailValue}>
-                        {formatMinutesToHours(sleepMins)} (Rest: {item.restMinutes || 0}m)
+                        {formatMinutesToHours(sleepMins)} ({item.sleepMarks ?? 0}m)
                       </Text>
                     </View>
                   </View>
