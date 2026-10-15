@@ -23,6 +23,7 @@ export const ProfileScreen = () => {
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
+  const [declaredRounds, setDeclaredRounds] = useState(String(user?.declaredRounds || 16));
   const [consent, setConsent] = useState(user?.publicAppreciationConsent ?? true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -34,13 +35,15 @@ export const ProfileScreen = () => {
     if (!user?.uid) return;
     setIsSaving(true);
     try {
+      const rounds = parseInt(declaredRounds, 10) || 16;
       await authService.updatePermittedProfile(user.uid, {
         displayName: displayName.trim(),
         phoneNumber: phoneNumber.trim(),
         publicAppreciationConsent: consent,
+        declaredRounds: rounds,
       });
       await reloadUser();
-      Alert.alert('Profile Updated', 'Your profile details have been saved.');
+      Alert.alert('Profile Updated', 'Your profile details and chanting commitment have been saved.');
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not update profile.');
     } finally {
@@ -105,7 +108,7 @@ export const ProfileScreen = () => {
           </View>
 
           <Text style={styles.protectedNotice}>
-            * Declared chanting rounds and birth dates are protected and can only be altered by your counsellor.
+            * Birth dates and ISKCON association dates are verified during registration and can be adjusted with counsellor consultation.
           </Text>
         </View>
 
@@ -129,6 +132,17 @@ export const ProfileScreen = () => {
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Daily Chanting Commitment (Rounds)</Text>
+            <TextInput
+              style={styles.input}
+              value={declaredRounds}
+              onChangeText={setDeclaredRounds}
+              keyboardType="numeric"
+              placeholder="16"
             />
           </View>
 

@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -27,7 +29,7 @@ import { TimeSelectorModal } from '../../components/TimeSelectorModal';
 import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
-  const { user } = useAuth();
+  const { user, updateDeclaredRounds } = useAuth();
   const todayStr = getTodayDateStringIST();
 
   // Date selection states
@@ -39,11 +41,19 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     'japa' | 'sleep' | 'wake' | null
   >(null);
 
+  // Edit Declared Commitment Modal state
+  const [showEditDeclaredModal, setShowEditDeclaredModal] = useState<boolean>(false);
+  const [newDeclaredTarget, setNewDeclaredTarget] = useState<string>(
+    user?.declaredRounds ? String(user.declaredRounds) : '16'
+  );
+
   // Form states
   const [declaredRounds, setDeclaredRounds] = useState<string>(
     user?.declaredRounds ? String(user.declaredRounds) : '16'
   );
-  const [completedRounds, setCompletedRounds] = useState<string>('16');
+  const [completedRounds, setCompletedRounds] = useState<string>(
+    user?.declaredRounds ? String(user.declaredRounds) : '16'
+  );
   const [completionTime, setCompletionTime] = useState<string>('06:30');
 
   const [readingMinutes, setReadingMinutes] = useState<string>('30');
@@ -126,8 +136,24 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     return d.toISOString().split('T')[0];
   };
 
+  const handleSaveDeclaredTarget = async () => {
+    const val = parseInt(newDeclaredTarget, 10);
+    if (isNaN(val) || val <= 0) {
+      Alert.alert('Invalid Target', 'Please enter a valid round commitment (e.g. 16).');
+      return;
+    }
+    try {
+      await updateDeclaredRounds(val);
+      setDeclaredRounds(String(val));
+      setShowEditDeclaredModal(false);
+      Alert.alert('Commitment Updated', `Your registered daily chanting commitment is now set to ${val} rounds.`);
+    } catch (e: any) {
+      Alert.alert('Update Failed', e.message || 'Could not update commitment.');
+    }
+  };
+
   // Live score calculation (out of 40)
-  const numDeclared = parseInt(declaredRounds, 10) || 16;
+  const numDeclared = parseInt(declaredRounds, 10) || (user?.declaredRounds || 16);
   const numCompleted = parseInt(completedRounds, 10) || 0;
   const numReading = parseInt(readingMinutes, 10) || 0;
   const numHearing = parseInt(hearingMinutes, 10) || 0;
@@ -416,27 +442,81 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
 
-            <View style={styles.inputRow}>
-              <View style={styles.halfInput}>
-                <Text style={styles.inputLabel}>Declared (Commitment)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  keyboardType="numeric"
-                  value={declaredRounds}
-                  onChangeText={setDeclaredRounds}
-                  placeholder="16"
-                />
+            {/* Target Commitment Banner with Edit Option */}
+            <View style={styles.commitmentBanner}>
+              <View style={styles.commitmentLeft}>
+                <Ionicons name="ribbon" size={16} color={THEME.colors.primary} />
+                <Text style={styles.commitmentLabel}>
+                  Chanting Target: <Text style={styles.commitmentValue}>{numDeclared} Rounds</Text>
+                </Text>
               </View>
+              <TouchableOpacity
+                style={styles.editCommitmentBtn}
+                onPress={() => {
+                  setNewDeclaredTarget(String(numDeclared));
+                  setShowEditDeclaredModal(true);
+                }}
+              >
+                <Ionicons name="pencil" size={12} color={THEME.colors.goldDark} />
+                <Text style={styles.editCommitmentBtnText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
 
-              <View style={styles.halfInput}>
-                <Text style={styles.inputLabel}>Completed Rounds</Text>
+            {/* ONLY Completed Rounds */}
+            <View style={styles.completedSection}>
+              <Text style={styles.inputLabel}>Completed Rounds</Text>
+              <View style={styles.stepperRow}>
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => {
+                    const cur = parseInt(completedRounds, 10) || 0;
+                    if (cur > 0) setCompletedRounds(String(cur - 1));
+                  }}
+                >
+                  <Ionicons name="remove" size={18} color={THEME.colors.primary} />
+                </TouchableOpacity>
+
                 <TextInput
-                  style={styles.textInput}
+                  style={styles.stepperInput}
                   keyboardType="numeric"
                   value={completedRounds}
                   onChangeText={setCompletedRounds}
                   placeholder="16"
+                  selectTextOnFocus
                 />
+
+                <TouchableOpacity
+                  style={styles.stepperBtn}
+                  onPress={() => {
+                    const cur = parseInt(completedRounds, 10) || 0;
+                    setCompletedRounds(String(cur + 1));
+                  }}
+                >
+                  <Ionicons name="add" size={18} color={THEME.colors.primary} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick Rounds Preset Chips */}
+              <View style={styles.roundChipsRow}>
+                {[16, 18, 20, 24, 32].map((r) => {
+                  const isSelected = parseInt(completedRounds, 10) === r;
+                  return (
+                    <TouchableOpacity
+                      key={r}
+                      style={[styles.roundChip, isSelected && styles.roundChipActive]}
+                      onPress={() => setCompletedRounds(String(r))}
+                    >
+                      <Text
+                        style={[
+                          styles.roundChipText,
+                          isSelected && styles.roundChipTextActive,
+                        ]}
+                      >
+                        {r} {r === numDeclared ? '★' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -702,6 +782,108 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         }}
         onClose={() => setTimePickerTarget(null)}
       />
+
+      {/* Edit Declared Commitment Target Modal */}
+      <Modal
+        visible={showEditDeclaredModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditDeclaredModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowEditDeclaredModal(false)}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalCard}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalTitleRow}>
+                    <Ionicons name="ribbon" size={20} color={THEME.colors.gold} />
+                    <Text style={styles.modalTitle}>Daily Chanting Target</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setShowEditDeclaredModal(false)}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Ionicons name="close" size={22} color={THEME.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.modalDescription}>
+                  This is your daily commitment target set during registration. You can adjust your target commitment here:
+                </Text>
+
+                {/* Quick Target Chips */}
+                <View style={styles.targetChipsGrid}>
+                  {[16, 18, 20, 24, 32, 64].map((r) => {
+                    const isSelected = parseInt(newDeclaredTarget, 10) === r;
+                    return (
+                      <TouchableOpacity
+                        key={r}
+                        style={[
+                          styles.targetChip,
+                          isSelected && styles.targetChipActive,
+                        ]}
+                        onPress={() => setNewDeclaredTarget(String(r))}
+                      >
+                        <Text
+                          style={[
+                            styles.targetChipText,
+                            isSelected && styles.targetChipTextActive,
+                          ]}
+                        >
+                          {r} Rounds
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Custom Number Stepper */}
+                <View style={styles.customTargetRow}>
+                  <Text style={styles.customTargetLabel}>Target Commitment:</Text>
+                  <View style={styles.modalStepperRow}>
+                    <TouchableOpacity
+                      style={styles.stepperBtn}
+                      onPress={() => {
+                        const cur = parseInt(newDeclaredTarget, 10) || 16;
+                        if (cur > 1) setNewDeclaredTarget(String(cur - 1));
+                      }}
+                    >
+                      <Ionicons name="remove" size={18} color={THEME.colors.primary} />
+                    </TouchableOpacity>
+
+                    <TextInput
+                      style={styles.modalStepperInput}
+                      keyboardType="numeric"
+                      value={newDeclaredTarget}
+                      onChangeText={setNewDeclaredTarget}
+                      placeholder="16"
+                      selectTextOnFocus
+                    />
+
+                    <TouchableOpacity
+                      style={styles.stepperBtn}
+                      onPress={() => {
+                        const cur = parseInt(newDeclaredTarget, 10) || 16;
+                        setNewDeclaredTarget(String(cur + 1));
+                      }}
+                    >
+                      <Ionicons name="add" size={18} color={THEME.colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.modalSaveButton}
+                  onPress={handleSaveDeclaredTarget}
+                >
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.modalSaveButtonText}>Save New Target</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 };
@@ -1030,6 +1212,223 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: 'bold',
+  },
+  commitmentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  commitmentLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  commitmentLabel: {
+    fontSize: 12,
+    color: THEME.colors.text,
+  },
+  commitmentValue: {
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+  },
+  editCommitmentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  editCommitmentBtnText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: THEME.colors.goldDark,
+  },
+  completedSection: {
+    marginBottom: 10,
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  stepperBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperInput: {
+    flex: 1,
+    height: 42,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: THEME.colors.primary,
+    borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+  },
+  roundChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  roundChip: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  roundChipActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primaryDark,
+  },
+  roundChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  roundChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 360,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalDescription: {
+    fontSize: 12,
+    color: THEME.colors.textMuted,
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  targetChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  targetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  targetChipActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primaryDark,
+  },
+  targetChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  targetChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  customTargetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  customTargetLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  modalStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalStepperInput: {
+    width: 50,
+    height: 36,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+  },
+  modalSaveButton: {
+    backgroundColor: THEME.colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: 8,
+    gap: 6,
+  },
+  modalSaveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

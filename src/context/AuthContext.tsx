@@ -8,6 +8,7 @@ interface AuthContextType extends AuthState {
   register: (params: RegisterParams) => Promise<void>;
   signOut: () => Promise<void>;
   reloadUser: () => Promise<void>;
+  updateDeclaredRounds: (newRounds: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,6 +68,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const updateDeclaredRounds = async (newRounds: number) => {
+    if (!user?.uid) return;
+    try {
+      await authService.updatePermittedProfile(user.uid, { declaredRounds: newRounds });
+    } catch (e) {
+      console.warn('Error updating declared rounds:', e);
+    }
+    setUser((prev) => (prev ? { ...prev, declaredRounds: newRounds } : prev));
+  };
+
   const isAdmin = user?.role === 'counsellor';
   const isApproved = user?.status === 'approved';
   const isPending = user?.status === 'pending';
@@ -86,6 +97,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         register,
         signOut,
         reloadUser,
+        updateDeclaredRounds,
       }}
     >
       {children}

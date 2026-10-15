@@ -194,7 +194,7 @@ export const authService = {
    */
   updatePermittedProfile: async (
     uid: string,
-    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent'>>
+    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds'>>
   ) => {
     try {
       const userRef = doc(db, 'users', uid);
