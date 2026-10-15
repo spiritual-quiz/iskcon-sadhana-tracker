@@ -1,6 +1,6 @@
 # ISKCON Sadhana Tracker & Counselling Android Application
 
-A complete, production-oriented Android mobile application built with **React Native, Expo, and TypeScript**, backed by **Firebase Authentication** and **Cloud Firestore**.
+A complete, production-oriented Android mobile application built with **React Native, Expo SDK 57, React 19, and TypeScript**, backed by **Firebase Authentication** and **Cloud Firestore**.
 
 Designed specifically for ISKCON devotees and their counsellor to record daily sadhana, automatically calculate marks and grades in the **Asia/Kolkata (IST)** time zone, review detailed reports, monitor devotional consistency, and encourage steady spiritual progress.
 
