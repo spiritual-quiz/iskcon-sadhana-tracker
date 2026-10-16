@@ -18,6 +18,7 @@ import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/fire
 import { db } from '../../config/firebase';
 import { UserProfile, UserStatus } from '../../types/auth';
 import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
+import { authService } from '../../services/authService';
 
 export const ManageCounseleesScreen = ({ navigation }: any) => {
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
@@ -34,9 +35,8 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
 
   const loadCounselees = async () => {
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'counselee'));
-      const snap = await getDocs(q);
-      setCounselees(snap.docs.map((d) => d.data() as UserProfile));
+      const data = await authService.getAllCounselees();
+      setCounselees(data);
     } catch (e) {
       console.warn('Error loading counselees:', e);
     } finally {
@@ -55,10 +55,7 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
           text: 'Confirm',
           onPress: async () => {
             try {
-              await updateDoc(doc(db, 'users', user.uid), {
-                status: newStatus,
-                updatedAt: new Date().toISOString(),
-              });
+              await authService.updateCounseleeStatus(user.uid, newStatus);
               loadCounselees();
             } catch (err: any) {
               Alert.alert('Error', err.message);

@@ -12,10 +12,13 @@ import {
   ScrollView,
   Image,
   Keyboard,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services/authService';
 
 export const LoginScreen = ({ navigation }: any) => {
   const { signIn } = useAuth();
@@ -23,6 +26,11 @@ export const LoginScreen = ({ navigation }: any) => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Forgot password modal state
+  const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
+  const [resetEmail, setResetEmail] = useState<string>('');
+  const [isSendingReset, setIsSendingReset] = useState<boolean>(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -55,6 +63,25 @@ export const LoginScreen = ({ navigation }: any) => {
       Alert.alert('Login Failed', err.message || 'Could not verify credentials.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSendPasswordReset = async () => {
+    const targetEmail = resetEmail.trim();
+    if (!targetEmail) {
+      Alert.alert('Missing Email', 'Please enter your registered email address.');
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      const res = await authService.sendPasswordReset(targetEmail);
+      setShowForgotModal(false);
+      Alert.alert('Password Recovery', res.message);
+    } catch (err: any) {
+      Alert.alert('Recovery Request Failed', err.message || 'Could not send password reset email.');
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -127,6 +154,17 @@ export const LoginScreen = ({ navigation }: any) => {
             </View>
           </View>
 
+          {/* Forgot Password Link */}
+          <TouchableOpacity
+            style={styles.forgotPasswordBtn}
+            onPress={() => {
+              setResetEmail(email.trim());
+              setShowForgotModal(true);
+            }}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
           {/* Login Button */}
           <TouchableOpacity
             style={styles.loginButton}
@@ -157,6 +195,78 @@ export const LoginScreen = ({ navigation }: any) => {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Forgot Password Recovery Modal */}
+      <Modal
+        visible={showForgotModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowForgotModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowForgotModal(false)}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalCard}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalTitleRow}>
+                    <Ionicons name="mail" size={20} color={THEME.colors.gold} />
+                    <Text style={styles.modalTitle}>Password Recovery</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setShowForgotModal(false)}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Ionicons name="close" size={22} color={THEME.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.modalSubtitle}>
+                  Enter your registered email address below. A password reset link will be dispatched to your inbox so you can recover your credentials.
+                </Text>
+
+                <View style={styles.modalInputGroup}>
+                  <Text style={styles.modalInputLabel}>Registered Email Address</Text>
+                  <View style={styles.modalInputWrapper}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={18}
+                      color={THEME.colors.textMuted}
+                      style={styles.modalInputIcon}
+                    />
+                    <TextInput
+                      style={styles.modalTextInput}
+                      placeholder="devotee@iskcon.org"
+                      value={resetEmail}
+                      onChangeText={setResetEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      selectTextOnFocus
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sendResetButton,
+                    isSendingReset && styles.sendResetButtonDisabled,
+                  ]}
+                  onPress={handleSendPasswordReset}
+                  disabled={isSendingReset}
+                >
+                  {isSendingReset ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="paper-plane" size={16} color="#FFFFFF" />
+                      <Text style={styles.sendResetButtonText}>Send Recovery Email</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -178,12 +288,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: THEME.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
     elevation: 4,
     shadowColor: '#000',
     shadowOpacity: 0.15,
@@ -191,9 +302,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   logoImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   brandTitle: {
     fontSize: 24,
@@ -202,33 +313,33 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   brandSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: THEME.colors.goldDark,
     fontWeight: '600',
-    letterSpacing: 0.4,
     marginTop: 2,
   },
   institutionName: {
     fontSize: 11,
     color: THEME.colors.textMuted,
-    fontStyle: 'italic',
     marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   card: {
     width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
     marginBottom: 14,
@@ -238,11 +349,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: THEME.colors.textMuted,
-    marginBottom: 4,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+    marginBottom: 5,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -252,18 +362,31 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 8,
     paddingHorizontal: 10,
+    height: 44,
   },
   inputIcon: {
-    marginRight: 6,
+    marginRight: 8,
   },
   textInput: {
     flex: 1,
-    height: 42,
     fontSize: 14,
     color: THEME.colors.text,
+    height: '100%',
   },
   eyeIcon: {
-    padding: 6,
+    padding: 4,
+  },
+  forgotPasswordBtn: {
+    alignSelf: 'flex-end',
+    marginBottom: 12,
+    marginTop: -4,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  forgotPasswordText: {
+    fontSize: 12,
+    color: THEME.colors.primary,
+    fontWeight: '600',
   },
   loginButton: {
     backgroundColor: THEME.colors.primary,
@@ -271,7 +394,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   loginButtonText: {
     color: '#FFFFFF',
@@ -302,5 +425,94 @@ const styles = StyleSheet.create({
     color: THEME.colors.textMuted,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 360,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: THEME.colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  modalInputGroup: {
+    marginBottom: 16,
+  },
+  modalInputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+    marginBottom: 5,
+  },
+  modalInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 44,
+  },
+  modalInputIcon: {
+    marginRight: 8,
+  },
+  modalTextInput: {
+    flex: 1,
+    fontSize: 14,
+    color: THEME.colors.text,
+    height: '100%',
+  },
+  sendResetButton: {
+    backgroundColor: THEME.colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: 8,
+    gap: 8,
+  },
+  sendResetButtonDisabled: {
+    opacity: 0.6,
+  },
+  sendResetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

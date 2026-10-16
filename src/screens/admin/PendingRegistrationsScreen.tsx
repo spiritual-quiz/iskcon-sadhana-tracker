@@ -29,13 +29,8 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
   const loadPending = async () => {
     try {
-      const q = query(
-        collection(db, 'users'),
-        where('role', '==', 'counselee'),
-        where('status', '==', 'pending')
-      );
-      const snap = await getDocs(q);
-      setPendingUsers(snap.docs.map((d) => d.data() as UserProfile));
+      const data = await authService.getPendingCounselees();
+      setPendingUsers(data);
     } catch (e) {
       console.warn('Error fetching pending registrations:', e);
     } finally {

@@ -18,6 +18,7 @@ import { db } from '../../config/firebase';
 import { UserProfile } from '../../types/auth';
 import { birthdayService } from '../../services/birthdayService';
 import { BirthdayReminder } from '../../types/monitoring';
+import { authService } from '../../services/authService';
 
 export const BirthdayRemindersScreen = ({ navigation }: any) => {
   const [reminders, setReminders] = useState<BirthdayReminder[]>([]);
@@ -38,10 +39,8 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
 
   const loadBirthdays = async () => {
     try {
-      const snap = await getDocs(
-        query(collection(db, 'users'), where('role', '==', 'counselee'), where('status', '==', 'approved'))
-      );
-      const counselees = snap.docs.map((d) => d.data() as UserProfile);
+      const all = await authService.getAllCounselees();
+      const counselees = all.filter((u) => u.status === 'approved');
       const upcoming = birthdayService.getUpcomingBirthdays(counselees, 30);
       setReminders(upcoming);
     } catch (e) {

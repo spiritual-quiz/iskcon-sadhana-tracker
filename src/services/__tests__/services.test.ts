@@ -1,6 +1,28 @@
+// Mock AsyncStorage for Jest node environment
+const mockStorage: Record<string, string> = {};
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async (key: string) => mockStorage[key] || null),
+    setItem: jest.fn(async (key: string, value: string) => {
+      mockStorage[key] = value;
+    }),
+    removeItem: jest.fn(async (key: string) => {
+      delete mockStorage[key];
+    }),
+    clear: jest.fn(async () => {
+      Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
+    }),
+    getAllKeys: jest.fn(async () => Object.keys(mockStorage)),
+    multiGet: jest.fn(async (keys: string[]) => keys.map((k) => [k, mockStorage[k] || null])),
+  },
+}));
+
 import { evaluateDailySadhana } from '../../utils/scoringEngine';
 import { getDaysDifference, getBirthdayInYear } from '../../utils/dateUtils';
 import { generateRandomCode } from '../invitationService';
+import { authService } from '../authService';
+import { localStorageService } from '../localStorageService';
 
 describe('Service Logic and Integration Verification', () => {
   describe('Invitation Code Logic', () => {
@@ -91,6 +113,62 @@ describe('Service Logic and Integration Verification', () => {
       const res = getBirthdayInYear('2000-02-29', 2028);
       expect(res.dateString).toBe('2028-02-29');
       expect(res.isLeapAdjusted).toBe(false);
+    });
+  });
+
+  describe('Password Recovery Email Logic', () => {
+    test('rejects invalid email formats', async () => {
+      await expect(authService.sendPasswordReset('')).rejects.toThrow('valid email');
+      await expect(authService.sendPasswordReset('invalidemail')).rejects.toThrow('valid email');
+    });
+
+    test('successfully processes reset request for registered devotee', async () => {
+      const res = await authService.sendPasswordReset('devotee@iskcon.org');
+      expect(res.success).toBe(true);
+      expect(res.message).toContain('devotee@iskcon.org');
+    });
+
+    test('rejects password reset for unknown unregistered emails', async () => {
+      await expect(authService.sendPasswordReset('unknown999@domain.org')).rejects.toThrow(
+        'No registered account was found'
+      );
+    });
+  });
+
+  describe('Counselee Registration & Admin Persistence', () => {
+    test('persists newly registered devotee into local storage and shows in pending list', async () => {
+      const testDevotee = {
+        uid: 'test_devotee_uid_108',
+        email: 'newdevotee@iskcon.org',
+        displayName: 'Sundar Das',
+        phoneNumber: '+919876543299',
+        role: 'counselee' as const,
+        status: 'pending' as const,
+        declaredRounds: 16,
+        invitationCode: 'KRISHNA7',
+        publicAppreciationConsent: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await localStorageService.saveUser(testDevotee, 'Secret@108');
+
+      // Verify retrieval by email
+      const retrieved = await localStorageService.getUserByEmail('newdevotee@iskcon.org');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.displayName).toBe('Sundar Das');
+      expect(retrieved?.status).toBe('pending');
+
+      // Verify presence in pending counselees
+      const pendingList = await authService.getPendingCounselees();
+      const match = pendingList.find((u) => u.email === 'newdevotee@iskcon.org');
+      expect(match).toBeDefined();
+      expect(match?.status).toBe('pending');
+
+      // Approve devotee and verify update
+      await authService.updateCounseleeStatus('test_devotee_uid_108', 'approved');
+      const updatedUser = await localStorageService.getUser('test_devotee_uid_108');
+      expect(updatedUser?.status).toBe('approved');
     });
   });
 });

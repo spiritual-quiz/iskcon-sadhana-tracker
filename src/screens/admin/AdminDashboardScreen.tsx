@@ -18,6 +18,7 @@ import { getTodayDateStringIST } from '../../utils/dateUtils';
 import { UserProfile } from '../../types/auth';
 import { monitoringService } from '../../services/monitoringService';
 import { birthdayService } from '../../services/birthdayService';
+import { authService } from '../../services/authService';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const { user, signOut } = useAuth();
@@ -29,7 +30,6 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [missingAlertsCount, setMissingAlertsCount] = useState<number>(0);
   const [lowScoreCount, setLowScoreCount] = useState<number>(0);
   const [upcomingBirthdaysCount, setUpcomingBirthdaysCount] = useState<number>(0);
-
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -40,8 +40,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const loadDashboardMetrics = async () => {
     try {
       // 1. Fetch Users
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const allUsers = usersSnap.docs.map((d) => d.data() as UserProfile);
+      const allUsers = await authService.getAllUsers();
 
       const approved = allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved');
       const pending = allUsers.filter((u) => u.role === 'counselee' && u.status === 'pending');
