@@ -128,21 +128,21 @@ export const HomeScreen = ({ navigation }: any) => {
 
           {/* Quick Stats Grid */}
           <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Ionicons name="radio-button-on" size={24} color={THEME.colors.gold} />
-              <Text style={styles.statNumber}>{weeklyReport?.totalRounds || 0}</Text>
+            <View style={[styles.statBox, styles.statBoxRounds]}>
+              <Ionicons name="radio-button-on" size={24} color={THEME.colors.goldDark} />
+              <Text style={[styles.statNumber, { color: THEME.colors.goldDark }]}>{weeklyReport?.totalRounds || 0}</Text>
               <Text style={styles.statLabel}>Week Rounds</Text>
             </View>
 
-            <View style={styles.statBox}>
+            <View style={[styles.statBox, styles.statBoxReading]}>
               <Ionicons name="book-outline" size={24} color={THEME.colors.primary} />
-              <Text style={styles.statNumber}>{weeklyReport?.totalReadingMinutes || 0}m</Text>
+              <Text style={[styles.statNumber, { color: THEME.colors.primary }]}>{weeklyReport?.totalReadingMinutes || 0}m</Text>
               <Text style={styles.statLabel}>Week Reading</Text>
             </View>
 
-            <View style={styles.statBox}>
+            <View style={[styles.statBox, styles.statBoxHearing]}>
               <Ionicons name="headset-outline" size={24} color={THEME.colors.info} />
-              <Text style={styles.statNumber}>{weeklyReport?.totalHearingMinutes || 0}m</Text>
+              <Text style={[styles.statNumber, { color: THEME.colors.info }]}>{weeklyReport?.totalHearingMinutes || 0}m</Text>
               <Text style={styles.statLabel}>Week Hearing</Text>
             </View>
           </View>
@@ -276,6 +276,18 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
   },
+  statBoxRounds: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  statBoxReading: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  statBoxHearing: {
+    backgroundColor: '#E0F2FE',
+    borderColor: '#7DD3FC',
+  },
   statNumber: {
     fontSize: THEME.typography.sizes.lg,
     fontWeight: 'bold',
@@ -286,14 +298,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: THEME.colors.textMuted,
     marginTop: 2,
+    fontWeight: '600',
   },
   quoteCard: {
-    backgroundColor: THEME.colors.surfaceVariant,
+    backgroundColor: '#FFEDD5',
     borderRadius: THEME.borderRadius.lg,
     padding: THEME.spacing.base,
-    borderLeftWidth: 4,
-    borderLeftColor: THEME.colors.gold,
+    borderLeftWidth: 5,
+    borderLeftColor: '#EA580C',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
     marginBottom: THEME.spacing.base,
+    ...THEME.shadows.soft,
   },
   quoteIcon: {
     marginBottom: 4,

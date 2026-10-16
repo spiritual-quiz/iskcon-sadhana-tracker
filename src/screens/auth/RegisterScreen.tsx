@@ -476,7 +476,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: THEME.colors.border,
+    ...THEME.shadows.soft,
   },
   cardSectionTitle: {
     fontSize: 13,

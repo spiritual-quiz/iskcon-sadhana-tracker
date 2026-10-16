@@ -6,28 +6,31 @@ export const THEME = {
     primaryLight: '#2C6B56',
     primaryUltraLight: '#EBF4F0',
 
-    // Sacred Gold Accents
+    // Sacred Gold & Saffron Accents
     gold: '#D4AF37', // Temple Gold
-    goldDark: '#B8860B',
-    goldLight: '#FEF3C7',
-    goldAccent: '#FFFBEB',
+    goldDark: '#B45309', // Rich Amber Gold
+    goldLight: '#FEF3C7', // Warm Gold Tint
+    goldAccent: '#FEF08A',
+    saffron: '#EA580C', // Sacred Vedic Kesari Saffron
+    saffronLight: '#FFEDD5',
+    saffronDark: '#C2410C',
 
-    // Background & Surfaces (Modern Executive & Clean Canvas)
-    background: '#F4F6F9', // Crisp Executive Canvas (replaces dull/yellowish cream #FDFBF7)
-    surface: '#FFFFFF', // Pristine Card Surface
-    surfaceVariant: '#EDF2F7', // Refined Inset / Block Surface (replaces muddy #F7F4EC)
-    surfaceMuted: '#E2E8F0', // Clean Divider / Muted Tone (replaces dull #EFECE3)
+    // Background & Surfaces (Sacred Saffron & Kesari Palette)
+    background: '#FFF2DE', // Radiant Warm Saffron / Kesari Glow (Rich & Devotional)
+    surface: '#FFFFFF', // Pristine White Card Surface
+    surfaceVariant: '#FFEDD5', // Warm Kesari Peach Inset Surface
+    surfaceMuted: '#FED7AA', // Warm Amber Accent Tone
     card: '#FFFFFF',
 
     // Text & Typography
-    text: '#0F172A', // High contrast deep obsidian/slate ink (replaces #1C2826)
-    textMuted: '#64748B', // Neutral professional secondary slate (replaces #5C6B64)
-    textLight: '#94A3B8', // Clear placeholder / hint
+    text: '#1C1917', // High contrast deep obsidian/charcoal
+    textMuted: '#785E4F', // Warm rich cocoa slate
+    textLight: '#A89080', // Clear placeholder / hint
     textInverse: '#FFFFFF',
 
     // Borders & Dividers
-    border: '#E2E8F0', // Crisp slate border (replaces muddy yellowish #E3DDD3)
-    borderLight: '#F1F5F9', // Subtle separator
+    border: '#FED7AA', // Warm Kesari/Golden hairline border
+    borderLight: '#FFF0DC', // Subtle separator
 
     // Status / Sentiment
     success: '#15803D',
@@ -82,17 +85,17 @@ export const THEME = {
   },
   shadows: {
     soft: {
-      shadowColor: '#0F172A',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
+      shadowColor: '#B45309',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
       shadowRadius: 6,
       elevation: 2,
     },
     medium: {
-      shadowColor: '#0F172A',
+      shadowColor: '#B45309',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
       elevation: 4,
     },
   },

@@ -411,21 +411,21 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
             {/* Quick Breakdown Pills */}
             <View style={styles.breakdownRow}>
-              <View style={styles.breakdownChip}>
+              <View style={[styles.breakdownChip, styles.chipJapa]}>
                 <Text style={styles.breakdownChipLabel}>Japa</Text>
-                <Text style={styles.breakdownChipValue}>{liveEvaluation.japaMarks}/10</Text>
+                <Text style={[styles.breakdownChipValue, { color: '#EA580C' }]}>{liveEvaluation.japaMarks}/10</Text>
               </View>
-              <View style={styles.breakdownChip}>
+              <View style={[styles.breakdownChip, styles.chipReading]}>
                 <Text style={styles.breakdownChipLabel}>Read</Text>
-                <Text style={styles.breakdownChipValue}>{liveEvaluation.readingMarks}/10</Text>
+                <Text style={[styles.breakdownChipValue, { color: '#15803D' }]}>{liveEvaluation.readingMarks}/10</Text>
               </View>
-              <View style={styles.breakdownChip}>
+              <View style={[styles.breakdownChip, styles.chipHearing]}>
                 <Text style={styles.breakdownChipLabel}>Hear</Text>
-                <Text style={styles.breakdownChipValue}>{liveEvaluation.hearingMarks}/10</Text>
+                <Text style={[styles.breakdownChipValue, { color: '#0284C7' }]}>{liveEvaluation.hearingMarks}/10</Text>
               </View>
-              <View style={styles.breakdownChip}>
+              <View style={[styles.breakdownChip, styles.chipSleep]}>
                 <Text style={styles.breakdownChipLabel}>Sleep</Text>
-                <Text style={styles.breakdownChipValue}>{liveEvaluation.sleepMarks}/10</Text>
+                <Text style={[styles.breakdownChipValue, { color: '#7C3AED' }]}>{liveEvaluation.sleepMarks}/10</Text>
               </View>
             </View>
           </View>
@@ -434,11 +434,11 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIcon}>
-                <Ionicons name="disc-outline" size={18} color={THEME.colors.gold} />
+                <Ionicons name="disc-outline" size={18} color="#EA580C" />
               </View>
               <Text style={styles.sectionTitle}>A. Japa - Chanting</Text>
-              <View style={styles.marksBadge}>
-                <Text style={styles.marksBadgeText}>{liveEvaluation.japaMarks}/10 M</Text>
+              <View style={[styles.marksBadge, { backgroundColor: '#FFEDD5', borderColor: '#FDBA74' }]}>
+                <Text style={[styles.marksBadgeText, { color: '#EA580C' }]}>{liveEvaluation.japaMarks}/10 M</Text>
               </View>
             </View>
 
@@ -544,11 +544,11 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIcon}>
-                <Ionicons name="book-outline" size={18} color={THEME.colors.gold} />
+                <Ionicons name="book-outline" size={18} color="#15803D" />
               </View>
               <Text style={styles.sectionTitle}>B. Reading Prabhupada's Books</Text>
-              <View style={styles.marksBadge}>
-                <Text style={styles.marksBadgeText}>{liveEvaluation.readingMarks}/10 M</Text>
+              <View style={[styles.marksBadge, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
+                <Text style={[styles.marksBadgeText, { color: '#15803D' }]}>{liveEvaluation.readingMarks}/10 M</Text>
               </View>
             </View>
 
@@ -585,11 +585,11 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIcon}>
-                <Ionicons name="headset-outline" size={18} color={THEME.colors.gold} />
+                <Ionicons name="headset-outline" size={18} color="#0284C7" />
               </View>
               <Text style={styles.sectionTitle}>C. Spiritual Hearing / Lectures</Text>
-              <View style={styles.marksBadge}>
-                <Text style={styles.marksBadgeText}>{liveEvaluation.hearingMarks}/10 M</Text>
+              <View style={[styles.marksBadge, { backgroundColor: '#E0F2FE', borderColor: '#7DD3FC' }]}>
+                <Text style={[styles.marksBadgeText, { color: '#0284C7' }]}>{liveEvaluation.hearingMarks}/10 M</Text>
               </View>
             </View>
 
@@ -625,11 +625,11 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIcon}>
-                <Ionicons name="moon-outline" size={18} color={THEME.colors.gold} />
+                <Ionicons name="moon-outline" size={18} color="#7C3AED" />
               </View>
               <Text style={styles.sectionTitle}>D. Sleep & Rest Routine</Text>
-              <View style={styles.marksBadge}>
-                <Text style={styles.marksBadgeText}>{liveEvaluation.sleepMarks}/10 M</Text>
+              <View style={[styles.marksBadge, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
+                <Text style={[styles.marksBadgeText, { color: '#7C3AED' }]}>{liveEvaluation.sleepMarks}/10 M</Text>
               </View>
             </View>
 
@@ -965,12 +965,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    borderColor: THEME.colors.border,
+    ...THEME.shadows.soft,
   },
   scoreRow: {
     flexDirection: 'row',
@@ -1023,6 +1019,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  chipJapa: {
+    backgroundColor: '#FFEDD5',
+    borderColor: '#FDBA74',
+  },
+  chipReading: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+  },
+  chipHearing: {
+    backgroundColor: '#E0F2FE',
+    borderColor: '#7DD3FC',
+  },
+  chipSleep: {
+    backgroundColor: '#F5F3FF',
+    borderColor: '#DDD6FE',
+  },
   breakdownChipLabel: {
     fontSize: 10,
     color: THEME.colors.textMuted,
@@ -1039,7 +1051,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: THEME.colors.border,
+    ...THEME.shadows.soft,
   },
   sectionHeader: {
     flexDirection: 'row',
