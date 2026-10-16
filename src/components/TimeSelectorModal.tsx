@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(27, 77, 62, 0.15)',
+    borderColor: 'rgba(194, 65, 12, 0.2)',
   },
   displaySub: {
     fontSize: 11,

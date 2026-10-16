@@ -1,11 +1,11 @@
 export const THEME = {
   colors: {
-    // Primary Devotional Colors
-    primary: '#1B4D3E', // Sacred Forest Green
-    primaryDark: '#0F382A',
-    primaryLight: '#2C6B56',
-    primaryUltraLight: '#EBF4F0',
-
+    // Primary Devotional Colors (Thick Royal Saffron & Orange)
+    primary: '#C2410C', // Thick Sacred Saffron / Deep Orange
+    primaryDark: '#9A3412', // Rich Deep Saffron
+    primaryLight: '#EA580C', // Vibrant Saffron Orange
+    primaryUltraLight: '#FFEDD5', // Soft Saffron Peach
+ 
     // Sacred Gold & Saffron Accents
     gold: '#D4AF37', // Temple Gold
     goldDark: '#B45309', // Rich Amber Gold
@@ -13,7 +13,7 @@ export const THEME = {
     goldAccent: '#FEF08A',
     saffron: '#EA580C', // Sacred Vedic Kesari Saffron
     saffronLight: '#FFEDD5',
-    saffronDark: '#C2410C',
+    saffronDark: '#9A3412',
 
     // Background & Surfaces (Sacred Saffron & Kesari Palette)
     background: '#FFF2DE', // Radiant Warm Saffron / Kesari Glow (Rich & Devotional)
@@ -43,7 +43,7 @@ export const THEME = {
     infoLight: '#EFF6FF',
 
     // Grades
-    gradeA: '#1B4D3E',
+    gradeA: '#C2410C', // Thick Royal Saffron
     gradeB: '#2563EB',
     gradeC: '#D97706',
     gradeD: '#EA580C',

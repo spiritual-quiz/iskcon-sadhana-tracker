@@ -1074,7 +1074,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(27, 77, 62, 0.2)',
+    borderColor: 'rgba(194, 65, 12, 0.2)',
   },
   marksBadgeText: {
     fontSize: 11,
@@ -1191,7 +1191,7 @@ const styles = StyleSheet.create({
     padding: 8,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: 'rgba(27, 77, 62, 0.15)',
+    borderColor: 'rgba(194, 65, 12, 0.2)',
   },
   restSummaryHeader: {
     flexDirection: 'row',
