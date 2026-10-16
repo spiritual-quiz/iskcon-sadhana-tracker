@@ -43,6 +43,14 @@ export const InvitationsScreen = ({ navigation }: any) => {
     try {
       const list = await getAllInvitations();
       setInvitations(list);
+      // Auto-select first active invitation so QR is immediately visible!
+      setSelectedInv((prev) => {
+        if (prev) {
+          const found = list.find((i) => i.code === prev.code);
+          return found || list[0] || null;
+        }
+        return list[0] || null;
+      });
     } catch (e) {
       console.warn('Error loading invitations:', e);
     } finally {
@@ -155,53 +163,74 @@ export const InvitationsScreen = ({ navigation }: any) => {
               <Text style={styles.emptyText}>No invitation codes generated yet.</Text>
             </View>
           ) : (
-            invitations.map((inv) => (
-              <View key={inv.code} style={styles.invCard}>
-                <View style={styles.invCardHeader}>
-                  <View style={styles.codeBadge}>
-                    <Text style={styles.codeText}>{inv.code}</Text>
+            invitations.map((inv) => {
+              const isSelected = selectedInv?.code === inv.code;
+              return (
+                <TouchableOpacity
+                  key={inv.code}
+                  style={[styles.invCard, isSelected && styles.invCardActive]}
+                  onPress={() => setSelectedInv(inv)}
+                  activeOpacity={0.85}
+                >
+                  {isSelected && (
+                    <View style={styles.viewingBadge}>
+                      <Ionicons name="checkmark-circle" size={13} color={THEME.colors.primaryDark} />
+                      <Text style={styles.viewingBadgeText}>Currently Displayed in QR Above</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.invCardHeader}>
+                    <View style={[styles.codeBadge, isSelected && styles.codeBadgeActive]}>
+                      <Text style={[styles.codeText, isSelected && styles.codeTextActive]}>{inv.code}</Text>
+                    </View>
+                    <View style={styles.statusRow}>
+                      {inv.isRevoked ? (
+                        <Text style={styles.revokedBadge}>REVOKED</Text>
+                      ) : (
+                        <Text style={styles.activeBadge}>ACTIVE</Text>
+                      )}
+                    </View>
                   </View>
-                  <View style={styles.statusRow}>
-                    {inv.isRevoked ? (
-                      <Text style={styles.revokedBadge}>REVOKED</Text>
-                    ) : (
-                      <Text style={styles.activeBadge}>ACTIVE</Text>
+
+                  {inv.notes ? <Text style={styles.notesText}>{inv.notes}</Text> : null}
+
+                  <View style={styles.metaRow}>
+                    <Text style={styles.metaText}>
+                      Used: {inv.usedCount} / {inv.maxUses} devotees
+                    </Text>
+                    <Text style={styles.metaText}>
+                      Expires: {new Date(inv.expiresAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={[styles.showQrBtn, isSelected && styles.showQrBtnActive]}
+                      onPress={() => setSelectedInv(inv)}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'qr-code' : 'eye-outline'}
+                        size={16}
+                        color={isSelected ? THEME.colors.primaryDark : THEME.colors.primary}
+                      />
+                      <Text style={[styles.showQrBtnText, isSelected && styles.showQrBtnTextActive]}>
+                        {isSelected ? 'Viewing QR' : 'Show QR'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {!inv.isRevoked && (
+                      <TouchableOpacity
+                        style={styles.revokeBtn}
+                        onPress={() => handleRevoke(inv.code)}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={THEME.colors.danger} />
+                        <Text style={styles.revokeBtnText}>Revoke</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                </View>
-
-                {inv.notes ? <Text style={styles.notesText}>{inv.notes}</Text> : null}
-
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaText}>
-                    Used: {inv.usedCount} / {inv.maxUses} devotees
-                  </Text>
-                  <Text style={styles.metaText}>
-                    Expires: {new Date(inv.expiresAt).toLocaleDateString()}
-                  </Text>
-                </View>
-
-                <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.showQrBtn}
-                    onPress={() => setSelectedInv(inv)}
-                  >
-                    <Ionicons name="eye-outline" size={16} color={THEME.colors.primary} />
-                    <Text style={styles.showQrBtnText}>Show QR</Text>
-                  </TouchableOpacity>
-
-                  {!inv.isRevoked && (
-                    <TouchableOpacity
-                      style={styles.revokeBtn}
-                      onPress={() => handleRevoke(inv.code)}
-                    >
-                      <Ionicons name="trash-outline" size={16} color={THEME.colors.danger} />
-                      <Text style={styles.revokeBtnText}>Revoke</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ))
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
       )}
@@ -329,6 +358,27 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
   },
+  invCardActive: {
+    borderColor: THEME.colors.gold,
+    borderWidth: 2,
+    backgroundColor: '#FFFDF5',
+  },
+  viewingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.goldLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: THEME.borderRadius.xs,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  viewingBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+    marginLeft: 4,
+  },
   invCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -343,10 +393,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: THEME.colors.borderLight,
   },
+  codeBadgeActive: {
+    backgroundColor: THEME.colors.primaryDark,
+    borderColor: THEME.colors.gold,
+  },
   codeText: {
     fontSize: THEME.typography.sizes.base,
     fontWeight: 'bold',
     letterSpacing: 2,
+    color: THEME.colors.primaryDark,
+  },
+  codeTextActive: {
+    color: THEME.colors.goldLight,
+  },
+  showQrBtnActive: {
+    backgroundColor: THEME.colors.goldLight,
+  },
+  showQrBtnTextActive: {
     color: THEME.colors.primaryDark,
   },
   statusRow: {

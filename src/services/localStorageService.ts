@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SadhanaEntry, WeeklyAttendance, MonthlySatsangaAttendance } from '../types/sadhana';
 import { WeeklyReport, MonthlyReport, SharedWeeklySummary, SharedMonthlySummary } from '../types/report';
 import { UserProfile, UserStatus } from '../types/auth';
+import { InvitationCode } from '../types/monitoring';
 
 export interface LocalStoredUser extends UserProfile {
   password?: string;
@@ -16,6 +17,7 @@ const KEYS = {
   SHARED_WEEKLY: '@iskcon_shared_weekly',
   SHARED_MONTHLY: '@iskcon_shared_monthly',
   USERS: '@iskcon_users',
+  INVITATIONS: '@iskcon_invitations',
 };
 
 export const localStorageService = {
@@ -351,6 +353,110 @@ export const localStorageService = {
       }
     } catch (e) {
       console.warn('Error updating user in local storage:', e);
+    }
+  },
+
+  /**
+   * Save or update an invitation code in local storage
+   */
+  saveInvitation: async (invitation: InvitationCode): Promise<void> => {
+    try {
+      const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
+      const data: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
+      data[invitation.code] = invitation;
+      await AsyncStorage.setItem(KEYS.INVITATIONS, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Error saving invitation to local storage:', e);
+    }
+  },
+
+  /**
+   * Get an invitation code by code string
+   */
+  getInvitation: async (code: string): Promise<InvitationCode | null> => {
+    try {
+      const clean = code.trim().toUpperCase();
+      const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
+      const data: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
+      if (data[clean]) return data[clean];
+
+      // Check default seeds
+      if (clean === 'KRISHNA7' || clean === 'SADHANA16') {
+        return {
+          code: clean,
+          createdBy: 'counsellor_admin_uid',
+          createdAt: '2025-01-01T00:00:00.000Z',
+          expiresAt: '2030-01-01T00:00:00.000Z',
+          maxUses: 100,
+          usedCount: clean === 'KRISHNA7' ? 1 : 0,
+          isRevoked: false,
+          usedByUids: [],
+          notes: clean === 'KRISHNA7' ? 'General Devotee Registration' : '16 Rounds Devotee Group',
+        };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Get all invitations from local storage (including default seeds)
+   */
+  getAllInvitations: async (): Promise<InvitationCode[]> => {
+    try {
+      const defaultInvitations: Record<string, InvitationCode> = {
+        KRISHNA7: {
+          code: 'KRISHNA7',
+          createdBy: 'counsellor_admin_uid',
+          createdAt: '2025-01-01T00:00:00.000Z',
+          expiresAt: '2030-01-01T00:00:00.000Z',
+          maxUses: 100,
+          usedCount: 1,
+          isRevoked: false,
+          usedByUids: ['devotee_uid_108'],
+          notes: 'General Devotee Registration (Default)',
+        },
+        SADHANA16: {
+          code: 'SADHANA16',
+          createdBy: 'counsellor_admin_uid',
+          createdAt: '2025-01-01T00:00:00.000Z',
+          expiresAt: '2030-01-01T00:00:00.000Z',
+          maxUses: 100,
+          usedCount: 0,
+          isRevoked: false,
+          usedByUids: [],
+          notes: '16 Rounds Committed Devotees',
+        },
+      };
+
+      const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
+      const localData: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
+      const merged = { ...defaultInvitations, ...localData };
+      return Object.values(merged).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * Update invitation code in local storage
+   */
+  updateInvitation: async (code: string, updates: Partial<InvitationCode>): Promise<void> => {
+    try {
+      const clean = code.trim().toUpperCase();
+      const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
+      const data: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
+      const existing = data[clean] || (await localStorageService.getInvitation(clean));
+      if (existing) {
+        data[clean] = {
+          ...existing,
+          ...updates,
+        };
+        await AsyncStorage.setItem(KEYS.INVITATIONS, JSON.stringify(data));
+      }
+    } catch (e) {
+      console.warn('Error updating invitation in local storage:', e);
     }
   },
 };

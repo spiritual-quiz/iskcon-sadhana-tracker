@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { InvitationCode } from '../types/monitoring';
+import { localStorageService } from './localStorageService';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -57,8 +58,16 @@ export async function createInvitationCode(params: {
     notes: params.notes || '',
   };
 
-  const invRef = doc(db, 'invitations', code);
-  await setDoc(invRef, invitation);
+  // Always save to local storage immediately
+  await localStorageService.saveInvitation(invitation);
+
+  try {
+    const invRef = doc(db, 'invitations', code);
+    await setDoc(invRef, invitation);
+  } catch (fbErr) {
+    console.warn('Firestore createInvitationCode fallback to local storage:', fbErr);
+  }
+
   return invitation;
 }
 
@@ -71,48 +80,22 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
     return { isValid: false, errorMessage: 'Please enter an invitation code.' };
   }
 
+  // 1. Check local storage first
+  let data = await localStorageService.getInvitation(cleanCode);
+
+  // 2. Try Firestore if available to get latest
   try {
     const invRef = doc(db, 'invitations', cleanCode);
     const snap = await getDoc(invRef);
-
-    if (!snap.exists()) {
-      if (cleanCode === 'KRISHNA7' || cleanCode === 'SADHANA16') {
-        return {
-          isValid: true,
-          invitation: {
-            code: cleanCode,
-            createdBy: 'counsellor-admin',
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-            maxUses: 100,
-            usedCount: 0,
-            isRevoked: false,
-            usedByUids: [],
-            notes: 'Default Devotee Invitation',
-          },
-        };
-      }
-      return { isValid: false, errorMessage: 'Invitation code not found or invalid.' };
+    if (snap.exists()) {
+      data = snap.data() as InvitationCode;
+      await localStorageService.saveInvitation(data);
     }
-
-  const data = snap.data() as InvitationCode;
-
-  if (data.isRevoked) {
-    return { isValid: false, errorMessage: 'This invitation code has been revoked by the counsellor.' };
-  }
-
-  const now = new Date();
-  const expiry = new Date(data.expiresAt);
-  if (now > expiry) {
-    return { isValid: false, errorMessage: 'This invitation code has expired.' };
-  }
-
-  if (data.usedCount >= data.maxUses) {
-    return { isValid: false, errorMessage: 'This invitation code has reached its maximum usage limit.' };
-  }
-
-    return { isValid: true, invitation: data };
   } catch (e) {
+    // offline/demo fallback
+  }
+
+  if (!data) {
     if (cleanCode === 'KRISHNA7' || cleanCode === 'SADHANA16') {
       return {
         isValid: true,
@@ -129,8 +112,24 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
         },
       };
     }
-    return { isValid: false, errorMessage: 'Could not verify invitation code.' };
+    return { isValid: false, errorMessage: 'Invitation code not found or invalid.' };
   }
+
+  if (data.isRevoked) {
+    return { isValid: false, errorMessage: 'This invitation code has been revoked by the counsellor.' };
+  }
+
+  const now = new Date();
+  const expiry = new Date(data.expiresAt);
+  if (now > expiry) {
+    return { isValid: false, errorMessage: 'This invitation code has expired.' };
+  }
+
+  if (data.usedCount >= data.maxUses) {
+    return { isValid: false, errorMessage: 'This invitation code has reached its maximum usage limit.' };
+  }
+
+  return { isValid: true, invitation: data };
 }
 
 /**
@@ -138,11 +137,23 @@ export async function validateInvitationCode(code: string): Promise<ValidationRe
  */
 export async function redeemInvitationCode(code: string, counseleeUid: string): Promise<void> {
   const cleanCode = code.trim().toUpperCase();
-  const invRef = doc(db, 'invitations', cleanCode);
-  await updateDoc(invRef, {
-    usedCount: increment(1),
-    usedByUids: arrayUnion(counseleeUid),
-  });
+  const existing = await localStorageService.getInvitation(cleanCode);
+  if (existing) {
+    await localStorageService.updateInvitation(cleanCode, {
+      usedCount: (existing.usedCount || 0) + 1,
+      usedByUids: [...(existing.usedByUids || []), counseleeUid],
+    });
+  }
+
+  try {
+    const invRef = doc(db, 'invitations', cleanCode);
+    await updateDoc(invRef, {
+      usedCount: increment(1),
+      usedByUids: arrayUnion(counseleeUid),
+    });
+  } catch (e) {
+    console.warn('Firestore redeemInvitationCode fallback:', e);
+  }
 }
 
 /**
@@ -150,17 +161,44 @@ export async function redeemInvitationCode(code: string, counseleeUid: string): 
  */
 export async function revokeInvitationCode(code: string): Promise<void> {
   const cleanCode = code.trim().toUpperCase();
-  const invRef = doc(db, 'invitations', cleanCode);
-  await updateDoc(invRef, {
+  await localStorageService.updateInvitation(cleanCode, {
     isRevoked: true,
   });
+
+  try {
+    const invRef = doc(db, 'invitations', cleanCode);
+    await updateDoc(invRef, {
+      isRevoked: true,
+    });
+  } catch (e) {
+    console.warn('Firestore revokeInvitationCode fallback:', e);
+  }
 }
 
 /**
- * Admin: Fetch all invitations
+ * Admin: Fetch all invitations (combining local storage and Firestore)
  */
 export async function getAllInvitations(): Promise<InvitationCode[]> {
-  const q = query(collection(db, 'invitations'), orderBy('createdAt', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as InvitationCode);
+  const map = new Map<string, InvitationCode>();
+
+  // 1. Load from local persistent storage
+  const localList = await localStorageService.getAllInvitations();
+  localList.forEach((inv) => map.set(inv.code, inv));
+
+  // 2. Fetch from Firestore if available
+  try {
+    const q = query(collection(db, 'invitations'), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    snap.docs.forEach((d) => {
+      const inv = d.data() as InvitationCode;
+      map.set(inv.code, inv);
+      localStorageService.saveInvitation(inv);
+    });
+  } catch (e) {
+    console.warn('Firestore getAllInvitations fallback to local storage:', e);
+  }
+
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
