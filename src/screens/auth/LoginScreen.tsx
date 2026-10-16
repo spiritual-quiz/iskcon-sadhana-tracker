@@ -31,6 +31,12 @@ export const LoginScreen = ({ navigation }: any) => {
   const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
   const [resetEmail, setResetEmail] = useState<string>('');
   const [isSendingReset, setIsSendingReset] = useState<boolean>(false);
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [isResettingDirect, setIsResettingDirect] = useState<boolean>(false);
+
+  const isCounsellorEmail = resetEmail.trim().toLowerCase() === 'madhavcarandas@gmail.com';
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -76,12 +82,42 @@ export const LoginScreen = ({ navigation }: any) => {
     setIsSendingReset(true);
     try {
       const res = await authService.sendPasswordReset(targetEmail);
-      setShowForgotModal(false);
-      Alert.alert('Password Recovery', res.message);
+      Alert.alert('Password Recovery Notice', res.message);
     } catch (err: any) {
       Alert.alert('Recovery Request Failed', err.message || 'Could not send password reset email.');
     } finally {
       setIsSendingReset(false);
+    }
+  };
+
+  const handleDirectPasswordReset = async () => {
+    const targetEmail = resetEmail.trim().toLowerCase();
+    if (!targetEmail) {
+      Alert.alert('Missing Email', 'Please enter your registered email address.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      Alert.alert('Short Password', 'New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Password Mismatch', 'New password and confirmation do not match.');
+      return;
+    }
+
+    setIsResettingDirect(true);
+    try {
+      const res = await authService.resetPasswordDirectly(targetEmail, newPassword);
+      setEmail(targetEmail);
+      setPassword(newPassword);
+      setShowForgotModal(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      Alert.alert('Password Updated', res.message);
+    } catch (err: any) {
+      Alert.alert('Reset Failed', err.message || 'Could not update password.');
+    } finally {
+      setIsResettingDirect(false);
     }
   };
 
@@ -209,7 +245,7 @@ export const LoginScreen = ({ navigation }: any) => {
               <View style={styles.modalCard}>
                 <View style={styles.modalHeader}>
                   <View style={styles.modalTitleRow}>
-                    <Ionicons name="mail" size={20} color={THEME.colors.gold} />
+                    <Ionicons name="key" size={20} color={THEME.colors.gold} />
                     <Text style={styles.modalTitle}>Password Recovery</Text>
                   </View>
                   <TouchableOpacity
@@ -221,7 +257,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 </View>
 
                 <Text style={styles.modalSubtitle}>
-                  Enter your registered email address below. A password reset link will be dispatched to your inbox so you can recover your credentials.
+                  Enter your registered email address. You can set a new password directly on this device or request an automated email.
                 </Text>
 
                 <View style={styles.modalInputGroup}>
@@ -235,7 +271,7 @@ export const LoginScreen = ({ navigation }: any) => {
                     />
                     <TextInput
                       style={styles.modalTextInput}
-                      placeholder="devotee@iskcon.org"
+                      placeholder="madhavcarandas@gmail.com"
                       value={resetEmail}
                       onChangeText={setResetEmail}
                       keyboardType="email-address"
@@ -245,21 +281,111 @@ export const LoginScreen = ({ navigation }: any) => {
                   </View>
                 </View>
 
+                {/* Counsellor Quick Auto-Fill Card */}
+                {isCounsellorEmail && (
+                  <View style={styles.counsellorCard}>
+                    <View style={styles.counsellorCardHeader}>
+                      <Ionicons name="shield-checkmark" size={18} color="#D97706" />
+                      <Text style={styles.counsellorCardTitle}>Counsellor Account Recognized</Text>
+                    </View>
+                    <Text style={styles.counsellorCardText}>
+                      Hare Krishna, <Text style={{ fontWeight: 'bold' }}>Madhav Charan Das</Text>!
+                      {'\n'}Your default password is: <Text style={{ fontWeight: 'bold', color: '#B45309' }}>Sadhana@108</Text>
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.autoFillBtn}
+                      onPress={() => {
+                        setEmail('madhavcarandas@gmail.com');
+                        setPassword('Sadhana@108');
+                        setShowForgotModal(false);
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                      <Text style={styles.autoFillBtnText}>Auto-Fill "Sadhana@108" & Sign In</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Direct Set New Password Section */}
+                <View style={styles.directResetSection}>
+                  <Text style={styles.sectionHeaderLabel}>Set New Password Directly</Text>
+
+                  <View style={styles.modalInputGroup}>
+                    <Text style={styles.modalInputLabel}>New Password</Text>
+                    <View style={styles.modalInputWrapper}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={18}
+                        color={THEME.colors.textMuted}
+                        style={styles.modalInputIcon}
+                      />
+                      <TextInput
+                        style={styles.modalTextInput}
+                        placeholder="At least 6 characters"
+                        value={newPassword}
+                        onChangeText={setNewPassword}
+                        secureTextEntry={!showNewPassword}
+                      />
+                      <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
+                        <Ionicons
+                          name={showNewPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={18}
+                          color={THEME.colors.textMuted}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.modalInputGroup}>
+                    <Text style={styles.modalInputLabel}>Confirm New Password</Text>
+                    <View style={styles.modalInputWrapper}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={18}
+                        color={THEME.colors.textMuted}
+                        style={styles.modalInputIcon}
+                      />
+                      <TextInput
+                        style={styles.modalTextInput}
+                        placeholder="Re-enter new password"
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        secureTextEntry={!showNewPassword}
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.directResetButton,
+                      isResettingDirect && styles.sendResetButtonDisabled,
+                    ]}
+                    onPress={handleDirectPasswordReset}
+                    disabled={isResettingDirect}
+                  >
+                    {isResettingDirect ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="key-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.directResetButtonText}>Save New Password</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Request Email Reset */}
                 <TouchableOpacity
-                  style={[
-                    styles.sendResetButton,
-                    isSendingReset && styles.sendResetButtonDisabled,
-                  ]}
+                  style={styles.sendEmailLink}
                   onPress={handleSendPasswordReset}
                   disabled={isSendingReset}
                 >
                   {isSendingReset ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <ActivityIndicator color="#B45309" size="small" />
                   ) : (
-                    <>
-                      <Ionicons name="paper-plane" size={16} color="#FFFFFF" />
-                      <Text style={styles.sendResetButtonText}>Send Recovery Email</Text>
-                    </>
+                    <Text style={styles.sendEmailLinkText}>
+                      Send Password Reset Link via Firebase Email
+                    </Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -510,5 +636,86 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  counsellorCard: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  counsellorCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  counsellorCardTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  counsellorCardText: {
+    fontSize: 12,
+    color: '#78350F',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  autoFillBtn: {
+    backgroundColor: '#D97706',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 6,
+  },
+  autoFillBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  directResetSection: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FEEBC8',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  sectionHeaderLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  directResetButton: {
+    backgroundColor: THEME.colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 42,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 4,
+  },
+  directResetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  sendEmailLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  sendEmailLinkText: {
+    fontSize: 12,
+    color: '#B45309',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
   },
 });

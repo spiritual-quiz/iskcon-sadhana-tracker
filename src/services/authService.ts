@@ -370,7 +370,9 @@ export const authService = {
   /**
    * Send Password Recovery Email
    */
-  sendPasswordReset: async (email: string): Promise<{ success: boolean; message: string }> => {
+  sendPasswordReset: async (
+    email: string
+  ): Promise<{ success: boolean; message: string; isDemoMode?: boolean }> => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
       throw new Error('Please enter a valid email address.');
@@ -398,8 +400,35 @@ export const authService = {
 
       return {
         success: true,
-        message: `Password recovery request registered for ${cleanEmail}. In production, an automated password reset link is sent to your inbox via Firebase Auth.`,
+        isDemoMode: true,
+        message: `Firebase is currently running in offline/demo mode (placeholder API key). An automated email could not be dispatched to ${cleanEmail} over the internet. You can reset your password directly on this device below.`,
       };
     }
+  },
+
+  /**
+   * Reset user password directly on the device
+   */
+  resetPasswordDirectly: async (
+    email: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Please enter a valid email address.');
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
+    }
+
+    const updated = await localStorageService.updateUserPassword(cleanEmail, newPassword);
+    if (!updated) {
+      throw new Error('No registered account was found with this email address.');
+    }
+
+    return {
+      success: true,
+      message: `Password has been successfully updated for ${cleanEmail}! You can now sign in with your new password.`,
+    };
   },
 };

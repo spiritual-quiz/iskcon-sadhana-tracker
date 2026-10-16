@@ -146,6 +146,28 @@ describe('Service Logic and Integration Verification', () => {
         'No registered account was found'
       );
     });
+
+    test('resets password directly on device and verifies sign in with new password', async () => {
+      // Direct reset
+      const resetRes = await authService.resetPasswordDirectly(
+        'madhavcarandas@gmail.com',
+        'NewHareKrishna@108'
+      );
+      expect(resetRes.success).toBe(true);
+
+      // Verify sign in with new password
+      const user = await authService.signIn('madhavcarandas@gmail.com', 'NewHareKrishna@108');
+      expect(user.displayName).toBe('Madhav Charan Das');
+
+      // Reset back to standard password for other tests
+      await authService.resetPasswordDirectly('madhavcarandas@gmail.com', 'Sadhana@108');
+    });
+
+    test('rejects direct password reset with password shorter than 6 characters', async () => {
+      await expect(
+        authService.resetPasswordDirectly('madhavcarandas@gmail.com', '123')
+      ).rejects.toThrow('Password must be at least 6 characters long');
+    });
   });
 
   describe('Counselee Registration & Admin Persistence', () => {

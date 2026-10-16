@@ -395,6 +395,53 @@ export const localStorageService = {
   },
 
   /**
+   * Update a user's password in local storage
+   */
+  updateUserPassword: async (email: string, newPassword: string): Promise<boolean> => {
+    try {
+      const clean = email.trim().toLowerCase();
+      const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
+      const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
+
+      let targetUid = Object.keys(users).find(
+        (uid) => users[uid].email && users[uid].email.toLowerCase() === clean
+      );
+
+      // If counsellor admin is not yet explicitly written into local users
+      if (!targetUid && clean === 'madhavcarandas@gmail.com') {
+        targetUid = 'counsellor_admin_uid';
+        users[targetUid] = {
+          uid: 'counsellor_admin_uid',
+          email: 'madhavcarandas@gmail.com',
+          displayName: 'Madhav Charan Das',
+          phoneNumber: '+919876543210',
+          role: 'counsellor',
+          status: 'approved',
+          declaredRounds: 16,
+          publicAppreciationConsent: false,
+          createdAt: '2025-01-01T00:00:00.000Z',
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      if (targetUid) {
+        users[targetUid] = {
+          ...users[targetUid],
+          password: newPassword,
+          updatedAt: new Date().toISOString(),
+        };
+        await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      console.warn('Error updating user password in local storage:', e);
+      return false;
+    }
+  },
+
+  /**
    * Save or update an invitation code in local storage
    */
   saveInvitation: async (invitation: InvitationCode): Promise<void> => {
