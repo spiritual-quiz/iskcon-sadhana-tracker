@@ -18,6 +18,7 @@ import { db } from '../../config/firebase';
 import { UserProfile } from '../../types/auth';
 import { reportService } from '../../services/reportService';
 import { attendanceService } from '../../services/attendanceService';
+import { authService } from '../../services/authService';
 import { getTodayDateStringIST, getWeekDetails } from '../../utils/dateUtils';
 import { WeeklyReport } from '../../types/report';
 import { useAuth } from '../../context/AuthContext';
@@ -39,10 +40,8 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
 
   const loadWeeklyData = async () => {
     try {
-      const usersSnap = await getDocs(
-        query(collection(db, 'users'), where('role', '==', 'counselee'), where('status', '==', 'approved'))
-      );
-      const approvedUsers = usersSnap.docs.map((d) => d.data() as UserProfile);
+      const allCounselees = await authService.getAllCounselees();
+      const approvedUsers = allCounselees.filter((u) => u.status === 'approved');
       setCounselees(approvedUsers);
 
       const reports = await Promise.all(

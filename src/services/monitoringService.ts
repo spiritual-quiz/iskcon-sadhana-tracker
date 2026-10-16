@@ -13,6 +13,7 @@ import { db } from '../config/firebase';
 import { MonitoringAlert } from '../types/monitoring';
 import { getTodayDateStringIST, getDaysDifference } from '../utils/dateUtils';
 import { UserProfile } from '../types/auth';
+import { localStorageService } from './localStorageService';
 
 export const monitoringService = {
   /**
@@ -131,12 +132,53 @@ export const monitoringService = {
    * Get all active (open) monitoring alerts for admin dashboard
    */
   getOpenAlerts: async (): Promise<MonitoringAlert[]> => {
-    const q = query(
-      collection(db, 'monitoring_alerts'),
-      where('status', '==', 'open'),
-      orderBy('createdAt', 'desc')
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as MonitoringAlert);
+    try {
+      const q = query(
+        collection(db, 'monitoring_alerts'),
+        where('status', '==', 'open'),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs.map((d) => d.data() as MonitoringAlert);
+      }
+    } catch (e) {
+      console.warn('Firestore getOpenAlerts fallback to local evaluation:', e);
+    }
+
+    // Dynamic evaluation fallback: evaluate approved counselees
+    try {
+      const allUsers = await localStorageService.getAllUsers();
+      const approved = allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved');
+      const todayStr = getTodayDateStringIST();
+      const fallbackAlerts: MonitoringAlert[] = [];
+
+      for (const c of approved) {
+        const latestEntry = await localStorageService.getLatestEntryForUser(c.uid);
+        const lastDate = latestEntry?.date;
+        const daysSince = lastDate
+          ? getDaysDifference(lastDate, todayStr)
+          : getDaysDifference(c.createdAt ? c.createdAt.split('T')[0] : todayStr, todayStr);
+
+        if (daysSince > 3) {
+          fallbackAlerts.push({
+            id: `missing_${c.uid}`,
+            userId: c.uid,
+            counseleeName: c.displayName,
+            alertType: 'missing_card',
+            severity: 'warning',
+            title: 'Missing Daily Sadhana Card',
+            description: `${c.displayName} has not submitted a daily sadhana card for ${daysSince} consecutive days${lastDate ? ` (Last: ${lastDate})` : ''}.`,
+            lastSubmissionDate: lastDate,
+            consecutiveMissingDays: daysSince,
+            status: 'open',
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+      return fallbackAlerts;
+    } catch (err) {
+      return [];
+    }
   },
 };

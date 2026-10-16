@@ -17,6 +17,9 @@ import { SCORING_RULES } from '../../constants/scoring';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
+import { authService } from '../../services/authService';
+import { localStorageService } from '../../services/localStorageService';
+
 export const SettingsExportScreen = ({ navigation }: any) => {
   const [minA, setMinA] = useState<string>('90');
   const [minB, setMinB] = useState<string>('80');
@@ -35,24 +38,37 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   const handleExportData = async () => {
     setIsExporting(true);
     try {
-      const [usersSnap, sadhanaSnap] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'sadhana_entries')),
-      ]);
+      let usersList: any[] = [];
+      let sadhanaList: any[] = [];
+
+      try {
+        const [usersSnap, sadhanaSnap] = await Promise.all([
+          getDocs(collection(db, 'users')),
+          getDocs(collection(db, 'sadhana_entries')),
+        ]);
+        usersList = usersSnap.docs.map((d) => d.data());
+        sadhanaList = sadhanaSnap.docs.map((d) => d.data());
+      } catch (fbErr) {
+        console.warn('Firestore export fallback to local storage:', fbErr);
+      }
+
+      if (usersList.length === 0) {
+        usersList = await authService.getAllUsers();
+      }
 
       const exportPayload = {
         exportedAt: new Date().toISOString(),
-        totalUsers: usersSnap.size,
-        totalSadhanaEntries: sadhanaSnap.size,
-        users: usersSnap.docs.map((d) => d.data()),
-        sadhanaEntries: sadhanaSnap.docs.map((d) => d.data()),
+        totalUsers: usersList.length,
+        totalSadhanaEntries: sadhanaList.length,
+        users: usersList,
+        sadhanaEntries: sadhanaList,
       };
 
       const jsonStr = JSON.stringify(exportPayload, null, 2);
       await Clipboard.setStringAsync(jsonStr);
       Alert.alert(
         'Export Complete!',
-        `Exported ${usersSnap.size} devotees and ${sadhanaSnap.size} daily sadhana records. Full JSON copied to your clipboard.`
+        `Exported ${usersList.length} devotees and ${sadhanaList.length} daily sadhana records. Full JSON copied to your clipboard.`
       );
     } catch (err: any) {
       Alert.alert('Export Error', err.message || 'Failed to export database records.');
