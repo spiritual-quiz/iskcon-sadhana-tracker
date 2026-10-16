@@ -118,7 +118,7 @@ export const authService = {
       }
 
       // Default demo counsellor credentials
-      if ((cleanEmail === 'madhavcarandas@gmail.com' || cleanEmail === 'counsellor@iskcon.org') && password === 'Sadhana@108') {
+      if (cleanEmail === 'madhavcarandas@gmail.com' && password === 'Sadhana@108') {
         const adminProfile: UserProfile = {
           uid: 'counsellor_admin_uid',
           email: 'madhavcarandas@gmail.com',
@@ -390,7 +390,6 @@ export const authService = {
       const isKnown =
         localUser ||
         cleanEmail === 'madhavcarandas@gmail.com' ||
-        cleanEmail === 'counsellor@iskcon.org' ||
         cleanEmail === 'devotee@iskcon.org';
 
       if (!isKnown) {

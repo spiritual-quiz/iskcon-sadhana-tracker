@@ -119,7 +119,7 @@ As mandated by the security specification, the Counsellor/Admin account **must n
 Run the trusted bootstrap script using Firebase Admin SDK:
 
 ```powershell
-npx ts-node backend/scripts/initAdmin.ts counsellor@iskcon.org "Sadhana@108" "H.G. Counsellor Das" "+919876543210"
+npx ts-node backend/scripts/initAdmin.ts madhavcarandas@gmail.com "Sadhana@108" "Madhav Charan Das" "+919876543210"
 ```
 
 This script:

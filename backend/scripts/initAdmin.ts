@@ -17,9 +17,9 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 async function bootstrapAdmin() {
   const args = process.argv.slice(2);
-  const email = args[0] || 'counsellor@iskcon.org';
+  const email = args[0] || 'madhavcarandas@gmail.com';
   const password = args[1] || 'Sadhana@108';
-  const displayName = args[2] || 'H.G. Counsellor Das';
+  const displayName = args[2] || 'Madhav Charan Das';
   const phoneNumber = args[3] || '+919876543210';
 
   console.log(`[Admin Bootstrap] Initializing Admin Account for: ${email}`);

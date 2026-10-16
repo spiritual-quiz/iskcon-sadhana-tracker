@@ -264,7 +264,7 @@ export const localStorageService = {
       const clean = email.trim().toLowerCase();
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       if (!existingRaw) {
-        if (clean === 'madhavcarandas@gmail.com' || clean === 'counsellor@iskcon.org') {
+        if (clean === 'madhavcarandas@gmail.com') {
           return {
             uid: 'counsellor_admin_uid',
             email: 'madhavcarandas@gmail.com',
@@ -281,7 +281,7 @@ export const localStorageService = {
         return null;
       }
       const users: Record<string, LocalStoredUser> = JSON.parse(existingRaw);
-      if (clean === 'madhavcarandas@gmail.com' || clean === 'counsellor@iskcon.org') {
+      if (clean === 'madhavcarandas@gmail.com') {
         const admin = users['counsellor_admin_uid'] || {
           uid: 'counsellor_admin_uid',
           email: 'madhavcarandas@gmail.com',
