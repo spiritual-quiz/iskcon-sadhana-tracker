@@ -263,8 +263,41 @@ export const localStorageService = {
     try {
       const clean = email.trim().toLowerCase();
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
-      if (!existingRaw) return null;
+      if (!existingRaw) {
+        if (clean === 'madhavcarandas@gmail.com' || clean === 'counsellor@iskcon.org') {
+          return {
+            uid: 'counsellor_admin_uid',
+            email: 'madhavcarandas@gmail.com',
+            displayName: 'Madhav Charan Das',
+            phoneNumber: '+919876543210',
+            role: 'counsellor',
+            status: 'approved',
+            declaredRounds: 16,
+            publicAppreciationConsent: false,
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2025-01-01T00:00:00.000Z',
+          };
+        }
+        return null;
+      }
       const users: Record<string, LocalStoredUser> = JSON.parse(existingRaw);
+      if (clean === 'madhavcarandas@gmail.com' || clean === 'counsellor@iskcon.org') {
+        const admin = users['counsellor_admin_uid'] || {
+          uid: 'counsellor_admin_uid',
+          email: 'madhavcarandas@gmail.com',
+          displayName: 'Madhav Charan Das',
+          phoneNumber: '+919876543210',
+          role: 'counsellor',
+          status: 'approved',
+          declaredRounds: 16,
+          publicAppreciationConsent: false,
+          createdAt: '2025-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+        admin.displayName = 'Madhav Charan Das';
+        admin.email = 'madhavcarandas@gmail.com';
+        return admin;
+      }
       const match = Object.values(users).find((u) => u.email.toLowerCase() === clean);
       return match || null;
     } catch (e) {
@@ -284,8 +317,8 @@ export const localStorageService = {
       const defaultUsers: Record<string, UserProfile> = {
         'counsellor_admin_uid': {
           uid: 'counsellor_admin_uid',
-          email: 'counsellor@iskcon.org',
-          displayName: 'H.G. Counsellor Das',
+          email: 'madhavcarandas@gmail.com',
+          displayName: 'Madhav Charan Das',
           phoneNumber: '+919876543210',
           role: 'counsellor',
           status: 'approved',
@@ -311,6 +344,11 @@ export const localStorageService = {
           updatedAt: '2025-01-01T00:00:00.000Z',
         },
       };
+
+      if (localUsers['counsellor_admin_uid']) {
+        localUsers['counsellor_admin_uid'].displayName = 'Madhav Charan Das';
+        localUsers['counsellor_admin_uid'].email = 'madhavcarandas@gmail.com';
+      }
 
       const merged = { ...defaultUsers, ...localUsers };
       return Object.values(merged);

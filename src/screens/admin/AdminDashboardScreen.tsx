@@ -174,7 +174,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       <Header
         title="Counsellor Dashboard"
-        subtitle={`Hare Krishna, ${user?.displayName || 'Counsellor'}`}
+        subtitle={`Hare Krishna, ${user?.displayName || 'Madhav Charan Das'}`}
         rightAction={{
           iconName: 'log-out-outline',
           onPress: signOut,

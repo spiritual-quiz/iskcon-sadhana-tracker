@@ -128,6 +128,19 @@ describe('Service Logic and Integration Verification', () => {
       expect(res.message).toContain('devotee@iskcon.org');
     });
 
+    test('successfully processes reset request for counsellor Madhav Charan Das', async () => {
+      const res = await authService.sendPasswordReset('madhavcarandas@gmail.com');
+      expect(res.success).toBe(true);
+      expect(res.message).toContain('madhavcarandas@gmail.com');
+    });
+
+    test('authenticates counsellor Madhav Charan Das with correct credentials', async () => {
+      const counsellor = await authService.signIn('madhavcarandas@gmail.com', 'Sadhana@108');
+      expect(counsellor.displayName).toBe('Madhav Charan Das');
+      expect(counsellor.email).toBe('madhavcarandas@gmail.com');
+      expect(counsellor.role).toBe('counsellor');
+    });
+
     test('rejects password reset for unknown unregistered emails', async () => {
       await expect(authService.sendPasswordReset('unknown999@domain.org')).rejects.toThrow(
         'No registered account was found'

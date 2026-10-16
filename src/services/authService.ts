@@ -118,11 +118,11 @@ export const authService = {
       }
 
       // Default demo counsellor credentials
-      if (cleanEmail === 'counsellor@iskcon.org' && password === 'Sadhana@108') {
+      if ((cleanEmail === 'madhavcarandas@gmail.com' || cleanEmail === 'counsellor@iskcon.org') && password === 'Sadhana@108') {
         const adminProfile: UserProfile = {
           uid: 'counsellor_admin_uid',
-          email: 'counsellor@iskcon.org',
-          displayName: 'H.G. Counsellor Das',
+          email: 'madhavcarandas@gmail.com',
+          displayName: 'Madhav Charan Das',
           phoneNumber: '+919876543210',
           role: 'counsellor',
           status: 'approved',
@@ -389,6 +389,7 @@ export const authService = {
       const localUser = await localStorageService.getUserByEmail(cleanEmail);
       const isKnown =
         localUser ||
+        cleanEmail === 'madhavcarandas@gmail.com' ||
         cleanEmail === 'counsellor@iskcon.org' ||
         cleanEmail === 'devotee@iskcon.org';
 
