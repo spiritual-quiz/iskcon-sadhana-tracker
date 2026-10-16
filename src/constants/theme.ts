@@ -4,39 +4,39 @@ export const THEME = {
     primary: '#1B4D3E', // Sacred Forest Green
     primaryDark: '#0F382A',
     primaryLight: '#2C6B56',
-    primaryUltraLight: '#EAF3EF',
+    primaryUltraLight: '#EBF4F0',
 
     // Sacred Gold Accents
     gold: '#D4AF37', // Temple Gold
     goldDark: '#B8860B',
-    goldLight: '#F3E5AB',
-    goldAccent: '#FFF8E7',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FFFBEB',
 
-    // Background & Surfaces
-    background: '#FDFBF7', // Devotional Cream
-    surface: '#FFFFFF',
-    surfaceVariant: '#F7F4EC',
-    surfaceMuted: '#EFECE3',
+    // Background & Surfaces (Modern Executive & Clean Canvas)
+    background: '#F4F6F9', // Crisp Executive Canvas (replaces dull/yellowish cream #FDFBF7)
+    surface: '#FFFFFF', // Pristine Card Surface
+    surfaceVariant: '#EDF2F7', // Refined Inset / Block Surface (replaces muddy #F7F4EC)
+    surfaceMuted: '#E2E8F0', // Clean Divider / Muted Tone (replaces dull #EFECE3)
     card: '#FFFFFF',
 
     // Text & Typography
-    text: '#1C2826', // High contrast deep charcoal
-    textMuted: '#5C6B64',
-    textLight: '#8C9A93',
+    text: '#0F172A', // High contrast deep obsidian/slate ink (replaces #1C2826)
+    textMuted: '#64748B', // Neutral professional secondary slate (replaces #5C6B64)
+    textLight: '#94A3B8', // Clear placeholder / hint
     textInverse: '#FFFFFF',
 
     // Borders & Dividers
-    border: '#E3DDD3',
-    borderLight: '#EDE8DF',
+    border: '#E2E8F0', // Crisp slate border (replaces muddy yellowish #E3DDD3)
+    borderLight: '#F1F5F9', // Subtle separator
 
     // Status / Sentiment
-    success: '#2E7D32',
-    successLight: '#E8F5E9',
+    success: '#15803D',
+    successLight: '#DCFCE7',
     warning: '#D97706',
     warningLight: '#FEF3C7',
-    danger: '#C53030',
-    dangerLight: '#FFEBEE',
-    info: '#1E40AF',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
     infoLight: '#EFF6FF',
 
     // Grades
@@ -82,16 +82,16 @@ export const THEME = {
   },
   shadows: {
     soft: {
-      shadowColor: '#1B4D3E',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
       elevation: 2,
     },
     medium: {
-      shadowColor: '#1B4D3E',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
+      shadowOpacity: 0.08,
       shadowRadius: 12,
       elevation: 4,
     },

@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   invCardActive: {
     borderColor: THEME.colors.gold,
     borderWidth: 2,
-    backgroundColor: '#FFFDF5',
+    backgroundColor: THEME.colors.goldAccent,
   },
   viewingBadge: {
     flexDirection: 'row',
