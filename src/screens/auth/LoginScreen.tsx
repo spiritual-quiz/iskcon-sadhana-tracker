@@ -235,7 +235,7 @@ export const LoginScreen = ({ navigation }: any) => {
                     />
                     <TextInput
                       style={styles.modalTextInput}
-                      placeholder="e.g. madhavcarandas@gmail.com"
+                      placeholder="e.g. devotee@example.com"
                       value={resetEmail}
                       onChangeText={setResetEmail}
                       keyboardType="email-address"
