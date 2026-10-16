@@ -30,11 +30,11 @@ export const CounseleeTabs = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: THEME.colors.gold,
-        tabBarInactiveTintColor: '#A0AEC0',
+        tabBarActiveTintColor: '#261200',
+        tabBarInactiveTintColor: '#78350F',
         tabBarStyle: {
-          backgroundColor: THEME.colors.primaryDark,
-          borderTopColor: THEME.colors.gold,
+          backgroundColor: '#FFA600',
+          borderTopColor: '#E08500',
           borderTopWidth: 1.5,
           height: 60,
           paddingBottom: 8,

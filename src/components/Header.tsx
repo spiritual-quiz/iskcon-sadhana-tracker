@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.topRow}>
         {showBack ? (
           <TouchableOpacity onPress={onBackPress} style={styles.iconButton}>
-            <Ionicons name="arrow-back" size={22} color={THEME.colors.gold} />
+            <Ionicons name="arrow-back" size={22} color="#261200" />
           </TouchableOpacity>
         ) : (
           <View style={styles.logoContainer}>
@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {rightAction ? (
           <TouchableOpacity onPress={rightAction.onPress} style={styles.iconButton}>
-            <Ionicons name={rightAction.iconName} size={20} color={THEME.colors.gold} />
+            <Ionicons name={rightAction.iconName} size={20} color="#261200" />
           </TouchableOpacity>
         ) : (
           <View style={styles.rightPlaceholder} />
@@ -63,12 +63,12 @@ export const Header: React.FC<HeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: THEME.colors.primary,
+    backgroundColor: '#FFA600',
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 10,
     borderBottomWidth: 1.5,
-    borderBottomColor: THEME.colors.gold,
+    borderBottomColor: '#E08500',
   },
   topRow: {
     flexDirection: 'row',
@@ -93,22 +93,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   title: {
-    color: THEME.colors.textInverse,
+    color: '#261200',
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 0.3,
   },
   subtitle: {
-    color: THEME.colors.goldLight,
+    color: '#5C2D00',
     fontSize: 11,
     marginTop: 1,
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   iconButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },

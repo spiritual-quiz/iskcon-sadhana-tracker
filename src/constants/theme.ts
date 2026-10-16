@@ -1,36 +1,42 @@
 export const THEME = {
   colors: {
-    // Primary Devotional Colors (Thick Royal Saffron & Orange)
-    primary: '#C2410C', // Thick Sacred Saffron / Deep Orange
-    primaryDark: '#9A3412', // Rich Deep Saffron
-    primaryLight: '#EA580C', // Vibrant Saffron Orange
-    primaryUltraLight: '#FFEDD5', // Soft Saffron Peach
+    // Header & Brand Colors
+    header: '#FFA600', // Vibrant Golden Marigold
+    headerBorder: '#E08500',
+    headerText: '#261200', // Deep obsidian brown for high contrast on #FFA600
+    headerSubtitle: '#5C2D00',
+
+    // Primary Devotional Colors
+    primary: '#D97706', // Rich Golden Amber
+    primaryDark: '#92400E', // Deep Amber
+    primaryLight: '#FFA600', // Golden Orange
+    primaryUltraLight: '#FEF3C7', // Soft Gold Tint
  
     // Sacred Gold & Saffron Accents
     gold: '#D4AF37', // Temple Gold
     goldDark: '#B45309', // Rich Amber Gold
-    goldLight: '#FEF3C7', // Warm Gold Tint
+    goldLight: '#FEF3C7',
     goldAccent: '#FEF08A',
-    saffron: '#EA580C', // Sacred Vedic Kesari Saffron
-    saffronLight: '#FFEDD5',
-    saffronDark: '#9A3412',
+    saffron: '#FFA600',
+    saffronLight: '#FCD997',
+    saffronDark: '#B45309',
 
-    // Background & Surfaces (Sacred Saffron & Kesari Palette)
-    background: '#FFF2DE', // Radiant Warm Saffron / Kesari Glow (Rich & Devotional)
+    // Background & Surfaces
+    background: '#FCD997', // User requested golden body canvas
     surface: '#FFFFFF', // Pristine White Card Surface
-    surfaceVariant: '#FFEDD5', // Warm Kesari Peach Inset Surface
-    surfaceMuted: '#FED7AA', // Warm Amber Accent Tone
+    surfaceVariant: '#F7CE7F', // Warm Golden Inset Surface
+    surfaceMuted: '#EAA847', // Warm Amber Accent Tone
     card: '#FFFFFF',
 
     // Text & Typography
     text: '#1C1917', // High contrast deep obsidian/charcoal
-    textMuted: '#785E4F', // Warm rich cocoa slate
-    textLight: '#A89080', // Clear placeholder / hint
+    textMuted: '#684518', // Warm rich cocoa amber
+    textLight: '#8C6030', // Clear placeholder / hint
     textInverse: '#FFFFFF',
 
     // Borders & Dividers
-    border: '#FED7AA', // Warm Kesari/Golden hairline border
-    borderLight: '#FFF0DC', // Subtle separator
+    border: '#EAA847', // Warm golden hairline border
+    borderLight: '#F6CD8B', // Subtle separator
 
     // Status / Sentiment
     success: '#15803D',
@@ -43,7 +49,7 @@ export const THEME = {
     infoLight: '#EFF6FF',
 
     // Grades
-    gradeA: '#C2410C', // Thick Royal Saffron
+    gradeA: '#D97706',
     gradeB: '#2563EB',
     gradeC: '#D97706',
     gradeD: '#EA580C',

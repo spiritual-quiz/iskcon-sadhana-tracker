@@ -62,7 +62,7 @@ export const RootNavigator = () => {
 const styles = StyleSheet.create({
   splashContainer: {
     flex: 1,
-    backgroundColor: THEME.colors.primary,
+    backgroundColor: '#FFA600',
     alignItems: 'center',
     justifyContent: 'center',
     padding: THEME.spacing.xl,
@@ -88,20 +88,20 @@ const styles = StyleSheet.create({
   splashTitle: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: THEME.colors.textInverse,
+    color: '#261200',
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   splashSubtitle: {
     fontSize: 13,
-    color: THEME.colors.goldLight,
+    color: '#5C2D00',
     textAlign: 'center',
     marginTop: 4,
     fontWeight: '600',
   },
   institutionTag: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(38, 18, 0, 0.7)',
     textAlign: 'center',
     marginTop: 2,
     fontStyle: 'italic',
