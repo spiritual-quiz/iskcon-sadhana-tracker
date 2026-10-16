@@ -8,12 +8,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Production Firebase Configuration
 // Values can be supplied via environment variables in .env (EXPO_PUBLIC_*)
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDemoPlaceholderKeyForISKCONTracker',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'iskcon-sadhana-tracker.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'iskcon-sadhana-tracker',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'iskcon-sadhana-tracker.appspot.com',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '102938475610',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:102938475610:android:a1b2c3d4e5f6',
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAxUemheOgI2u4B1I08xNkRmcfLAg4jQUA',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'iskcon-sadhana-tracker-ecced.firebaseapp.com',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'iskcon-sadhana-tracker-ecced',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'iskcon-sadhana-tracker-ecced.firebasestorage.app',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '219813049186',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:219813049186:web:4a79984779c0ce5cd9f23b',
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

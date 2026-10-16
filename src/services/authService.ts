@@ -378,6 +378,17 @@ export const authService = {
       throw new Error('Please enter a valid email address.');
     }
 
+    // Check if this email exists in system or local accounts
+    const localUser = await localStorageService.getUserByEmail(cleanEmail);
+    const isKnown =
+      localUser ||
+      cleanEmail === 'madhavcarandas@gmail.com' ||
+      cleanEmail === 'devotee@iskcon.org';
+
+    if (!isKnown) {
+      throw new Error('No registered account was found with this email address. Please check your spelling or register first.');
+    }
+
     try {
       await sendPasswordResetEmail(auth, cleanEmail);
       return {
@@ -387,21 +398,10 @@ export const authService = {
     } catch (fbErr: any) {
       console.warn('Firebase sendPasswordResetEmail fallback (offline/demo):', fbErr);
 
-      // Check if this email exists in local accounts
-      const localUser = await localStorageService.getUserByEmail(cleanEmail);
-      const isKnown =
-        localUser ||
-        cleanEmail === 'madhavcarandas@gmail.com' ||
-        cleanEmail === 'devotee@iskcon.org';
-
-      if (!isKnown) {
-        throw new Error('No registered account was found with this email address. Please check your spelling or register first.');
-      }
-
       return {
         success: true,
         isDemoMode: true,
-        message: `Firebase is currently running in offline/demo mode (placeholder API key). An automated email could not be dispatched to ${cleanEmail} over the internet. You can reset your password directly on this device below.`,
+        message: `Firebase is currently running in offline/demo mode. An automated email could not be dispatched to ${cleanEmail} over the internet. You can reset your password directly on this device below.`,
       };
     }
   },
