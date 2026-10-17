@@ -110,6 +110,7 @@ export const MyReportsScreen = () => {
                 breakdown={{
                   classMarks: weeklyReport.weeklyClassMarks,
                   morningMarks: weeklyReport.morningProgrammeMarks,
+                  onlineReadingMarks: weeklyReport.onlineReadingMarks,
                 }}
               />
 
@@ -129,6 +130,12 @@ export const MyReportsScreen = () => {
                   <Text style={styles.metricLabel}>Total Spiritual Hearing:</Text>
                   <Text style={styles.metricValue}>
                     {formatMinutesToHours(weeklyReport.totalHearingMinutes)}
+                  </Text>
+                </View>
+                <View style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>Online Reading (Mon–Fri):</Text>
+                  <Text style={[styles.metricValue, { color: '#2563EB', fontWeight: 'bold' }]}>
+                    {weeklyReport.onlineReadingDaysAttended}/5 Days ({weeklyReport.onlineReadingMarks}/50 marks)
                   </Text>
                 </View>
                 <View style={styles.metricRow}>
@@ -164,7 +171,7 @@ export const MyReportsScreen = () => {
                 breakdown={{
                   classMarks: monthlyReport.weeklyClassesMarks,
                   morningMarks: monthlyReport.morningProgrammesMarks,
-                  satsangaMarks: monthlyReport.satsangaMarks,
+                  satsangaMarks: monthlyReport.satsangaScheduled ? monthlyReport.satsangaMarks : undefined,
                 }}
               />
 
@@ -194,8 +201,21 @@ export const MyReportsScreen = () => {
                 </View>
                 <View style={styles.metricRow}>
                   <Text style={styles.metricLabel}>Monthly Satsanga:</Text>
-                  <Text style={styles.metricValue}>
-                    {monthlyReport.satsangaAttended ? 'Attended (10 marks)' : 'Not Attended (0 marks)'}
+                  <Text
+                    style={[
+                      styles.metricValue,
+                      monthlyReport.satsangaStatus === 'attended'
+                        ? { color: '#15803D', fontWeight: 'bold' }
+                        : monthlyReport.satsangaStatus === 'not_conducted'
+                        ? { color: '#D97706', fontWeight: 'bold' }
+                        : { color: '#DC2626', fontWeight: 'bold' },
+                    ]}
+                  >
+                    {monthlyReport.satsangaStatus === 'attended'
+                      ? 'Attended (50 marks)'
+                      : monthlyReport.satsangaStatus === 'not_conducted'
+                      ? 'Not Conducted This Month (Dynamic / No Penalty)'
+                      : 'Not Attended (0 marks)'}
                   </Text>
                 </View>
               </View>

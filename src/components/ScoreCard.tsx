@@ -17,6 +17,7 @@ interface ScoreCardProps {
     sleep?: number;
     classMarks?: number;
     morningMarks?: number;
+    onlineReadingMarks?: number;
     satsangaMarks?: number;
   };
 }
@@ -88,10 +89,16 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
               <Text style={styles.breakdownValue}>{breakdown.morningMarks}/10</Text>
             </View>
           )}
+          {breakdown.onlineReadingMarks !== undefined && (
+            <View style={styles.breakdownItem}>
+              <Text style={styles.breakdownLabel}>Online Read</Text>
+              <Text style={styles.breakdownValue}>{breakdown.onlineReadingMarks}/50</Text>
+            </View>
+          )}
           {breakdown.satsangaMarks !== undefined && (
             <View style={styles.breakdownItem}>
               <Text style={styles.breakdownLabel}>Satsanga</Text>
-              <Text style={styles.breakdownValue}>{breakdown.satsangaMarks}/10</Text>
+              <Text style={styles.breakdownValue}>{breakdown.satsangaMarks}/50</Text>
             </View>
           )}
         </View>

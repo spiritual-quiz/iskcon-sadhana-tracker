@@ -108,7 +108,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
         >
           <View style={styles.infoBanner}>
             <Text style={styles.infoBannerText}>
-              Weekly Max Marks: 300 (Daily: 280, Weekly Class: 10, Morning Programme: 10).
+              Weekly Max Marks: 350 (Daily: 280, Online Reading Mon–Fri: 50, Weekly Class: 10, Morning Programme: 10).
               Tap attendance pills to mark devotee attendance.
             </Text>
           </View>
@@ -187,6 +187,14 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                       Morning Prog ({rep.morningProgrammeMarks}/10)
                     </Text>
                   </TouchableOpacity>
+                </View>
+
+                {/* Online Reading Session Strip */}
+                <View style={styles.onlineReadingStrip}>
+                  <Ionicons name="laptop-outline" size={15} color="#2563EB" />
+                  <Text style={styles.onlineReadingStripText}>
+                    Online Reading (Mon–Fri): <Text style={{ fontWeight: 'bold', color: '#1D4ED8' }}>{rep.onlineReadingDaysAttended}/5 Days</Text> ({rep.onlineReadingMarks}/50 marks)
+                  </Text>
                 </View>
 
                 <View style={styles.statsStrip}>
@@ -294,6 +302,22 @@ const styles = StyleSheet.create({
   },
   attPillTextActive: {
     color: THEME.colors.textInverse,
+  },
+  onlineReadingStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    marginTop: 6,
+    gap: 6,
+  },
+  onlineReadingStripText: {
+    fontSize: 10,
+    color: '#1E40AF',
   },
   statsStrip: {
     flexDirection: 'row',

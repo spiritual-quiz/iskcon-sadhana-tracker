@@ -1,4 +1,4 @@
-import { Grade, SadhanaEntry } from './sadhana';
+import { Grade, SadhanaEntry, MonthlySatsangStatus } from './sadhana';
 
 export interface DailyReport extends SadhanaEntry {}
 
@@ -17,8 +17,10 @@ export interface WeeklyReport {
   weeklyClassMarks: number; // 0 or 10
   morningProgrammeAttendance: boolean;
   morningProgrammeMarks: number; // 0 or 10
+  onlineReadingDaysAttended: number; // 0 to 5 days (Mon to Fri)
+  onlineReadingMarks: number; // 0 to 50 marks (10 marks each day)
   totalScore: number;
-  maxAvailableMarks: number; // e.g. 280 + 10 + 10 = 300
+  maxAvailableMarks: number; // 280 + 10 + 10 + 50 = 350
   percentage: number;
   grade: Grade;
   missingReportDays: number;
@@ -43,9 +45,10 @@ export interface MonthlyReport {
   morningProgrammesScheduled: number;
   morningProgrammesAttended: number;
   morningProgrammesMarks: number;
-  satsangaScheduled: boolean;
+  satsangaScheduled: boolean; // dynamic: true if conducted, false if no class held
   satsangaAttended: boolean;
-  satsangaMarks: number; // 0 or 10
+  satsangaMarks: number; // 0 or 50 marks
+  satsangaStatus: MonthlySatsangStatus; // 'attended' | 'absent' | 'not_conducted'
   totalScore: number;
   maxAvailableMarks: number;
   percentage: number;

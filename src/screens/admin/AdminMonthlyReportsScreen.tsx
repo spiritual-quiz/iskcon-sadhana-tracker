@@ -64,7 +64,14 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleToggleSatsanga = async (userId: string, currentAttended: boolean) => {
+  const handleCycleSatsanga = async (userId: string, currentStatus: string) => {
+    const nextStatus =
+      currentStatus === 'attended'
+        ? 'absent'
+        : currentStatus === 'absent'
+        ? 'not_conducted'
+        : 'attended';
+
     const monthId = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
     setUpdatingId(userId);
     try {
@@ -72,7 +79,7 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
         userId,
         monthId,
         scheduledDate: todayStr,
-        attended: !currentAttended,
+        status: nextStatus as any,
         updatedBy: user?.uid || 'admin',
       });
       await loadMonthlyData();
@@ -124,27 +131,36 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                   <Text style={styles.roundsText}>{rep.totalRounds} Rounds</Text>
                 </View>
 
-                {/* Monthly Satsanga Attendance Toggle */}
+                {/* Monthly Satsanga Attendance Toggle (50 marks, dynamic attendance) */}
                 <TouchableOpacity
                   style={[
                     styles.satsangaBtn,
-                    rep.satsangaAttended ? styles.satsangaBtnActive : styles.satsangaBtnInactive,
+                    rep.satsangaStatus === 'attended'
+                      ? styles.satsangaBtnActive
+                      : rep.satsangaStatus === 'not_conducted'
+                      ? styles.satsangaBtnNotHeld
+                      : styles.satsangaBtnAbsent,
                   ]}
-                  onPress={() => handleToggleSatsanga(rep.userId, rep.satsangaAttended)}
+                  onPress={() => handleCycleSatsanga(rep.userId, rep.satsangaStatus)}
                   disabled={updatingId === rep.userId}
                 >
                   <Ionicons
-                    name={rep.satsangaAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                    name={
+                      rep.satsangaStatus === 'attended'
+                        ? 'checkmark-circle'
+                        : rep.satsangaStatus === 'not_conducted'
+                        ? 'pause-circle'
+                        : 'close-circle'
+                    }
                     size={18}
-                    color={rep.satsangaAttended ? THEME.colors.textInverse : THEME.colors.primary}
+                    color="#FFFFFF"
                   />
-                  <Text
-                    style={[
-                      styles.satsangaBtnText,
-                      rep.satsangaAttended && styles.satsangaBtnTextActive,
-                    ]}
-                  >
-                    Monthly Satsanga ({rep.satsangaMarks}/10 marks)
+                  <Text style={styles.satsangaBtnTextActive}>
+                    {rep.satsangaStatus === 'attended'
+                      ? 'Monthly Satsang: Attended (50/50 M)'
+                      : rep.satsangaStatus === 'not_conducted'
+                      ? 'Monthly Satsang: No Class Held (Dynamic / 0 Penalty)'
+                      : 'Monthly Satsang: Absent (0/50 M)'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -228,8 +244,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   satsangaBtnActive: {
-    backgroundColor: THEME.colors.primary,
-    borderColor: THEME.colors.primary,
+    backgroundColor: '#15803D',
+    borderColor: '#15803D',
+  },
+  satsangaBtnNotHeld: {
+    backgroundColor: '#D97706',
+    borderColor: '#D97706',
+  },
+  satsangaBtnAbsent: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   satsangaBtnInactive: {
     backgroundColor: THEME.colors.surfaceVariant,

@@ -83,25 +83,33 @@ export const attendanceService = {
   },
 
   /**
-   * Save Monthly Satsanga Attendance
+   * Save Monthly Satsanga Attendance (50 marks, dynamic attendance)
    */
   recordMonthlySatsanga: async (params: {
     userId: string;
     monthId: string; // e.g. "2026-10"
     scheduledDate: string;
-    attended: boolean;
+    status?: 'attended' | 'absent' | 'not_conducted';
+    attended?: boolean;
+    conducted?: boolean;
     updatedBy: string;
   }): Promise<MonthlySatsangaAttendance> => {
     const id = `${params.userId}_${params.monthId}`;
     const docRef = doc(db, 'monthly_satsanga', id);
+
+    const isAttended = params.status ? params.status === 'attended' : !!params.attended;
+    const isConducted = params.status ? params.status !== 'not_conducted' : (params.conducted ?? true);
+    const resolvedStatus = params.status || (isAttended ? 'attended' : (isConducted ? 'absent' : 'not_conducted'));
 
     const record: MonthlySatsangaAttendance = {
       id,
       userId: params.userId,
       monthId: params.monthId,
       scheduledDate: params.scheduledDate,
-      attended: params.attended,
-      marks: params.attended ? 10 : 0,
+      attended: isAttended,
+      conducted: isConducted,
+      status: resolvedStatus,
+      marks: isAttended ? 50 : 0,
       isRecorded: true,
       updatedBy: params.updatedBy,
       updatedAt: new Date().toISOString(),

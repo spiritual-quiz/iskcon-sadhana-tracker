@@ -41,6 +41,7 @@ export const reportService = {
     let totalReadingMinutes = 0;
     let totalHearingMinutes = 0;
     let missingReportDays = 0;
+    let onlineReadingDaysAttended = 0;
     const dailyScores: number[] = [];
 
     dailyEntries.forEach((entry) => {
@@ -49,22 +50,28 @@ export const reportService = {
         totalReadingMinutes += entry.readingMinutes;
         totalHearingMinutes += entry.hearingMinutes;
         dailyScores.push(entry.dailyTotalScore);
+        if (entry.onlineReadingAttended) {
+          onlineReadingDaysAttended++;
+        }
       } else {
         missingReportDays++;
         dailyScores.push(0); // Missing day counts as 0 in finalized weekly total
       }
     });
 
+    const onlineReadingMarks = onlineReadingDaysAttended * 10;
+
     // Fetch weekly attendance
     const attendance = await attendanceService.getWeeklyAttendanceForUser(params.userId, weekId);
     const classAttended = attendance.weeklyClass?.attended || false;
     const morningAttended = attendance.morningProgramme?.attended || false;
 
-    // Calculate score out of 230
+    // Calculate score out of 350 (280 daily + 10 class + 10 morning + 50 online reading)
     const scoreCalc = calculateWeeklyScoreAndGrade({
       dailyScores,
       weeklyClassAttended: classAttended,
       morningProgrammeAttended: morningAttended,
+      onlineReadingMarks,
     });
 
     const report: WeeklyReport = {
@@ -82,6 +89,8 @@ export const reportService = {
       weeklyClassMarks: classAttended ? 10 : 0,
       morningProgrammeAttendance: morningAttended,
       morningProgrammeMarks: morningAttended ? 10 : 0,
+      onlineReadingDaysAttended,
+      onlineReadingMarks,
       totalScore: scoreCalc.totalScore,
       maxAvailableMarks: scoreCalc.maxAvailableMarks,
       percentage: scoreCalc.percentage,
@@ -157,9 +166,11 @@ export const reportService = {
       }
     });
 
-    // Monthly satsanga attendance
+    // Monthly satsanga attendance (50 marks, dynamic attendance)
     const satsanga = await attendanceService.getMonthlySatsangaForUser(params.userId, monthId);
     const satsangaAttended = satsanga?.attended || false;
+    const isConducted = satsanga ? (satsanga.conducted !== false && satsanga.status !== 'not_conducted') : true;
+    const satsangaStatus = satsanga?.status || (satsangaAttended ? 'attended' : (isConducted ? 'absent' : 'not_conducted'));
 
     // Approximate 4 weekly cycles per month
     const weeklyClassesScheduled = 4;
@@ -174,7 +185,7 @@ export const reportService = {
       weeklyClassesAttended,
       morningProgrammesScheduled,
       morningProgrammesAttended,
-      satsangaScheduled: true,
+      satsangaScheduled: isConducted,
       satsangaAttended,
     });
 
@@ -199,9 +210,10 @@ export const reportService = {
       morningProgrammesScheduled,
       morningProgrammesAttended,
       morningProgrammesMarks: morningProgrammesAttended * 10,
-      satsangaScheduled: true,
+      satsangaScheduled: isConducted,
       satsangaAttended,
-      satsangaMarks: satsangaAttended ? 20 : 0,
+      satsangaMarks: isConducted && satsangaAttended ? 50 : 0,
+      satsangaStatus,
       totalScore: scoreCalc.totalScore,
       maxAvailableMarks: scoreCalc.maxAvailableMarks,
       percentage: scoreCalc.percentage,

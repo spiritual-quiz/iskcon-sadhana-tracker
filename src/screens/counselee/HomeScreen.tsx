@@ -121,6 +121,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 breakdown={{
                   classMarks: weeklyReport.weeklyClassMarks,
                   morningMarks: weeklyReport.morningProgrammeMarks,
+                  onlineReadingMarks: weeklyReport.onlineReadingMarks,
                 }}
               />
             </View>

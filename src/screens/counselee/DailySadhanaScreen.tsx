@@ -18,13 +18,14 @@ import { THEME } from '../../constants/theme';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 import { sadhanaService } from '../../services/sadhanaService';
+import { attendanceService } from '../../services/attendanceService';
 import { evaluateDailySadhana } from '../../utils/scoringEngine';
 import {
   getTodayDateStringIST,
   calculateSleepDurationMinutes,
   formatMinutesToHours,
 } from '../../utils/dateUtils';
-import { SadhanaEntry } from '../../types/sadhana';
+import { SadhanaEntry, MonthlySatsangStatus } from '../../types/sadhana';
 import { TimeSelectorModal } from '../../components/TimeSelectorModal';
 import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 
@@ -63,6 +64,13 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const [wakeUpTime, setWakeUpTime] = useState<string>('04:00');
   const [restMinutes, setRestMinutes] = useState<string>('0');
 
+  // E. Online Reading Session (Monday to Friday, 10 Marks)
+  const [onlineReadingAttended, setOnlineReadingAttended] = useState<boolean>(false);
+
+  // F. Monthly Satsang (Dynamic, 50 Marks)
+  const [monthlySatsangStatus, setMonthlySatsangStatus] = useState<MonthlySatsangStatus>('not_conducted');
+  const [isUpdatingSatsang, setIsUpdatingSatsang] = useState<boolean>(false);
+
   const [correctionReason, setCorrectionReason] = useState<string>('');
   const [existingEntry, setExistingEntry] = useState<SadhanaEntry | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -84,7 +92,15 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     };
   }, []);
 
-  // Load entry for selected date
+  // Helper to check if selectedDate is Monday through Friday
+  const isWeekday = () => {
+    if (!selectedDate) return true;
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dayOfWeek = new Date(y, m - 1, d).getDay();
+    return dayOfWeek >= 1 && dayOfWeek <= 5; // 1=Mon, 5=Fri
+  };
+
+  // Load entry and monthly satsanga for selected date
   useEffect(() => {
     loadDateEntry(selectedDate);
   }, [selectedDate, user?.uid]);
@@ -104,6 +120,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setSleepTime(entry.sleepTimeStr || '21:30');
         setWakeUpTime(entry.wakeUpTimeStr || '04:00');
         setRestMinutes(String(entry.restMinutes || 0));
+        setOnlineReadingAttended(entry.onlineReadingAttended ?? false);
       } else {
         // Reset defaults for fresh entry
         setDeclaredRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
@@ -114,7 +131,24 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setSleepTime('21:30');
         setWakeUpTime('04:00');
         setRestMinutes('0');
+        setOnlineReadingAttended(false);
         setCorrectionReason('');
+      }
+
+      // Load monthly satsanga record for this month
+      const monthId = date.substring(0, 7);
+      const satsangaRecord = await attendanceService.getMonthlySatsangaForUser(user.uid, monthId);
+      if (satsangaRecord) {
+        setMonthlySatsangStatus(
+          satsangaRecord.status ||
+          (satsangaRecord.attended
+            ? 'attended'
+            : satsangaRecord.conducted !== false
+            ? 'absent'
+            : 'not_conducted')
+        );
+      } else {
+        setMonthlySatsangStatus('not_conducted');
       }
     } catch (e) {
       console.warn('Error loading daily entry:', e);
@@ -152,7 +186,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     }
   };
 
-  // Live score calculation (out of 40)
+  // Live score calculation (out of 40, or 50 on weekdays with online reading)
   const numDeclared = parseInt(declaredRounds, 10) || (user?.declaredRounds || 16);
   const numCompleted = parseInt(completedRounds, 10) || 0;
   const numReading = parseInt(readingMinutes, 10) || 0;
@@ -168,6 +202,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     sleepTimeStr: sleepTime.trim(),
     wakeUpTimeStr: wakeUpTime.trim(),
     restMinutes: numRest,
+    onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
   });
 
   const sleepDurationMins = calculateSleepDurationMinutes(sleepTime.trim(), wakeUpTime.trim());
@@ -183,6 +218,33 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     let h12 = h % 12;
     if (h12 === 0) h12 = 12;
     return `${h12}:${m} ${period}`;
+  };
+
+  const handleSelectMonthlySatsang = async (status: MonthlySatsangStatus) => {
+    if (!user?.uid) return;
+    setIsUpdatingSatsang(true);
+    setMonthlySatsangStatus(status);
+    const monthId = selectedDate.substring(0, 7);
+    try {
+      await attendanceService.recordMonthlySatsanga({
+        userId: user.uid,
+        monthId,
+        scheduledDate: selectedDate,
+        status,
+        updatedBy: user.uid,
+      });
+      const note =
+        status === 'attended'
+          ? 'Monthly Satsang recorded as Attended (+50 Marks).'
+          : status === 'absent'
+          ? 'Monthly Satsang recorded as Not Attended (0 Marks).'
+          : 'Monthly Satsang marked as Not Conducted this month (Dynamic / No marks deducted).';
+      Alert.alert('Monthly Satsang Updated', note);
+    } catch (err: any) {
+      Alert.alert('Update Failed', err.message || 'Could not update monthly satsang attendance.');
+    } finally {
+      setIsUpdatingSatsang(false);
+    }
   };
 
   const handleSave = async () => {
@@ -221,15 +283,23 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           sleepTimeStr: sleepTime.trim(),
           wakeUpTimeStr: wakeUpTime.trim(),
           restMinutes: numRest,
+          onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
         },
         modifiedBy: user.uid,
         correctionReason: correctionReason.trim() || undefined,
       });
 
       setExistingEntry(saved);
+      const onlinePart = isWeekday()
+        ? `\n• Online Reading Session: ${saved.onlineReadingMarks || 0}/10`
+        : '';
       Alert.alert(
         'Sadhana Submitted!',
-        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/40 (${saved.percentage}%, Grade ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${saved.readingMarks}/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10`
+        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/${
+          isWeekday() && saved.onlineReadingAttended ? 50 : 40
+        } (${saved.percentage}%, Grade ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
+          saved.readingMarks
+        }/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10${onlinePart}`
       );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save daily sadhana.');
@@ -400,7 +470,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 <Text style={styles.scoreLabel}>Daily Score Preview</Text>
                 <Text style={styles.scoreValue}>
                   {liveEvaluation.dailyTotalScore}
-                  <Text style={styles.scoreDenom}> / 40</Text>
+                  <Text style={styles.scoreDenom}> / {isWeekday() && onlineReadingAttended ? 50 : 40}</Text>
                 </Text>
               </View>
               <View style={[styles.gradeBadge, { backgroundColor: THEME.colors.primary }]}>
@@ -427,6 +497,14 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 <Text style={styles.breakdownChipLabel}>Sleep</Text>
                 <Text style={[styles.breakdownChipValue, { color: '#7C3AED' }]}>{liveEvaluation.sleepMarks}/10</Text>
               </View>
+              {isWeekday() && (
+                <View style={[styles.breakdownChip, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                  <Text style={styles.breakdownChipLabel}>Online</Text>
+                  <Text style={[styles.breakdownChipValue, { color: '#2563EB' }]}>
+                    {liveEvaluation.onlineReadingMarks}/10
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -703,6 +781,185 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 Marks Awarded: <Text style={{ fontWeight: 'bold', color: THEME.colors.primary }}>{liveEvaluation.sleepMarks}/10</Text>
                 {'  '}(≤7h: 10M • 8h: 8M • &gt;8 to &lt;10h: 5M • ≥10h: 0M)
               </Text>
+            </View>
+          </View>
+
+          {/* Section E: Online Reading Session (Monday to Friday, 10 Marks) */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="laptop-outline" size={18} color="#2563EB" />
+              </View>
+              <Text style={styles.sectionTitle}>E. Online Reading Session (Mon–Fri)</Text>
+              <View
+                style={[
+                  styles.marksBadge,
+                  isWeekday() && onlineReadingAttended
+                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                    : { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.marksBadgeText,
+                    isWeekday() && onlineReadingAttended ? { color: '#15803D' } : { color: '#6B7280' },
+                  ]}
+                >
+                  {isWeekday() ? (onlineReadingAttended ? '10/10 M' : '0/10 M') : 'Weekend'}
+                </Text>
+              </View>
+            </View>
+
+            {isWeekday() ? (
+              <View style={styles.onlineReadingCardContent}>
+                <TouchableOpacity
+                  style={[
+                    styles.onlineReadingToggleBtn,
+                    onlineReadingAttended && styles.onlineReadingToggleBtnActive,
+                  ]}
+                  onPress={() => setOnlineReadingAttended(!onlineReadingAttended)}
+                >
+                  <Ionicons
+                    name={onlineReadingAttended ? 'checkbox' : 'square-outline'}
+                    size={24}
+                    color={onlineReadingAttended ? '#15803D' : THEME.colors.textMuted}
+                  />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text
+                      style={[
+                        styles.onlineReadingToggleTitle,
+                        onlineReadingAttended && styles.onlineReadingToggleTitleActive,
+                      ]}
+                    >
+                      {onlineReadingAttended
+                        ? 'Attended Online Reading Session (+10 Marks)'
+                        : 'Tap here if you attended Online Reading Session'}
+                    </Text>
+                    <Text style={styles.onlineReadingToggleSub}>
+                      Daily reading session with counsellor (Monday to Friday, 10 marks each day, up to 50 marks weekly).
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.weekendNoteBox}>
+                <Ionicons name="sunny-outline" size={16} color="#D97706" />
+                <Text style={styles.weekendNoteText}>
+                  Weekend (Saturday/Sunday) — No Online Reading Session scheduled. Sessions run Monday through Friday.
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Section F: Monthly Satsang (Dynamic, 50 Marks) */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FAF5FF' }]}>
+                <Ionicons name="people-outline" size={18} color="#9333EA" />
+              </View>
+              <Text style={styles.sectionTitle}>F. Monthly Satsang (Monthly Programme)</Text>
+              <View
+                style={[
+                  styles.marksBadge,
+                  monthlySatsangStatus === 'attended'
+                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                    : monthlySatsangStatus === 'not_conducted'
+                    ? { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }
+                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.marksBadgeText,
+                    monthlySatsangStatus === 'attended'
+                      ? { color: '#15803D' }
+                      : monthlySatsangStatus === 'not_conducted'
+                      ? { color: '#B45309' }
+                      : { color: '#B91C1C' },
+                  ]}
+                >
+                  {monthlySatsangStatus === 'attended'
+                    ? '50/50 M'
+                    : monthlySatsangStatus === 'not_conducted'
+                    ? 'No Class Held'
+                    : '0/50 M'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.satsangDescription}>
+              Every month we hold one special Satsang class (50 marks). This is dynamic: if cancelled or not conducted this month, no marks are deducted from your score.
+            </Text>
+
+            <View style={styles.satsangPillsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  monthlySatsangStatus === 'attended' && styles.satsangPillAttended,
+                ]}
+                onPress={() => handleSelectMonthlySatsang('attended')}
+                disabled={isUpdatingSatsang}
+              >
+                <Ionicons
+                  name={monthlySatsangStatus === 'attended' ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={monthlySatsangStatus === 'attended' ? '#FFFFFF' : '#15803D'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    monthlySatsangStatus === 'attended' && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Attended (50M)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  monthlySatsangStatus === 'absent' && styles.satsangPillAbsent,
+                ]}
+                onPress={() => handleSelectMonthlySatsang('absent')}
+                disabled={isUpdatingSatsang}
+              >
+                <Ionicons
+                  name={monthlySatsangStatus === 'absent' ? 'close-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={monthlySatsangStatus === 'absent' ? '#FFFFFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    monthlySatsangStatus === 'absent' && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Absent (0M)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  monthlySatsangStatus === 'not_conducted' && styles.satsangPillNotHeld,
+                ]}
+                onPress={() => handleSelectMonthlySatsang('not_conducted')}
+                disabled={isUpdatingSatsang}
+              >
+                <Ionicons
+                  name={monthlySatsangStatus === 'not_conducted' ? 'pause-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={monthlySatsangStatus === 'not_conducted' ? '#FFFFFF' : '#D97706'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    monthlySatsangStatus === 'not_conducted' && styles.satsangPillTextActive,
+                  ]}
+                >
+                  No Satsang This Month
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -1442,6 +1699,97 @@ const styles = StyleSheet.create({
   modalSaveButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  onlineReadingCardContent: {
+    marginTop: 6,
+  },
+  onlineReadingToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 12,
+  },
+  onlineReadingToggleBtnActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
+  },
+  onlineReadingToggleTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  onlineReadingToggleTitleActive: {
+    color: '#15803D',
+    fontWeight: 'bold',
+  },
+  onlineReadingToggleSub: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  weekendNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 8,
+    padding: 10,
+    gap: 8,
+    marginTop: 4,
+  },
+  weekendNoteText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#92400E',
+    lineHeight: 16,
+  },
+  satsangDescription: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  satsangPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  satsangPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    gap: 5,
+  },
+  satsangPillAttended: {
+    backgroundColor: '#15803D',
+    borderColor: '#15803D',
+  },
+  satsangPillAbsent: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  satsangPillNotHeld: {
+    backgroundColor: '#D97706',
+    borderColor: '#D97706',
+  },
+  satsangPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  satsangPillTextActive: {
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
 });

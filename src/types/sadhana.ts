@@ -34,8 +34,12 @@ export interface SadhanaEntry {
   sleepMarks: number; // 0, 5, 8, or 10 marks
   totalSleepMinutes?: number;
   
-  // E. Score Totals
-  dailyTotalScore: number; // 0 to 40
+  // E. Online Reading Session (Monday to Friday, 10 Marks each day)
+  onlineReadingAttended?: boolean;
+  onlineReadingMarks?: number; // 0 or 10
+
+  // F. Score Totals
+  dailyTotalScore: number; // 0 to 40 (or 50 with online reading)
   percentage: number; // 0 to 100%
   grade: Grade;
   
@@ -60,14 +64,18 @@ export interface WeeklyAttendance {
   updatedAt: string;
 }
 
+export type MonthlySatsangStatus = 'attended' | 'absent' | 'not_conducted';
+
 export interface MonthlySatsangaAttendance {
   id: string; // `${userId}_${monthId}`
   userId: string;
   monthId: string; // YYYY-MM
   scheduledDate: string; // YYYY-MM-DD
   attended: boolean;
-  marks: number; // 10 or 0
+  marks: number; // 50 or 0
   isRecorded: boolean;
+  status?: MonthlySatsangStatus;
+  conducted?: boolean;
   updatedBy: string;
   updatedAt: string;
 }

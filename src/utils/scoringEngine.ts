@@ -11,6 +11,7 @@ export interface SadhanaInput {
   sleepTimeStr?: string;
   wakeUpTimeStr?: string;
   restMinutes?: number;
+  onlineReadingAttended?: boolean;
 }
 
 export interface CalculatedSadhanaScore {
@@ -18,8 +19,9 @@ export interface CalculatedSadhanaScore {
   readingMarks: number;
   hearingMarks: number;
   sleepMarks: number;
+  onlineReadingMarks: number; // 0 or 10 (Monday to Friday)
   totalRestMinutes: number;
-  dailyTotalScore: number; // 0 to 40
+  dailyTotalScore: number;
   percentage: number;
   grade: Grade;
   isComplete: boolean;
@@ -190,17 +192,21 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
   const totalRestMinutes = nightSleepMinutes + (input.restMinutes || 0);
   const sleepResult = calculateSleepMarks(totalRestMinutes);
 
+  const onlineReadingMarks = input.onlineReadingAttended ? 10 : 0;
+
   const dailyTotalScore = Number(
-    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks).toFixed(2)
+    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks + onlineReadingMarks).toFixed(2)
   );
-  const percentage = Number(((dailyTotalScore / SCORING_RULES.maxDailyScore) * 100).toFixed(1));
+  const maxScore = input.onlineReadingAttended ? 50 : SCORING_RULES.maxDailyScore;
+  const percentage = Number(((dailyTotalScore / maxScore) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
   const isComplete =
     input.completedRounds > 0 ||
     input.readingMinutes > 0 ||
     input.hearingMinutes > 0 ||
-    totalRestMinutes > 0;
+    totalRestMinutes > 0 ||
+    !!input.onlineReadingAttended;
   const isZeroScore = dailyTotalScore === 0;
 
   return {
@@ -208,6 +214,7 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
     readingMarks,
     hearingMarks,
     sleepMarks: sleepResult.marks,
+    onlineReadingMarks,
     totalRestMinutes,
     dailyTotalScore,
     percentage,
@@ -219,13 +226,14 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
 }
 
 /**
- * Calculates weekly total score and grade incorporating weekly programmes
- * 7 days * 40 = 280, + 10 (class) + 10 (morning) = 300 max available
+ * Calculates weekly total score and grade incorporating weekly programmes and online reading sessions
+ * 7 days * 40 = 280, + 10 (class) + 10 (morning) = 300 base (+ 50 online reading = 350 max available)
  */
 export function calculateWeeklyScoreAndGrade(params: {
   dailyScores: number[]; // up to 7 scores, max 40 each
   weeklyClassAttended: boolean;
   morningProgrammeAttended: boolean;
+  onlineReadingMarks?: number; // 0 to 50 marks (Monday to Friday, 10 each)
 }): {
   totalScore: number;
   maxAvailableMarks: number;
@@ -235,10 +243,12 @@ export function calculateWeeklyScoreAndGrade(params: {
   const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
   const classMarks = params.weeklyClassAttended ? 10 : 0;
   const morningMarks = params.morningProgrammeAttended ? 10 : 0;
+  const onlineReading = params.onlineReadingMarks ?? 0;
+  const hasOnlineReading = params.onlineReadingMarks !== undefined;
 
-  const totalScore = Number((dailyTotal + classMarks + morningMarks).toFixed(2));
-  // 7 days * 40 = 280, + 10 (class) + 10 (morning) = 300 max available
-  const maxAvailableMarks = 7 * SCORING_RULES.maxDailyScore + 10 + 10;
+  const totalScore = Number((dailyTotal + classMarks + morningMarks + onlineReading).toFixed(2));
+  // 7 days * 40 = 280, + 10 (class) + 10 (morning) + (50 if online reading tracked)
+  const maxAvailableMarks = 7 * SCORING_RULES.maxDailyScore + 10 + 10 + (hasOnlineReading ? 50 : 0);
   const percentage = Number(((totalScore / maxAvailableMarks) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
@@ -251,7 +261,7 @@ export function calculateWeeklyScoreAndGrade(params: {
 }
 
 /**
- * Calculates monthly score and grade incorporating weekly programmes and monthly satsanga
+ * Calculates monthly score and grade incorporating weekly programmes and dynamic monthly satsanga (50 marks)
  */
 export function calculateMonthlyScoreAndGrade(params: {
   dailyScores: number[]; // all days of the month
@@ -262,6 +272,7 @@ export function calculateMonthlyScoreAndGrade(params: {
   morningProgrammesAttended: number;
   satsangaScheduled: boolean;
   satsangaAttended: boolean;
+  onlineReadingMarks?: number;
 }): {
   totalScore: number;
   maxAvailableMarks: number;
@@ -271,15 +282,17 @@ export function calculateMonthlyScoreAndGrade(params: {
   const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
   const classMarks = params.weeklyClassesAttended * 10;
   const morningMarks = params.morningProgrammesAttended * 10;
-  const satsangaMarks = params.satsangaScheduled && params.satsangaAttended ? 20 : 0;
+  // Dynamic monthly satsang: 50 marks (0 if not scheduled/conducted)
+  const satsangaMarks = params.satsangaScheduled && params.satsangaAttended ? 50 : 0;
+  const onlineReading = params.onlineReadingMarks || 0;
 
-  const totalScore = Number((dailyTotal + classMarks + morningMarks + satsangaMarks).toFixed(2));
+  const totalScore = Number((dailyTotal + classMarks + morningMarks + satsangaMarks + onlineReading).toFixed(2));
 
   const maxAvailableMarks =
     params.totalDaysInMonth * SCORING_RULES.maxDailyScore +
     params.weeklyClassesScheduled * 10 +
     params.morningProgrammesScheduled * 10 +
-    (params.satsangaScheduled ? 20 : 0);
+    (params.satsangaScheduled ? 50 : 0);
 
   const percentage = maxAvailableMarks > 0 ? Number(((totalScore / maxAvailableMarks) * 100).toFixed(1)) : 0;
   const grade = calculateGrade(percentage);

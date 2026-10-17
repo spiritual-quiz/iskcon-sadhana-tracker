@@ -233,6 +233,144 @@ describe('Scoring Engine Unit Tests', () => {
       expect(weekly.percentage).toBe(73.3);
       expect(weekly.grade).toBe('C');
     });
+
+    test('calculates weekly score with online reading session (Mon-Fri, 50 marks max) out of 350', () => {
+      const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
+      const weekly = calculateWeeklyScoreAndGrade({
+        dailyScores,
+        weeklyClassAttended: true, // +10
+        morningProgrammeAttended: true, // +10
+        onlineReadingMarks: 50, // +50 (5 days x 10)
+      });
+
+      expect(weekly.totalScore).toBe(350);
+      expect(weekly.maxAvailableMarks).toBe(350);
+      expect(weekly.percentage).toBe(100);
+      expect(weekly.grade).toBe('A');
+    });
+
+    test('calculates partial weekly score with 3 online reading sessions (30 marks)', () => {
+      const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
+      const weekly = calculateWeeklyScoreAndGrade({
+        dailyScores,
+        weeklyClassAttended: true, // +10
+        morningProgrammeAttended: false, // 0
+        onlineReadingMarks: 30, // +30 (3 days)
+      });
+
+      // 280 + 10 + 30 = 320 / 350 = 91.4% -> A
+      expect(weekly.totalScore).toBe(320);
+      expect(weekly.maxAvailableMarks).toBe(350);
+      expect(weekly.percentage).toBe(91.4);
+      expect(weekly.grade).toBe('A');
+    });
+  });
+
+  describe('Daily Online Reading Session Scoring', () => {
+    test('awards 10 marks when online reading session is attended on a weekday', () => {
+      const res = evaluateDailySadhana({
+        declaredRounds: 16,
+        completedRounds: 16,
+        completionTimeStr: '06:30',
+        readingMinutes: 30,
+        hearingMinutes: 30,
+        sleepTimeStr: '22:00',
+        wakeUpTimeStr: '04:00',
+        restMinutes: 0,
+        onlineReadingAttended: true,
+      });
+
+      expect(res.onlineReadingMarks).toBe(10);
+      expect(res.dailyTotalScore).toBe(50); // 40 standard + 10 online reading
+      expect(res.percentage).toBe(100);
+      expect(res.grade).toBe('A');
+    });
+
+    test('awards 0 marks when online reading session is not attended', () => {
+      const res = evaluateDailySadhana({
+        declaredRounds: 16,
+        completedRounds: 16,
+        completionTimeStr: '06:30',
+        readingMinutes: 30,
+        hearingMinutes: 30,
+        sleepTimeStr: '22:00',
+        wakeUpTimeStr: '04:00',
+        restMinutes: 0,
+        onlineReadingAttended: false,
+      });
+
+      expect(res.onlineReadingMarks).toBe(0);
+      expect(res.dailyTotalScore).toBe(40);
+      expect(res.percentage).toBe(100);
+      expect(res.grade).toBe('A');
+    });
+  });
+
+  describe('Dynamic Monthly Satsanga Scoring (50 Marks)', () => {
+    test('when monthly satsang was held and attended, awards 50 marks', () => {
+      // 30 days of 40 marks = 1200 marks base
+      const dailyScores = Array(30).fill(40);
+      const monthly = calculateMonthlyScoreAndGrade({
+        dailyScores,
+        totalDaysInMonth: 30,
+        weeklyClassesScheduled: 4,
+        weeklyClassesAttended: 4, // 40 marks
+        morningProgrammesScheduled: 4,
+        morningProgrammesAttended: 4, // 40 marks
+        satsangaScheduled: true,
+        satsangaAttended: true, // 50 marks
+      });
+
+      // total = 1200 + 40 + 40 + 50 = 1330
+      // maxAvailable = 30*40 + 4*10 + 4*10 + 50 = 1330
+      expect(monthly.totalScore).toBe(1330);
+      expect(monthly.maxAvailableMarks).toBe(1330);
+      expect(monthly.percentage).toBe(100);
+      expect(monthly.grade).toBe('A');
+    });
+
+    test('when monthly satsang was NOT held (cancelled / not conducted), zero marks are penalized', () => {
+      const dailyScores = Array(30).fill(40);
+      const monthly = calculateMonthlyScoreAndGrade({
+        dailyScores,
+        totalDaysInMonth: 30,
+        weeklyClassesScheduled: 4,
+        weeklyClassesAttended: 4, // 40 marks
+        morningProgrammesScheduled: 4,
+        morningProgrammesAttended: 4, // 40 marks
+        satsangaScheduled: false, // dynamic: no satsang this month
+        satsangaAttended: false,
+      });
+
+      // total = 1200 + 40 + 40 + 0 = 1280
+      // maxAvailable = 30*40 + 4*10 + 4*10 + 0 = 1280 (50 marks not added to denominator!)
+      expect(monthly.totalScore).toBe(1280);
+      expect(monthly.maxAvailableMarks).toBe(1280);
+      expect(monthly.percentage).toBe(100);
+      expect(monthly.grade).toBe('A');
+    });
+
+    test('when monthly satsang was held but devotee was absent, devotee receives 0 marks out of 50', () => {
+      const dailyScores = Array(30).fill(40);
+      const monthly = calculateMonthlyScoreAndGrade({
+        dailyScores,
+        totalDaysInMonth: 30,
+        weeklyClassesScheduled: 4,
+        weeklyClassesAttended: 4, // 40 marks
+        morningProgrammesScheduled: 4,
+        morningProgrammesAttended: 4, // 40 marks
+        satsangaScheduled: true, // satsang was held
+        satsangaAttended: false, // but absent
+      });
+
+      // total = 1200 + 40 + 40 + 0 = 1280
+      // maxAvailable = 30*40 + 4*10 + 4*10 + 50 = 1330
+      // 1280 / 1330 = 96.2% -> A
+      expect(monthly.totalScore).toBe(1280);
+      expect(monthly.maxAvailableMarks).toBe(1330);
+      expect(monthly.percentage).toBe(96.2);
+      expect(monthly.grade).toBe('A');
+    });
   });
 });
 
