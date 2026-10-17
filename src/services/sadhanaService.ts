@@ -210,4 +210,56 @@ export const sadhanaService = {
 
     return await localStorageService.getLatestEntryForUser(userId);
   },
+
+  /**
+   * Update online reading session attendance (present/absent) for a specific date
+   */
+  updateOnlineReadingAttendance: async (params: {
+    userId: string;
+    counseleeName?: string;
+    date: string;
+    attended: boolean;
+    modifiedBy: string;
+  }): Promise<SadhanaEntry> => {
+    const existing = await sadhanaService.getDailyEntry(params.userId, params.date);
+    if (existing) {
+      return await sadhanaService.saveDailySadhana({
+        userId: params.userId,
+        counseleeName: params.counseleeName || existing.counseleeName,
+        date: params.date,
+        input: {
+          declaredRounds: existing.declaredRounds,
+          completedRounds: existing.completedRounds,
+          completionTimeStr: existing.completionTimeStr,
+          readingMinutes: existing.readingMinutes,
+          hearingMinutes: existing.hearingMinutes,
+          sleepTimeStr: existing.sleepTimeStr,
+          wakeUpTimeStr: existing.wakeUpTimeStr,
+          restMinutes: existing.restMinutes,
+          onlineReadingAttended: params.attended,
+        },
+        modifiedBy: params.modifiedBy,
+        correctionReason: 'Updated Online Reading Session attendance',
+      });
+    } else {
+      return await sadhanaService.saveDailySadhana({
+        userId: params.userId,
+        counseleeName: params.counseleeName || '',
+        date: params.date,
+        input: {
+          declaredRounds: 16,
+          completedRounds: 16,
+          completionTimeStr: '06:30',
+          readingMinutes: 30,
+          hearingMinutes: 30,
+          sleepTimeStr: '21:30',
+          wakeUpTimeStr: '04:00',
+          restMinutes: 0,
+          onlineReadingAttended: params.attended,
+        },
+        modifiedBy: params.modifiedBy,
+        correctionReason: 'Recorded Online Reading Session attendance',
+      });
+    }
+  },
 };

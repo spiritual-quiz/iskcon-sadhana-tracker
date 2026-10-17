@@ -24,6 +24,8 @@ import {
   getTodayDateStringIST,
   calculateSleepDurationMinutes,
   formatMinutesToHours,
+  getWeekDetails,
+  formatDateToDevoteeFormat,
 } from '../../utils/dateUtils';
 import { SadhanaEntry, MonthlySatsangStatus } from '../../types/sadhana';
 import { TimeSelectorModal } from '../../components/TimeSelectorModal';
@@ -66,6 +68,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   // E. Online Reading Session (Monday to Friday, 10 Marks)
   const [onlineReadingAttended, setOnlineReadingAttended] = useState<boolean>(false);
+  const [weekReadingMap, setWeekReadingMap] = useState<{ [dateStr: string]: boolean }>({});
+  const [isUpdatingReading, setIsUpdatingReading] = useState<boolean>(false);
 
   // F. Monthly Satsang (Dynamic, 50 Marks)
   const [monthlySatsangStatus, setMonthlySatsangStatus] = useState<MonthlySatsangStatus>('not_conducted');
@@ -100,7 +104,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     return dayOfWeek >= 1 && dayOfWeek <= 5; // 1=Mon, 5=Fri
   };
 
-  // Load entry and monthly satsanga for selected date
+  // Load entry, week reading attendance, and monthly satsanga for selected date
   useEffect(() => {
     loadDateEntry(selectedDate);
   }, [selectedDate, user?.uid]);
@@ -135,6 +139,24 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setCorrectionReason('');
       }
 
+      // Load weekly reading attendance for Monday through Friday
+      const week = getWeekDetails(date);
+      const monToFriDates = week.dates.slice(0, 5);
+      const weekEntries = await sadhanaService.getEntriesForDateRange(
+        user.uid,
+        monToFriDates[0],
+        monToFriDates[4]
+      );
+      const readingMap: { [d: string]: boolean } = {};
+      monToFriDates.forEach((d) => {
+        const matching = weekEntries.find((e) => e.date === d);
+        readingMap[d] = matching?.onlineReadingAttended ?? false;
+      });
+      if (entry && monToFriDates.includes(date)) {
+        readingMap[date] = entry.onlineReadingAttended ?? false;
+      }
+      setWeekReadingMap(readingMap);
+
       // Load monthly satsanga record for this month
       const monthId = date.substring(0, 7);
       const satsangaRecord = await attendanceService.getMonthlySatsangaForUser(user.uid, monthId);
@@ -154,6 +176,31 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       console.warn('Error loading daily entry:', e);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSetWeekdayAttendance = async (dateStr: string, attended: boolean) => {
+    if (!user?.uid) return;
+
+    // Immediately update local UI state for instant responsiveness
+    setWeekReadingMap((prev) => ({ ...prev, [dateStr]: attended }));
+    if (dateStr === selectedDate) {
+      setOnlineReadingAttended(attended);
+    }
+
+    try {
+      setIsUpdatingReading(true);
+      await sadhanaService.updateOnlineReadingAttendance({
+        userId: user.uid,
+        counseleeName: user.displayName,
+        date: dateStr,
+        attended,
+        modifiedBy: user.uid,
+      });
+    } catch (err) {
+      console.warn('Failed to update weekday reading attendance:', err);
+    } finally {
+      setIsUpdatingReading(false);
     }
   };
 
@@ -290,6 +337,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       });
 
       setExistingEntry(saved);
+      if (isWeekday()) {
+        setWeekReadingMap((prev) => ({
+          ...prev,
+          [selectedDate]: saved.onlineReadingAttended ?? false,
+        }));
+      }
       const onlinePart = isWeekday()
         ? `\n• Online Reading Session: ${saved.onlineReadingMarks || 0}/10`
         : '';
@@ -336,6 +389,17 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     { label: '5:30 AM', time: '05:30' },
     { label: '6:00 AM', time: '06:00' },
   ];
+
+  const currentWeek = getWeekDetails(selectedDate);
+  const weekdayInfoList = [
+    { label: 'Monday', short: 'Mon', date: currentWeek.dates[0] },
+    { label: 'Tuesday', short: 'Tue', date: currentWeek.dates[1] },
+    { label: 'Wednesday', short: 'Wed', date: currentWeek.dates[2] },
+    { label: 'Thursday', short: 'Thu', date: currentWeek.dates[3] },
+    { label: 'Friday', short: 'Fri', date: currentWeek.dates[4] },
+  ];
+  const attendedCount = weekdayInfoList.filter((w) => weekReadingMap[w.date]).length;
+  const totalWeekReadingMarks = attendedCount * 10;
 
   return (
     <View style={styles.container}>
@@ -784,7 +848,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Section E: Online Reading Session (Monday to Friday, 10 Marks) */}
+          {/* Section E: Online Reading Session (Monday to Friday, 10 Marks each day) */}
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: '#EFF6FF' }]}>
@@ -794,7 +858,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View
                 style={[
                   styles.marksBadge,
-                  isWeekday() && onlineReadingAttended
+                  totalWeekReadingMarks > 0
                     ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
                     : { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
                 ]}
@@ -802,53 +866,198 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 <Text
                   style={[
                     styles.marksBadgeText,
-                    isWeekday() && onlineReadingAttended ? { color: '#15803D' } : { color: '#6B7280' },
+                    totalWeekReadingMarks > 0 ? { color: '#15803D' } : { color: '#6B7280' },
                   ]}
                 >
-                  {isWeekday() ? (onlineReadingAttended ? '10/10 M' : '0/10 M') : 'Weekend'}
+                  {`${totalWeekReadingMarks}/50 M (${attendedCount}/5 Days)`}
                 </Text>
               </View>
             </View>
 
+            <Text style={styles.onlineReadingDescription}>
+              Daily 30-minute reading with Counsellor. 10 marks each day (Mon to Fri). Evaluated under Weekly Report.
+            </Text>
+
+            {/* Selected Date Session Controls (When viewing a weekday) */}
             {isWeekday() ? (
-              <View style={styles.onlineReadingCardContent}>
-                <TouchableOpacity
-                  style={[
-                    styles.onlineReadingToggleBtn,
-                    onlineReadingAttended && styles.onlineReadingToggleBtnActive,
-                  ]}
-                  onPress={() => setOnlineReadingAttended(!onlineReadingAttended)}
-                >
-                  <Ionicons
-                    name={onlineReadingAttended ? 'checkbox' : 'square-outline'}
-                    size={24}
-                    color={onlineReadingAttended ? '#15803D' : THEME.colors.textMuted}
-                  />
-                  <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={styles.selectedDayReadingBox}>
+                <View style={styles.selectedDayReadingHeader}>
+                  <Text style={styles.selectedDayReadingTitle}>
+                    Session on {formatDateToDevoteeFormat(selectedDate)}:
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusPillSmall,
+                      onlineReadingAttended
+                        ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                        : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                    ]}
+                  >
                     <Text
                       style={[
-                        styles.onlineReadingToggleTitle,
-                        onlineReadingAttended && styles.onlineReadingToggleTitleActive,
+                        styles.statusPillSmallText,
+                        onlineReadingAttended ? { color: '#15803D' } : { color: '#DC2626' },
                       ]}
                     >
-                      {onlineReadingAttended
-                        ? 'Attended Online Reading Session (+10 Marks)'
-                        : 'Tap here if you attended Online Reading Session'}
-                    </Text>
-                    <Text style={styles.onlineReadingToggleSub}>
-                      Daily reading session with counsellor (Monday to Friday, 10 marks each day, up to 50 marks weekly).
+                      {onlineReadingAttended ? 'Present • 10 Marks' : 'Absent • 0 Marks'}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </View>
+
+                {/* Big Present & Absent buttons for the selected date */}
+                <View style={styles.paButtonGroup}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paButton,
+                      onlineReadingAttended ? styles.paButtonPresentActive : styles.paButtonDim,
+                    ]}
+                    onPress={() => handleSetWeekdayAttendance(selectedDate, true)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={onlineReadingAttended ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                      size={20}
+                      color={onlineReadingAttended ? '#FFFFFF' : '#15803D'}
+                    />
+                    <Text
+                      style={[
+                        styles.paButtonText,
+                        onlineReadingAttended ? styles.paButtonTextActive : { color: '#15803D' },
+                      ]}
+                    >
+                      Present (+10 M)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paButton,
+                      !onlineReadingAttended ? styles.paButtonAbsentActive : styles.paButtonDim,
+                    ]}
+                    onPress={() => handleSetWeekdayAttendance(selectedDate, false)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={!onlineReadingAttended ? 'close-circle' : 'close-circle-outline'}
+                      size={20}
+                      color={!onlineReadingAttended ? '#FFFFFF' : '#DC2626'}
+                    />
+                    <Text
+                      style={[
+                        styles.paButtonText,
+                        !onlineReadingAttended ? styles.paButtonTextActive : { color: '#DC2626' },
+                      ]}
+                    >
+                      Absent (0 M)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               <View style={styles.weekendNoteBox}>
-                <Ionicons name="sunny-outline" size={16} color="#D97706" />
-                <Text style={styles.weekendNoteText}>
-                  Weekend (Saturday/Sunday) — No Online Reading Session scheduled. Sessions run Monday through Friday.
-                </Text>
+                <Ionicons name="sunny-outline" size={18} color="#D97706" />
+                <View style={{ flex: 1, marginLeft: 6 }}>
+                  <Text style={styles.weekendNoteTitle}>Weekend (Saturday/Sunday)</Text>
+                  <Text style={styles.weekendNoteText}>
+                    Sessions run Monday through Friday. You can enter or update your attendance for Monday to Friday below:
+                  </Text>
+                </View>
               </View>
             )}
+
+            {/* Monday to Friday Quick Table with Present/Absent Buttons for Each Day */}
+            <View style={styles.weekdayTableContainer}>
+              <View style={styles.weekdayTableHeaderRow}>
+                <Text style={styles.weekdayTableHeaderText}>
+                  Monday to Friday Sessions ({formatDateToDevoteeFormat(currentWeek.startDate)} to {formatDateToDevoteeFormat(currentWeek.dates[4])}):
+                </Text>
+              </View>
+
+              {weekdayInfoList.map((day) => {
+                const isAttended = weekReadingMap[day.date] ?? false;
+                const isSelected = day.date === selectedDate;
+                const dateParts = formatDateToDevoteeFormat(day.date).split('-');
+                const displayDate = `${dateParts[0]} ${dateParts[1]}`;
+
+                return (
+                  <View
+                    key={day.date}
+                    style={[
+                      styles.weekdayRow,
+                      isSelected && styles.weekdayRowSelected,
+                    ]}
+                  >
+                    <TouchableOpacity
+                      style={styles.weekdayInfo}
+                      onPress={() => setSelectedDate(day.date)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={[styles.weekdayDayName, isSelected && styles.weekdayDayNameSelected]}>
+                          {day.label}
+                        </Text>
+                        <Text style={styles.weekdayDayDate}> ({displayDate})</Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.selectedDayBadge}>
+                          <Text style={styles.selectedDayBadgeText}>Selected</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    <View style={styles.weekdayButtonGroup}>
+                      {/* Present Button */}
+                      <TouchableOpacity
+                        style={[
+                          styles.tablePaButton,
+                          isAttended ? styles.tablePaButtonPresent : styles.tablePaButtonDim,
+                        ]}
+                        onPress={() => handleSetWeekdayAttendance(day.date, true)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={15}
+                          color={isAttended ? '#FFFFFF' : '#15803D'}
+                        />
+                        <Text
+                          style={[
+                            styles.tablePaButtonText,
+                            isAttended ? styles.tablePaButtonTextActive : { color: '#15803D' },
+                          ]}
+                        >
+                          Present
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Absent Button */}
+                      <TouchableOpacity
+                        style={[
+                          styles.tablePaButton,
+                          !isAttended ? styles.tablePaButtonAbsent : styles.tablePaButtonDim,
+                        ]}
+                        onPress={() => handleSetWeekdayAttendance(day.date, false)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name="close-circle"
+                          size={15}
+                          color={!isAttended ? '#FFFFFF' : '#DC2626'}
+                        />
+                        <Text
+                          style={[
+                            styles.tablePaButtonText,
+                            !isAttended ? styles.tablePaButtonTextActive : { color: '#DC2626' },
+                          ]}
+                        >
+                          Absent
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           </View>
 
           {/* Section F: Monthly Satsang (Dynamic, 50 Marks) */}
@@ -1701,53 +1910,191 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  onlineReadingCardContent: {
-    marginTop: 6,
-  },
-  onlineReadingToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    padding: 12,
-  },
-  onlineReadingToggleBtnActive: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#86EFAC',
-  },
-  onlineReadingToggleTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: THEME.colors.text,
-  },
-  onlineReadingToggleTitleActive: {
-    color: '#15803D',
-    fontWeight: 'bold',
-  },
-  onlineReadingToggleSub: {
+  onlineReadingDescription: {
     fontSize: 11,
     color: THEME.colors.textMuted,
-    marginTop: 2,
     lineHeight: 16,
+    marginBottom: 10,
+  },
+  selectedDayReadingBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    marginBottom: 12,
+  },
+  selectedDayReadingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  selectedDayReadingTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.colors.text,
+  },
+  statusPillSmall: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  statusPillSmallText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  paButtonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  paButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1.5,
+  },
+  paButtonPresentActive: {
+    backgroundColor: '#15803D',
+    borderColor: '#15803D',
+  },
+  paButtonAbsentActive: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  paButtonDim: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D1D5DB',
+  },
+  paButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  paButtonTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   weekendNoteBox: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#FFFBEB',
     borderWidth: 1,
     borderColor: '#FDE68A',
     borderRadius: 8,
     padding: 10,
-    gap: 8,
-    marginTop: 4,
+    marginBottom: 12,
+  },
+  weekendNoteTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#92400E',
+    marginBottom: 2,
   },
   weekendNoteText: {
-    flex: 1,
     fontSize: 11,
     color: '#92400E',
     lineHeight: 16,
+  },
+  weekdayTableContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  weekdayTableHeaderRow: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  weekdayTableHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.text,
+  },
+  weekdayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  weekdayRowSelected: {
+    backgroundColor: '#FEF9C3',
+  },
+  weekdayInfo: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+  weekdayDayName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.text,
+  },
+  weekdayDayNameSelected: {
+    color: '#854D0E',
+    fontWeight: 'bold',
+  },
+  weekdayDayDate: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+  },
+  selectedDayBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF08A',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    marginTop: 2,
+  },
+  selectedDayBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#713F12',
+  },
+  weekdayButtonGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  tablePaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 4,
+  },
+  tablePaButtonPresent: {
+    backgroundColor: '#15803D',
+    borderColor: '#15803D',
+  },
+  tablePaButtonAbsent: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  tablePaButtonDim: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  tablePaButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tablePaButtonTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   satsangDescription: {
     fontSize: 11,
