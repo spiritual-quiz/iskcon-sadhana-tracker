@@ -30,6 +30,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
 
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [filterMode, setFilterMode] = useState<'all' | 'lowScore'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -87,6 +88,9 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
     }
   };
 
+  const lowScoreCount = weeklyReports.filter((r) => (r.percentage ?? 0) < 50).length;
+  const displayedReports = filterMode === 'lowScore' ? weeklyReports.filter((r) => (r.percentage ?? 0) < 50) : weeklyReports;
+
   return (
     <View style={styles.container}>
       <Header
@@ -113,17 +117,65 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
             </Text>
           </View>
 
-          {weeklyReports.length === 0 ? (
+          {/* Quick Filter Bar */}
+          <View style={styles.filterBar}>
+            <TouchableOpacity
+              style={[styles.filterPill, filterMode === 'all' && styles.filterPillActive]}
+              onPress={() => setFilterMode('all')}
+            >
+              <Text style={[styles.filterPillText, filterMode === 'all' && styles.filterPillTextActive]}>
+                All Counselees ({weeklyReports.length})
+              </Text>
+            </TouchableOpacity>
+
+            {lowScoreCount > 0 && (
+              <TouchableOpacity
+                style={[styles.filterPillAlert, filterMode === 'lowScore' && styles.filterPillAlertActive]}
+                onPress={() => setFilterMode(filterMode === 'lowScore' ? 'all' : 'lowScore')}
+              >
+                <Ionicons
+                  name="warning"
+                  size={13}
+                  color={filterMode === 'lowScore' ? '#FFFFFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.filterPillAlertText,
+                    filterMode === 'lowScore' && styles.filterPillAlertTextActive,
+                  ]}
+                >
+                  &lt; 50% Needs Attention ({lowScoreCount})
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {displayedReports.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No approved counselees found.</Text>
+              <Text style={styles.emptyText}>
+                {filterMode === 'lowScore'
+                  ? 'All counselees have scored 50% or above this week!'
+                  : 'No approved counselees found.'}
+              </Text>
             </View>
           ) : (
-            weeklyReports.map((rep) => (
-              <View key={rep.userId} style={styles.card}>
+            displayedReports.map((rep) => {
+              const isLowScore = (rep.percentage ?? 0) < 50;
+
+              return (
+              <View key={rep.userId} style={[styles.card, isLowScore && styles.cardLowScore]}>
                 <View style={styles.cardHeader}>
-                  <View>
-                    <Text style={styles.name}>{rep.counseleeName}</Text>
-                    <Text style={styles.scoreText}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <Text style={[styles.name, isLowScore && styles.nameAlert]}>{rep.counseleeName}</Text>
+                      {isLowScore && (
+                        <View style={styles.lowScoreAlertBadge}>
+                          <Ionicons name="warning" size={11} color="#DC2626" />
+                          <Text style={styles.lowScoreAlertBadgeText}>&lt; 50% Attention</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={[styles.scoreText, isLowScore && styles.scoreTextAlert]}>
                       Score: {rep.totalScore} / {rep.maxAvailableMarks} ({rep.percentage}%)
                     </Text>
                   </View>
@@ -206,8 +258,9 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                   )}
                 </View>
               </View>
-            ))
-          )}
+            );
+          })
+        )}
         </ScrollView>
       )}
     </View>
@@ -245,6 +298,56 @@ const styles = StyleSheet.create({
     color: THEME.colors.primaryDark,
     lineHeight: 16,
   },
+  filterBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: THEME.spacing.base,
+  },
+  filterPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterPillActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primary,
+  },
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.textMuted,
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  filterPillAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    gap: 5,
+  },
+  filterPillAlertActive: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  filterPillAlertText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  filterPillAlertTextActive: {
+    color: '#FFFFFF',
+  },
   card: {
     backgroundColor: THEME.colors.surface,
     borderRadius: THEME.borderRadius.lg,
@@ -253,6 +356,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
+  },
+  cardLowScore: {
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FFF5F5',
+    borderLeftWidth: 5,
+    borderLeftColor: '#DC2626',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -265,11 +374,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
   },
+  nameAlert: {
+    color: '#991B1B',
+  },
+  lowScoreAlertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  lowScoreAlertBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
   scoreText: {
     fontSize: 11,
     color: THEME.colors.goldDark,
     fontWeight: '600',
     marginTop: 2,
+  },
+  scoreTextAlert: {
+    color: '#DC2626',
+    fontWeight: 'bold',
   },
   attendanceRow: {
     flexDirection: 'row',

@@ -19,6 +19,8 @@ import { UserProfile } from '../../types/auth';
 import { monitoringService } from '../../services/monitoringService';
 import { birthdayService } from '../../services/birthdayService';
 import { authService } from '../../services/authService';
+import { sadhanaService } from '../../services/sadhanaService';
+import { reportService } from '../../services/reportService';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const { user, signOut } = useAuth();
@@ -30,6 +32,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [missingAlertsCount, setMissingAlertsCount] = useState<number>(0);
   const [lowScoreCount, setLowScoreCount] = useState<number>(0);
   const [upcomingBirthdaysCount, setUpcomingBirthdaysCount] = useState<number>(0);
+  const [dailyLowScoreCount, setDailyLowScoreCount] = useState<number>(0);
+  const [weeklyLowScoreCount, setWeeklyLowScoreCount] = useState<number>(0);
+  const [monthlyLowScoreCount, setMonthlyLowScoreCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -47,11 +52,11 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       setApprovedCount(approved.length);
       setPendingCount(pending.length);
 
-      // 2. Today's submissions
-      const sadhanaSnap = await getDocs(
-        query(collection(db, 'sadhana_entries'), where('date', '==', todayStr))
-      );
-      setTodaySubmissionsCount(sadhanaSnap.size);
+      // 2. Today's submissions & low score count (<50%)
+      const todayEntries = await sadhanaService.getAllEntriesForDate(todayStr);
+      setTodaySubmissionsCount(todayEntries.length);
+      const dailyLow = todayEntries.filter((e) => (e.percentage ?? 0) < 50).length;
+      setDailyLowScoreCount(dailyLow);
 
       // 3. Open monitoring alerts
       const alerts = await monitoringService.getOpenAlerts();
@@ -60,7 +65,37 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       setMissingAlertsCount(missing.length);
       setLowScoreCount(low.length);
 
-      // 4. Upcoming birthdays
+      // 4. Weekly & Monthly <50% counts
+      try {
+        const weeklyReps = await Promise.all(
+          approved.map((u) =>
+            reportService.generateWeeklyReport({
+              userId: u.uid,
+              counseleeName: u.displayName,
+              weekDateString: todayStr,
+              publishSharedSummary: false,
+            })
+          )
+        );
+        setWeeklyLowScoreCount(weeklyReps.filter((r) => (r.percentage ?? 0) < 50).length);
+
+        const now = new Date();
+        const monthlyReps = await Promise.all(
+          approved.map((u) =>
+            reportService.generateMonthlyReport({
+              userId: u.uid,
+              counseleeName: u.displayName,
+              year: now.getFullYear(),
+              month: now.getMonth() + 1,
+            })
+          )
+        );
+        setMonthlyLowScoreCount(monthlyReps.filter((r) => (r.percentage ?? 0) < 50).length);
+      } catch (repErr) {
+        console.warn('Dashboard weekly/monthly low score calculation:', repErr);
+      }
+
+      // 5. Upcoming birthdays
       const bdays = birthdayService.getUpcomingBirthdays(approved, 30);
       setUpcomingBirthdaysCount(bdays.length);
     } catch (e) {
@@ -116,7 +151,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       title: 'Daily Reports',
       subtitle: `${todaySubmissionsCount} submissions today`,
       icon: 'calendar-outline',
-      badge: null,
+      badge: dailyLowScoreCount > 0 ? `${dailyLowScoreCount} < 50%` : null,
+      badgeColor: THEME.colors.danger,
       color: THEME.colors.primary,
     },
     {
@@ -124,7 +160,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       title: 'Weekly Reports',
       subtitle: 'Class & morning attendance',
       icon: 'bar-chart-outline',
-      badge: null,
+      badge: weeklyLowScoreCount > 0 ? `${weeklyLowScoreCount} < 50%` : null,
+      badgeColor: THEME.colors.danger,
       color: THEME.colors.info,
     },
     {
@@ -132,7 +169,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       title: 'Monthly Reports',
       subtitle: 'Satsanga & consistency',
       icon: 'pie-chart-outline',
-      badge: null,
+      badge: monthlyLowScoreCount > 0 ? `${monthlyLowScoreCount} < 50%` : null,
+      badgeColor: THEME.colors.danger,
       color: THEME.colors.goldDark,
     },
     {

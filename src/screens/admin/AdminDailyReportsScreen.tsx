@@ -20,6 +20,7 @@ import { SadhanaEntry } from '../../types/sadhana';
 export const AdminDailyReportsScreen = ({ navigation }: any) => {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateStringIST());
   const [entries, setEntries] = useState<SadhanaEntry[]>([]);
+  const [filterMode, setFilterMode] = useState<'all' | 'lowScore'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -48,6 +49,9 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
     const newD = String(date.getDate()).padStart(2, '0');
     setSelectedDate(`${newY}-${newM}-${newD}`);
   };
+
+  const lowScoreCount = entries.filter((e) => (e.percentage ?? 0) < 50).length;
+  const displayedEntries = filterMode === 'lowScore' ? entries.filter((e) => (e.percentage ?? 0) < 50) : entries;
 
   return (
     <View style={styles.container}>
@@ -83,31 +87,76 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadDailyReports(); }} />}
         >
+          {/* Summary & Highlight Filter Bar */}
           <View style={styles.summaryBar}>
-            <Text style={styles.summaryText}>
-              Total Submissions: <Text style={styles.bold}>{entries.length}</Text>
-            </Text>
+            <View style={styles.filterPillsRow}>
+              <TouchableOpacity
+                style={[styles.filterPill, filterMode === 'all' && styles.filterPillActive]}
+                onPress={() => setFilterMode('all')}
+              >
+                <Text style={[styles.filterPillText, filterMode === 'all' && styles.filterPillTextActive]}>
+                  All Submissions ({entries.length})
+                </Text>
+              </TouchableOpacity>
+
+              {lowScoreCount > 0 && (
+                <TouchableOpacity
+                  style={[styles.filterPillAlert, filterMode === 'lowScore' && styles.filterPillAlertActive]}
+                  onPress={() => setFilterMode(filterMode === 'lowScore' ? 'all' : 'lowScore')}
+                >
+                  <Ionicons
+                    name="warning"
+                    size={13}
+                    color={filterMode === 'lowScore' ? '#FFFFFF' : '#DC2626'}
+                  />
+                  <Text
+                    style={[
+                      styles.filterPillAlertText,
+                      filterMode === 'lowScore' && styles.filterPillAlertTextActive,
+                    ]}
+                  >
+                    &lt; 50% Needs Attention ({lowScoreCount})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
-          {entries.length === 0 ? (
+          {displayedEntries.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="document-text-outline" size={48} color={THEME.colors.gold} />
-              <Text style={styles.emptyTitle}>No Submissions Recorded</Text>
+              <Text style={styles.emptyTitle}>
+                {filterMode === 'lowScore' ? 'No Low-Score Devotees' : 'No Submissions Recorded'}
+              </Text>
               <Text style={styles.emptySubtitle}>
-                No counselees have submitted a sadhana card for {selectedDate} yet.
+                {filterMode === 'lowScore'
+                  ? 'All counselees who submitted have scored 50% or above!'
+                  : `No counselees have submitted a sadhana card for ${selectedDate} yet.`}
               </Text>
             </View>
           ) : (
-            entries.map((item) => {
+            displayedEntries.map((item) => {
               const sleepMins = calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr);
+              const isLowScore = (item.percentage ?? 0) < 50;
+              const maxDailyMarks = item.onlineReadingAttended ? 50 : 40;
 
               return (
-                <View key={item.id} style={styles.card}>
+                <View key={item.id} style={[styles.card, isLowScore && styles.cardLowScore]}>
                   <View style={styles.cardHeader}>
-                    <View>
-                      <Text style={styles.devoteeName}>{item.counseleeName || 'Devotee'}</Text>
-                      <Text style={styles.cardScore}>
-                        {item.dailyTotalScore} / 40 marks ({item.percentage}%)
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                        <Text style={[styles.devoteeName, isLowScore && styles.devoteeNameAlert]}>
+                          {item.counseleeName || 'Devotee'}
+                        </Text>
+                        {isLowScore && (
+                          <View style={styles.lowScoreAlertBadge}>
+                            <Ionicons name="warning" size={11} color="#DC2626" />
+                            <Text style={styles.lowScoreAlertBadgeText}>&lt; 50% Attention</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.cardScore, isLowScore && styles.cardScoreAlert]}>
+                        {item.dailyTotalScore} / {maxDailyMarks} marks ({item.percentage}%)
                       </Text>
                     </View>
                     <StatusBadge type="grade" value={item.grade} />
@@ -138,6 +187,14 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                         {formatMinutesToHours(sleepMins)} ({item.sleepMarks ?? 0}m)
                       </Text>
                     </View>
+                    {item.onlineReadingAttended && (
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>Online Reading</Text>
+                        <Text style={[styles.detailValue, { color: '#15803D', fontWeight: 'bold' }]}>
+                          Attended (10 marks)
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   {item.auditHistory && item.auditHistory.length > 0 && (
@@ -205,6 +262,55 @@ const styles = StyleSheet.create({
   summaryBar: {
     marginBottom: THEME.spacing.sm,
   },
+  filterPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterPillActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primary,
+  },
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.textMuted,
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  filterPillAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    gap: 5,
+  },
+  filterPillAlertActive: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  filterPillAlertText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  filterPillAlertTextActive: {
+    color: '#FFFFFF',
+  },
   summaryText: {
     fontSize: THEME.typography.sizes.xs,
     color: THEME.colors.textMuted,
@@ -222,6 +328,12 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
   },
+  cardLowScore: {
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FFF5F5',
+    borderLeftWidth: 5,
+    borderLeftColor: '#DC2626',
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -233,11 +345,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
   },
+  devoteeNameAlert: {
+    color: '#991B1B',
+  },
+  lowScoreAlertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 3,
+  },
+  lowScoreAlertBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
   cardScore: {
     fontSize: 11,
     color: THEME.colors.goldDark,
     fontWeight: '600',
     marginTop: 1,
+  },
+  cardScoreAlert: {
+    color: '#DC2626',
+    fontWeight: 'bold',
   },
   detailsGrid: {
     flexDirection: 'row',
