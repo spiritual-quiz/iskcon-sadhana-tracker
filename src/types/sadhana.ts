@@ -38,6 +38,14 @@ export interface SadhanaEntry {
   onlineReadingAttended?: boolean;
   onlineReadingMarks?: number; // 0 or 10
 
+  // G. Service (Weekly, 10 Marks)
+  serviceAttended?: boolean;
+  serviceMarks?: number; // 0 or 10
+
+  // H. Monthly Meeting with Counsellor (Monthly, 50 Marks)
+  monthlyMeetingAttended?: boolean;
+  monthlyMeetingMarks?: number; // 0 or 50
+
   // F. Score Totals
   dailyTotalScore: number; // 0 to 40 (or 50 with online reading)
   percentage: number; // 0 to 100%

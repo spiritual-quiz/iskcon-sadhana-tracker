@@ -75,6 +75,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const [monthlySatsangStatus, setMonthlySatsangStatus] = useState<MonthlySatsangStatus>('not_conducted');
   const [isUpdatingSatsang, setIsUpdatingSatsang] = useState<boolean>(false);
 
+  // G. Service (Weekly, 10 Marks)
+  const [serviceAttended, setServiceAttended] = useState<boolean>(false);
+
+  // H. Monthly Meeting with Counsellor (Monthly, 50 Marks)
+  const [monthlyMeetingAttended, setMonthlyMeetingAttended] = useState<boolean>(false);
+
   const [correctionReason, setCorrectionReason] = useState<string>('');
   const [existingEntry, setExistingEntry] = useState<SadhanaEntry | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -125,6 +131,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setWakeUpTime(entry.wakeUpTimeStr || '04:00');
         setRestMinutes(String(entry.restMinutes || 0));
         setOnlineReadingAttended(entry.onlineReadingAttended ?? false);
+        setServiceAttended(entry.serviceAttended ?? false);
+        setMonthlyMeetingAttended(entry.monthlyMeetingAttended ?? false);
       } else {
         // Reset defaults for fresh entry
         setDeclaredRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
@@ -136,6 +144,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setWakeUpTime('04:00');
         setRestMinutes('0');
         setOnlineReadingAttended(false);
+        setServiceAttended(false);
+        setMonthlyMeetingAttended(false);
         setCorrectionReason('');
       }
 
@@ -331,6 +341,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           wakeUpTimeStr: wakeUpTime.trim(),
           restMinutes: numRest,
           onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
+          serviceAttended,
+          monthlyMeetingAttended,
         },
         modifiedBy: user.uid,
         correctionReason: correctionReason.trim() || undefined,
@@ -1167,6 +1179,160 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   ]}
                 >
                   No Satsang This Month
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Section G: Service (Weekly, 10 Marks) */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
+                <Ionicons name="hand-left-outline" size={18} color="#EA580C" />
+              </View>
+              <Text style={styles.sectionTitle}>G. Service (Weekly, 10 Marks)</Text>
+              <View
+                style={[
+                  styles.marksBadge,
+                  serviceAttended
+                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.marksBadgeText,
+                    serviceAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                  ]}
+                >
+                  {serviceAttended ? '10/10 W' : '0/10 W'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.satsangDescription}>
+              Weekly service activity. Marks are counted towards your weekly progress report.
+            </Text>
+
+            <View style={styles.satsangPillsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  serviceAttended && styles.satsangPillAttended,
+                ]}
+                onPress={() => setServiceAttended(true)}
+              >
+                <Ionicons
+                  name={serviceAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={serviceAttended ? '#FFFFFF' : '#15803D'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    serviceAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Attended (10M)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  !serviceAttended && styles.satsangPillAbsent,
+                ]}
+                onPress={() => setServiceAttended(false)}
+              >
+                <Ionicons
+                  name={!serviceAttended ? 'close-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={!serviceAttended ? '#FFFFFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    !serviceAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Absent (0M)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Section H: Monthly Meeting with Counsellor (Monthly, 50 Marks) */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="chatbubbles-outline" size={18} color="#16A34A" />
+              </View>
+              <Text style={styles.sectionTitle}>H. Monthly Counsellor Meeting (50 Marks)</Text>
+              <View
+                style={[
+                  styles.marksBadge,
+                  monthlyMeetingAttended
+                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.marksBadgeText,
+                    monthlyMeetingAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                  ]}
+                >
+                  {monthlyMeetingAttended ? '50/50 M' : '0/50 M'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.satsangDescription}>
+              Monthly one-on-one meeting with your counsellor. Marks are counted towards your monthly progress report.
+            </Text>
+
+            <View style={styles.satsangPillsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  monthlyMeetingAttended && styles.satsangPillAttended,
+                ]}
+                onPress={() => setMonthlyMeetingAttended(true)}
+              >
+                <Ionicons
+                  name={monthlyMeetingAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={monthlyMeetingAttended ? '#FFFFFF' : '#15803D'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    monthlyMeetingAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Attended (50M)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  !monthlyMeetingAttended && styles.satsangPillAbsent,
+                ]}
+                onPress={() => setMonthlyMeetingAttended(false)}
+              >
+                <Ionicons
+                  name={!monthlyMeetingAttended ? 'close-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={!monthlyMeetingAttended ? '#FFFFFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    !monthlyMeetingAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Absent (0M)
                 </Text>
               </TouchableOpacity>
             </View>

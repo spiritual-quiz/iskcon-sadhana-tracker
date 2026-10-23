@@ -12,6 +12,8 @@ export interface SadhanaInput {
   wakeUpTimeStr?: string;
   restMinutes?: number;
   onlineReadingAttended?: boolean;
+  serviceAttended?: boolean; // Weekly service (10 marks)
+  monthlyMeetingAttended?: boolean; // Monthly meeting with counsellor (50 marks)
 }
 
 export interface CalculatedSadhanaScore {
@@ -20,6 +22,8 @@ export interface CalculatedSadhanaScore {
   hearingMarks: number;
   sleepMarks: number;
   onlineReadingMarks: number; // 0 or 10 (Monday to Friday)
+  serviceMarks: number; // 0 or 10 (Weekly service)
+  monthlyMeetingMarks: number; // 0 or 50 (Monthly meeting with counsellor)
   totalRestMinutes: number;
   dailyTotalScore: number;
   percentage: number;
@@ -193,11 +197,16 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
   const sleepResult = calculateSleepMarks(totalRestMinutes);
 
   const onlineReadingMarks = input.onlineReadingAttended ? 10 : 0;
+  const serviceMarks = input.serviceAttended ? 10 : 0;
+  const monthlyMeetingMarks = input.monthlyMeetingAttended ? 50 : 0;
 
   const dailyTotalScore = Number(
-    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks + onlineReadingMarks).toFixed(2)
+    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks + onlineReadingMarks + serviceMarks + monthlyMeetingMarks).toFixed(2)
   );
-  const maxScore = input.onlineReadingAttended ? 50 : SCORING_RULES.maxDailyScore;
+  let maxScore = SCORING_RULES.maxDailyScore; // base 40
+  if (input.onlineReadingAttended) maxScore += 10;
+  if (input.serviceAttended) maxScore += 10;
+  if (input.monthlyMeetingAttended) maxScore += 50;
   const percentage = Number(((dailyTotalScore / maxScore) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
@@ -206,7 +215,9 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
     input.readingMinutes > 0 ||
     input.hearingMinutes > 0 ||
     totalRestMinutes > 0 ||
-    !!input.onlineReadingAttended;
+    !!input.onlineReadingAttended ||
+    !!input.serviceAttended ||
+    !!input.monthlyMeetingAttended;
   const isZeroScore = dailyTotalScore === 0;
 
   return {
@@ -215,6 +226,8 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
     hearingMarks,
     sleepMarks: sleepResult.marks,
     onlineReadingMarks,
+    serviceMarks,
+    monthlyMeetingMarks,
     totalRestMinutes,
     dailyTotalScore,
     percentage,
