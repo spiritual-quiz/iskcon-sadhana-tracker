@@ -19,7 +19,7 @@ import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 import { sadhanaService } from '../../services/sadhanaService';
 import { attendanceService } from '../../services/attendanceService';
-import { evaluateDailySadhana } from '../../utils/scoringEngine';
+import { evaluateDailySadhana, calculateGrade } from '../../utils/scoringEngine';
 import {
   getTodayDateStringIST,
   calculateSleepDurationMinutes,
@@ -71,12 +71,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const [weekReadingMap, setWeekReadingMap] = useState<{ [dateStr: string]: boolean }>({});
   const [isUpdatingReading, setIsUpdatingReading] = useState<boolean>(false);
 
-  // F. Monthly Satsang (Dynamic, 50 Marks)
+  // F. Service (Weekly, 10 Marks)
+  const [serviceAttended, setServiceAttended] = useState<boolean>(false);
+
+  // G. Monthly Satsang (Dynamic, 50 Marks)
   const [monthlySatsangStatus, setMonthlySatsangStatus] = useState<MonthlySatsangStatus>('not_conducted');
   const [isUpdatingSatsang, setIsUpdatingSatsang] = useState<boolean>(false);
-
-  // G. Service (Weekly, 10 Marks)
-  const [serviceAttended, setServiceAttended] = useState<boolean>(false);
 
   // H. Monthly Meeting with Counsellor (Monthly, 50 Marks)
   const [monthlyMeetingAttended, setMonthlyMeetingAttended] = useState<boolean>(false);
@@ -243,7 +243,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     }
   };
 
-  // Live score calculation (out of 40, or 50 on weekdays with online reading)
+  // Live score calculation (out of 50 marks: Japa 10, Read 10, Hear 10, Sleep 10, Online Reading 10)
   const numDeclared = parseInt(declaredRounds, 10) || (user?.declaredRounds || 16);
   const numCompleted = parseInt(completedRounds, 10) || 0;
   const numReading = parseInt(readingMinutes, 10) || 0;
@@ -260,7 +260,21 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     wakeUpTimeStr: wakeUpTime.trim(),
     restMinutes: numRest,
     onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
+    serviceAttended: serviceAttended,
+    monthlyMeetingAttended: monthlyMeetingAttended,
   });
+
+  const dailyScore50 = Number(
+    (
+      liveEvaluation.japaMarks +
+      liveEvaluation.readingMarks +
+      liveEvaluation.hearingMarks +
+      liveEvaluation.sleepMarks +
+      liveEvaluation.onlineReadingMarks
+    ).toFixed(2)
+  );
+  const dailyPercentage50 = Number(((dailyScore50 / 50) * 100).toFixed(1));
+  const dailyGrade50 = calculateGrade(dailyPercentage50);
 
   const sleepDurationMins = calculateSleepDurationMinutes(sleepTime.trim(), wakeUpTime.trim());
   const totalRestDurationMins = sleepDurationMins + numRest;
@@ -360,9 +374,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         : '';
       Alert.alert(
         'Sadhana Submitted!',
-        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/${
-          isWeekday() && saved.onlineReadingAttended ? 50 : 40
-        } (${saved.percentage}%, Grade ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
+        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/50 (${saved.percentage}%, Grade ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
           saved.readingMarks
         }/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10${onlinePart}`
       );
@@ -545,13 +557,13 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View>
                 <Text style={styles.scoreLabel}>Daily Score Preview</Text>
                 <Text style={styles.scoreValue}>
-                  {liveEvaluation.dailyTotalScore}
-                  <Text style={styles.scoreDenom}> / {isWeekday() && onlineReadingAttended ? 50 : 40}</Text>
+                  {dailyScore50}
+                  <Text style={styles.scoreDenom}> / 50</Text>
                 </Text>
               </View>
               <View style={[styles.gradeBadge, { backgroundColor: THEME.colors.primary }]}>
-                <Text style={styles.gradeText}>Grade {liveEvaluation.grade}</Text>
-                <Text style={styles.percentText}>{liveEvaluation.percentage}%</Text>
+                <Text style={styles.gradeText}>Grade {dailyGrade50}</Text>
+                <Text style={styles.percentText}>{dailyPercentage50}%</Text>
               </View>
             </View>
 
@@ -573,14 +585,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 <Text style={styles.breakdownChipLabel}>Sleep</Text>
                 <Text style={[styles.breakdownChipValue, { color: '#7C3AED' }]}>{liveEvaluation.sleepMarks}/10</Text>
               </View>
-              {isWeekday() && (
-                <View style={[styles.breakdownChip, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                  <Text style={styles.breakdownChipLabel}>Online</Text>
-                  <Text style={[styles.breakdownChipValue, { color: '#2563EB' }]}>
-                    {liveEvaluation.onlineReadingMarks}/10
-                  </Text>
-                </View>
-              )}
+              <View style={[styles.breakdownChip, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                <Text style={styles.breakdownChipLabel}>Online</Text>
+                <Text style={[styles.breakdownChipValue, { color: '#2563EB' }]}>
+                  {liveEvaluation.onlineReadingMarks}/10
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -1072,13 +1082,90 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Section F: Monthly Satsang (Dynamic, 50 Marks) */}
+          {/* Section F: Service (Weekly, 10 Marks) */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
+                <Ionicons name="hand-left-outline" size={18} color="#EA580C" />
+              </View>
+              <Text style={styles.sectionTitle}>F. Service (Weekly, 10 Marks)</Text>
+              <View
+                style={[
+                  styles.marksBadge,
+                  serviceAttended
+                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.marksBadgeText,
+                    serviceAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                  ]}
+                >
+                  {serviceAttended ? '10/10 W' : '0/10 W'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.satsangDescription}>
+              Weekly service activity. Marks are counted towards your weekly progress report.
+            </Text>
+
+            <View style={styles.satsangPillsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  serviceAttended && styles.satsangPillAttended,
+                ]}
+                onPress={() => setServiceAttended(true)}
+              >
+                <Ionicons
+                  name={serviceAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={serviceAttended ? '#FFFFFF' : '#15803D'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    serviceAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Attended (10M)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  !serviceAttended && styles.satsangPillAbsent,
+                ]}
+                onPress={() => setServiceAttended(false)}
+              >
+                <Ionicons
+                  name={!serviceAttended ? 'close-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={!serviceAttended ? '#FFFFFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    !serviceAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Absent (0M)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Section G: Monthly Satsang (Dynamic, 50 Marks) */}
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: '#FAF5FF' }]}>
                 <Ionicons name="people-outline" size={18} color="#9333EA" />
               </View>
-              <Text style={styles.sectionTitle}>F. Monthly Satsang (Monthly Programme)</Text>
+              <Text style={styles.sectionTitle}>G. Monthly Satsang (Monthly Programme)</Text>
               <View
                 style={[
                   styles.marksBadge,
@@ -1179,83 +1266,6 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   ]}
                 >
                   No Satsang This Month
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Section G: Service (Weekly, 10 Marks) */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="hand-left-outline" size={18} color="#EA580C" />
-              </View>
-              <Text style={styles.sectionTitle}>G. Service (Weekly, 10 Marks)</Text>
-              <View
-                style={[
-                  styles.marksBadge,
-                  serviceAttended
-                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.marksBadgeText,
-                    serviceAttended ? { color: '#15803D' } : { color: '#B91C1C' },
-                  ]}
-                >
-                  {serviceAttended ? '10/10 W' : '0/10 W'}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.satsangDescription}>
-              Weekly service activity. Marks are counted towards your weekly progress report.
-            </Text>
-
-            <View style={styles.satsangPillsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  serviceAttended && styles.satsangPillAttended,
-                ]}
-                onPress={() => setServiceAttended(true)}
-              >
-                <Ionicons
-                  name={serviceAttended ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={serviceAttended ? '#FFFFFF' : '#15803D'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    serviceAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Attended (10M)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  !serviceAttended && styles.satsangPillAbsent,
-                ]}
-                onPress={() => setServiceAttended(false)}
-              >
-                <Ionicons
-                  name={!serviceAttended ? 'close-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={!serviceAttended ? '#FFFFFF' : '#DC2626'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    !serviceAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Absent (0M)
                 </Text>
               </TouchableOpacity>
             </View>

@@ -201,12 +201,9 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
   const monthlyMeetingMarks = input.monthlyMeetingAttended ? 50 : 0;
 
   const dailyTotalScore = Number(
-    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks + onlineReadingMarks + serviceMarks + monthlyMeetingMarks).toFixed(2)
+    (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks + onlineReadingMarks).toFixed(2)
   );
-  let maxScore = SCORING_RULES.maxDailyScore; // base 40
-  if (input.onlineReadingAttended) maxScore += 10;
-  if (input.serviceAttended) maxScore += 10;
-  if (input.monthlyMeetingAttended) maxScore += 50;
+  const maxScore = input.onlineReadingAttended ? 50 : SCORING_RULES.maxDailyScore;
   const percentage = Number(((dailyTotalScore / maxScore) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
