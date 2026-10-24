@@ -49,7 +49,39 @@ export const SettingsScreen = () => {
 
           <View style={styles.row}>
             <Text style={styles.label}>Scoring System:</Text>
-            <Text style={styles.value}>30 Marks Daily System</Text>
+            <Text style={styles.value}>50 Marks Daily System</Text>
+          </View>
+        </View>
+
+        {/* Daily Reminders */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Daily Sadhana Reminders</Text>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Reminder Schedule:</Text>
+            <Text style={styles.valueHighlight}>6:00 PM & 9:00 PM IST</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Reminder Status:</Text>
+            <Text
+              style={[
+                styles.value,
+                {
+                  fontWeight: 'bold',
+                  color: user?.sadhanaRemindersEnabled !== false ? '#15803D' : '#6B7280',
+                },
+              ]}
+            >
+              {user?.sadhanaRemindersEnabled !== false ? 'Active (Mandatory)' : 'Switched Off by Counsellor'}
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Control Policy:</Text>
+            <Text style={[styles.value, { fontStyle: 'italic', color: THEME.colors.textMuted, fontSize: 11 }]}>
+              Cannot be switched off directly. Request counsellor to modify.
+            </Text>
           </View>
         </View>
 

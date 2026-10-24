@@ -66,6 +66,31 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleToggleReminders = async (user: UserProfile) => {
+    const currentEnabled = user.sadhanaRemindersEnabled !== false;
+    const newEnabled = !currentEnabled;
+    Alert.alert(
+      newEnabled ? 'Activate Reminders?' : 'Switch Off Reminders?',
+      newEnabled
+        ? `Re-activate daily 6 PM & 9 PM sadhana reminders for ${user.displayName}?`
+        : `Switch off daily 6 PM & 9 PM sadhana reminders for ${user.displayName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              await authService.setCounseleeReminders(user.uid, newEnabled);
+              loadCounselees();
+            } catch (err: any) {
+              Alert.alert('Error', err.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const filtered = counselees.filter((c) => {
     const matchesSearch =
       c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -163,7 +188,58 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                     </View>
                   </View>
 
+                  {/* Daily Reminders Status & Turn-Off Request Indicator */}
+                  <View style={styles.remindersCardRow}>
+                    <View style={styles.remindersInfoBlock}>
+                      <Ionicons
+                        name={devotee.sadhanaRemindersEnabled !== false ? 'alarm' : 'alarm-outline'}
+                        size={15}
+                        color={devotee.sadhanaRemindersEnabled !== false ? '#15803D' : '#6B7280'}
+                      />
+                      <Text style={styles.remindersLabel}>
+                        Daily Reminders (6PM & 9PM):{' '}
+                        <Text
+                          style={{
+                            fontWeight: 'bold',
+                            color: devotee.sadhanaRemindersEnabled !== false ? '#15803D' : '#6B7280',
+                          }}
+                        >
+                          {devotee.sadhanaRemindersEnabled !== false ? 'Active' : 'Off'}
+                        </Text>
+                      </Text>
+                    </View>
+                    {devotee.reminderOptOutRequested && (
+                      <View style={styles.optOutReqBadge}>
+                        <Text style={styles.optOutReqText}>⚠️ Student Requested Turn-Off</Text>
+                      </View>
+                    )}
+                  </View>
+
                   <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      style={
+                        devotee.sadhanaRemindersEnabled !== false
+                          ? styles.actionBtnReminderOff
+                          : styles.actionBtnReminderOn
+                      }
+                      onPress={() => handleToggleReminders(devotee)}
+                    >
+                      <Ionicons
+                        name={devotee.sadhanaRemindersEnabled !== false ? 'notifications-off-outline' : 'notifications-outline'}
+                        size={14}
+                        color={devotee.sadhanaRemindersEnabled !== false ? '#B91C1C' : '#15803D'}
+                      />
+                      <Text
+                        style={
+                          devotee.sadhanaRemindersEnabled !== false
+                            ? styles.actionBtnReminderOffText
+                            : styles.actionBtnReminderOnText
+                        }
+                      >
+                        {devotee.sadhanaRemindersEnabled !== false ? 'Switch Off Reminders' : 'Activate Reminders'}
+                      </Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       style={styles.actionBtnSecondary}
                       onPress={() => handleToggleDisabled(devotee)}
@@ -318,11 +394,80 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 6,
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceVariant,
+  },
+  remindersCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: THEME.borderRadius.sm,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  remindersInfoBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  remindersLabel: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+  },
+  optOutReqBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  optOutReqText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#B45309',
+  },
+  actionBtnReminderOff: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: THEME.borderRadius.md,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  actionBtnReminderOffText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#B91C1C',
+  },
+  actionBtnReminderOn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: THEME.borderRadius.md,
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  actionBtnReminderOnText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#15803D',
   },
   actionBtnSecondary: {
     paddingHorizontal: 12,

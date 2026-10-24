@@ -238,7 +238,7 @@ export const MyReportsScreen = () => {
                         <View>
                           <Text style={styles.dailyDate}>{entry.date}</Text>
                           <Text style={styles.dailyScore}>
-                            {entry.dailyTotalScore} / 30 marks ({entry.percentage}%)
+                            {entry.dailyTotalScore} / 50 marks ({entry.percentage}%)
                           </Text>
                         </View>
                         <StatusBadge type="grade" value={entry.grade} />

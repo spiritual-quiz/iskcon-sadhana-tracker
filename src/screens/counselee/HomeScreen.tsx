@@ -17,7 +17,8 @@ import { sadhanaService } from '../../services/sadhanaService';
 import { reportService } from '../../services/reportService';
 import { getTodayDateStringIST, getNowInIST } from '../../utils/dateUtils';
 import { SadhanaEntry } from '../../types/sadhana';
-import { WeeklyReport } from '../../types/report';
+import { WeeklyReport, MonthlyReport } from '../../types/report';
+import { reminderService } from '../../services/reminderService';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
   const [todayEntry, setTodayEntry] = useState<SadhanaEntry | null>(null);
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
+  const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -35,7 +37,8 @@ export const HomeScreen = ({ navigation }: any) => {
   const loadHomeData = async () => {
     if (!user?.uid) return;
     try {
-      const [entry, week] = await Promise.all([
+      const now = new Date();
+      const [entry, week, month] = await Promise.all([
         sadhanaService.getDailyEntry(user.uid, todayStr),
         reportService.generateWeeklyReport({
           userId: user.uid,
@@ -44,9 +47,16 @@ export const HomeScreen = ({ navigation }: any) => {
           publishSharedSummary: true,
           publicConsent: user.publicAppreciationConsent,
         }),
+        reportService.generateMonthlyReport({
+          userId: user.uid,
+          counseleeName: user.displayName,
+          year: now.getFullYear(),
+          month: now.getMonth() + 1,
+        }),
       ]);
       setTodayEntry(entry);
       setWeeklyReport(week);
+      setMonthlyReport(month);
     } catch (e) {
       console.warn('Error loading home data:', e);
     } finally {
@@ -59,6 +69,8 @@ export const HomeScreen = ({ navigation }: any) => {
     setIsRefreshing(true);
     loadHomeData();
   };
+
+  const remindersInfo = reminderService.getDailyReminders(user, todayEntry);
 
   return (
     <View style={styles.container}>
@@ -81,6 +93,54 @@ export const HomeScreen = ({ navigation }: any) => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
+          {/* Active Mandatory Sadhana Reminder (6 PM & 9 PM) */}
+          {remindersInfo.pendingReminders.length > 0 && (
+            <View
+              style={[
+                styles.reminderBanner,
+                remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].isUrgent
+                  ? styles.reminderBannerUrgent
+                  : styles.reminderBannerRegular,
+              ]}
+            >
+              <View style={styles.reminderIconCircle}>
+                <Ionicons
+                  name={
+                    remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].isUrgent
+                      ? 'alert-circle'
+                      : 'alarm-outline'
+                  }
+                  size={24}
+                  color={
+                    remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].isUrgent
+                      ? '#DC2626'
+                      : '#D97706'
+                  }
+                />
+              </View>
+              <View style={styles.reminderTextContainer}>
+                <View style={styles.reminderBadgeRow}>
+                  <Text style={styles.reminderBadgeText}>
+                    {remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].timeLabel}
+                  </Text>
+                  <Text style={styles.mandatoryBadgeText}>Mandatory Reminder</Text>
+                </View>
+                <Text style={styles.reminderTitle}>
+                  {remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].title}
+                </Text>
+                <Text style={styles.reminderSubtitle}>
+                  {remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].message}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.reminderFillBtn}
+                onPress={() => navigation.navigate('DailySadhana')}
+              >
+                <Text style={styles.reminderFillBtnText}>Fill Card</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Today's Status Banner */}
           <View style={[styles.todayBanner, todayEntry ? styles.bannerDone : styles.bannerPending]}>
             <View style={styles.bannerIconCircle}>
@@ -96,7 +156,7 @@ export const HomeScreen = ({ navigation }: any) => {
               </Text>
               <Text style={styles.bannerSubtitle}>
                 {todayEntry
-                  ? `Score: ${todayEntry.dailyTotalScore}/40 (Grade ${todayEntry.grade})`
+                  ? `Score: ${todayEntry.dailyTotalScore}/50 (Grade ${todayEntry.grade})`
                   : 'Track your japa, reading, hearing & rest today'}
               </Text>
             </View>
@@ -122,6 +182,25 @@ export const HomeScreen = ({ navigation }: any) => {
                   classMarks: weeklyReport.weeklyClassMarks,
                   morningMarks: weeklyReport.morningProgrammeMarks,
                   onlineReadingMarks: weeklyReport.onlineReadingMarks,
+                }}
+              />
+            </View>
+          )}
+
+          {/* Current Month Summary */}
+          {monthlyReport && (
+            <View style={styles.section}>
+              <Text style={styles.sectionHeaderTitle}>Current Month Progress</Text>
+              <ScoreCard
+                title={`Month (${monthlyReport.monthName})`}
+                score={monthlyReport.totalScore}
+                maxScore={monthlyReport.maxAvailableMarks}
+                percentage={monthlyReport.percentage}
+                grade={monthlyReport.grade}
+                breakdown={{
+                  classMarks: monthlyReport.weeklyClassesMarks,
+                  morningMarks: monthlyReport.morningProgrammesMarks,
+                  satsangaMarks: monthlyReport.satsangaMarks,
                 }}
               />
             </View>
@@ -201,6 +280,82 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: THEME.spacing.base,
     paddingBottom: THEME.spacing.xxl,
+  },
+  reminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: THEME.borderRadius.lg,
+    padding: THEME.spacing.base,
+    borderWidth: 1.5,
+    marginBottom: THEME.spacing.base,
+    ...THEME.shadows.medium,
+  },
+  reminderBannerRegular: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  reminderBannerUrgent: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#EF4444',
+  },
+  reminderIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  reminderTextContainer: {
+    flex: 1,
+    marginLeft: THEME.spacing.md,
+  },
+  reminderBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  reminderBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#B45309',
+    textTransform: 'uppercase',
+  },
+  mandatoryBadgeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    backgroundColor: '#DC2626',
+    color: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  reminderTitle: {
+    fontSize: THEME.typography.sizes.sm,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  reminderSubtitle: {
+    fontSize: 11,
+    color: '#4B5563',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  reminderFillBtn: {
+    backgroundColor: '#DC2626',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: THEME.borderRadius.md,
+    marginLeft: 8,
+  },
+  reminderFillBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 11,
   },
   todayBanner: {
     flexDirection: 'row',

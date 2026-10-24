@@ -249,7 +249,7 @@ export const authService = {
    */
   updatePermittedProfile: async (
     uid: string,
-    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds'>>
+    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'sadhanaRemindersEnabled'>>
   ) => {
     try {
       const userRef = doc(db, 'users', uid);
@@ -261,6 +261,33 @@ export const authService = {
       console.warn('Firestore updatePermittedProfile fallback (offline/demo):', e);
     }
     await localStorageService.updateUser(uid, updates);
+  },
+
+  /**
+   * Counselee: Request counsellor to turn off daily reminders
+   */
+  requestReminderTurnOff: async (uid: string) => {
+    await authService.updatePermittedProfile(uid, { reminderOptOutRequested: true });
+  },
+
+  /**
+   * Counsellor: Toggle daily reminders on/off for a counselee
+   */
+  setCounseleeReminders: async (uid: string, enabled: boolean) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        sadhanaRemindersEnabled: enabled,
+        reminderOptOutRequested: false,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('Firestore setCounseleeReminders fallback (offline/demo):', e);
+    }
+    await localStorageService.updateUser(uid, {
+      sadhanaRemindersEnabled: enabled,
+      reminderOptOutRequested: false,
+    });
   },
 
   /**
