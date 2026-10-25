@@ -133,7 +133,7 @@ export const MyReportsScreen = () => {
                   </Text>
                 </View>
                 <View style={styles.metricRow}>
-                  <Text style={styles.metricLabel}>Online Reading (Mon–Fri):</Text>
+                  <Text style={styles.metricLabel}>Online Reading:</Text>
                   <Text style={[styles.metricValue, { color: '#2563EB', fontWeight: 'bold' }]}>
                     {weeklyReport.onlineReadingDaysAttended}/5 Days ({weeklyReport.onlineReadingMarks}/50 marks)
                   </Text>
@@ -145,7 +145,7 @@ export const MyReportsScreen = () => {
                   </Text>
                 </View>
                 <View style={styles.metricRow}>
-                  <Text style={styles.metricLabel}>Morning Programme & Maṅgala-ārati:</Text>
+                  <Text style={styles.metricLabel}>MP & MA:</Text>
                   <Text style={styles.metricValue}>
                     {weeklyReport.morningProgrammeAttendance ? 'Attended (10 marks)' : 'Not Attended (0 marks)'}
                   </Text>
@@ -335,18 +335,23 @@ const styles = StyleSheet.create({
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: THEME.colors.surfaceVariant,
+    gap: 8,
   },
   metricLabel: {
     fontSize: THEME.typography.sizes.sm,
     color: THEME.colors.textMuted,
+    flexShrink: 1,
   },
   metricValue: {
     fontSize: THEME.typography.sizes.sm,
     fontWeight: 'bold',
     color: THEME.colors.text,
+    textAlign: 'right',
+    flexShrink: 0,
   },
   warningText: {
     color: THEME.colors.danger,

@@ -35,13 +35,13 @@ export interface CalculatedSadhanaScore {
 
 /**
  * Calculates Japa marks strictly adhering to the prompt rules:
- * - Completed rounds must reach or exceed declared commitment.
+ * - Completed rounds must reach or exceed declared commitment (otherwise 0 marks).
  * - Time brackets (Asia/Kolkata):
- *   - Before 7:00 AM: 10 marks
- *   - Exactly 7:00 AM to before 10:00 AM: 5 marks
- *   - Exactly 10:00 AM to before 1:00 PM (13:00): 3 marks
- *   - Exactly 1:00 PM (13:00) or later: 1 mark
- * - Incomplete commitment: 0 marks
+ *   - Completed before 7:30 AM: 10 marks
+ *   - Exactly 7:30 AM to before 9:30 AM: 5 marks
+ *   - Exactly 9:30 AM to before 1:00 PM: 3 marks
+ *   - Exactly 1:00 PM to 7:00 PM: 1 mark
+ *   - After 7:00 PM: 0 marks
  */
 export function calculateJapaMarks(
   declaredRounds: number,
@@ -56,7 +56,7 @@ export function calculateJapaMarks(
     return {
       marks: 0,
       isHonored: false,
-      reason: `Chanted ${completedRounds}/${declaredRounds} rounds (commitment not completed)`,
+      reason: `Chanted ${completedRounds}/${declaredRounds} rounds (commitment not completed: 0 marks)`,
     };
   }
 
@@ -71,23 +71,28 @@ export function calculateJapaMarks(
 
   const totalMinutes = hours * 60 + minutes;
 
-  // 7:00 AM is 7 * 60 = 420 minutes
-  if (totalMinutes < 420) {
-    return { marks: 10, isHonored: true, reason: 'Completed before 7:00 AM (10 marks)' };
+  // Before 7:30 AM: 7 * 60 + 30 = 450 minutes -> 10 marks
+  if (totalMinutes < 450) {
+    return { marks: 10, isHonored: true, reason: 'Completed before 7:30 AM (10 marks)' };
   }
 
-  // 10:00 AM is 10 * 60 = 600 minutes
-  if (totalMinutes < 600) {
-    return { marks: 5, isHonored: true, reason: 'Completed between 7:00 AM and 9:59 AM (5 marks)' };
+  // 7:30 AM to before 9:30 AM: 9 * 60 + 30 = 570 minutes -> 5 marks
+  if (totalMinutes < 570) {
+    return { marks: 5, isHonored: true, reason: 'Completed between 7:30 AM and 9:30 AM (5 marks)' };
   }
 
-  // 1:00 PM is 13 * 60 = 780 minutes
+  // 9:30 AM to before 1:00 PM: 13 * 60 = 780 minutes -> 3 marks
   if (totalMinutes < 780) {
-    return { marks: 3, isHonored: true, reason: 'Completed between 10:00 AM and 12:59 PM (3 marks)' };
+    return { marks: 3, isHonored: true, reason: 'Completed between 9:30 AM and 1:00 PM (3 marks)' };
   }
 
-  // 1:00 PM or later
-  return { marks: 1, isHonored: true, reason: 'Completed at 1:00 PM or later (1 mark)' };
+  // 1:00 PM to 7:00 PM: 19 * 60 = 1140 minutes -> 1 mark
+  if (totalMinutes <= 1140) {
+    return { marks: 1, isHonored: true, reason: 'Completed between 1:00 PM and 7:00 PM (1 mark)' };
+  }
+
+  // After 7:00 PM -> 0 marks
+  return { marks: 0, isHonored: true, reason: 'Completed after 7:00 PM (0 marks)' };
 }
 
 /**
@@ -113,13 +118,20 @@ export function calculateHearingMarks(minutes: number): number {
 }
 
 /**
- * Calculates Sleep & Rest marks adhering to user specifications:
- * - 7 hours overall: 10 marks
- * - 8 hours: 8 marks
- * - Above 8 to < 10 hours: 5 marks
- * - 10 hours or more: 0 marks
+ * Calculates Sleep & Rest marks adhering to rules:
+ * - Sleep time base marks (6.5 hours / 390 mins baseline):
+ *   - <= 9:30 PM (21:30): 10 marks
+ *   - <= 10:00 PM (22:00): 8 marks
+ *   - <= 10:30 PM (22:30): 5 marks
+ *   - <= 11:00 PM (23:00): 2 marks
+ *   - After 11:00 PM (or past midnight): 0 marks (even if 6.5 hours slept)
+ * - Excess rest deduction:
+ *   - If sleeping more than 6.5 hours, deduct 2 marks for every half-hour (30 mins) in excess.
  */
-export function calculateSleepMarks(totalMinutes: number): {
+export function calculateSleepMarks(
+  totalMinutes: number,
+  sleepTimeStr?: string
+): {
   marks: number;
   hours: number;
   reason: string;
@@ -129,32 +141,73 @@ export function calculateSleepMarks(totalMinutes: number): {
   }
   const hours = Number((totalMinutes / 60).toFixed(2));
 
-  if (hours <= 7.0) {
-    return { marks: 10, hours, reason: `Optimal rest (${hours}h ≤ 7h): 10 marks` };
+  // Determine base marks from sleep time
+  let baseMarks = 10;
+  let bedtimeLabel = '';
+
+  if (sleepTimeStr && sleepTimeStr.includes(':')) {
+    const [h, m] = sleepTimeStr.split(':').map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      if (h < 12) {
+        // Bedtime in the morning/past midnight (e.g. 00:30, 01:00) is after 11:00 PM
+        baseMarks = 0;
+        bedtimeLabel = 'Bedtime after 11:00 PM (0 base)';
+      } else {
+        const bedMinutes = h * 60 + m;
+        if (bedMinutes <= 21 * 60 + 30) {
+          baseMarks = 10;
+          bedtimeLabel = 'Bedtime ≤ 9:30 PM (10 base)';
+        } else if (bedMinutes <= 22 * 60) {
+          baseMarks = 8;
+          bedtimeLabel = 'Bedtime ≤ 10:00 PM (8 base)';
+        } else if (bedMinutes <= 22 * 60 + 30) {
+          baseMarks = 5;
+          bedtimeLabel = 'Bedtime ≤ 10:30 PM (5 base)';
+        } else if (bedMinutes <= 23 * 60) {
+          baseMarks = 2;
+          bedtimeLabel = 'Bedtime ≤ 11:00 PM (2 base)';
+        } else {
+          baseMarks = 0;
+          bedtimeLabel = 'Bedtime after 11:00 PM (0 base)';
+        }
+      }
+    }
   }
-  if (hours <= 8.0) {
-    return { marks: 8, hours, reason: `Moderate rest (${hours}h ≤ 8h): 8 marks` };
+
+  // Duration target: 6h 30m = 390 minutes
+  let deduction = 0;
+  if (totalMinutes > 390) {
+    const excessMinutes = totalMinutes - 390;
+    const excessHalfHours = Math.ceil(excessMinutes / 30);
+    deduction = excessHalfHours * 2;
   }
-  if (hours < 10.0) {
-    return { marks: 5, hours, reason: `High rest (${hours}h < 10h): 5 marks` };
-  }
-  return { marks: 0, hours, reason: `Excess rest (${hours}h ≥ 10h): 0 marks` };
+
+  const finalMarks = Math.max(0, baseMarks - deduction);
+  const deductionNote = deduction > 0 ? `, -${deduction} excess sleep penalty` : '';
+
+  return {
+    marks: finalMarks,
+    hours,
+    reason: `${bedtimeLabel ? bedtimeLabel + ', ' : ''}${hours}h rest${deductionNote} (${finalMarks} marks)`,
+  };
 }
 
 /**
- * Calculates Grade from percentage:
- * 90%–100%: A
- * 80% to < 90%: B
- * 70% to < 80%: C
- * 60% to < 70%: D
- * Below 60%: E
+ * Calculates Spiritual Status Message from percentage:
+ * 100%: Advancing
+ * 80–99%: Good, Please Improve
+ * 60–79%: Your Sādhana Is at Risk
+ * 40–59%: Māyā Is Distracting You
+ * 20–39%: You Are in Māyā
+ * 0–19%: You Are Fallen
  */
 export function calculateGrade(percentage: number): Grade {
-  if (percentage >= 90.0) return 'A';
-  if (percentage >= 80.0) return 'B';
-  if (percentage >= 70.0) return 'C';
-  if (percentage >= 60.0) return 'D';
-  return 'E';
+  if (percentage >= 100.0) return 'Advancing';
+  if (percentage >= 80.0) return 'Good, Please Improve';
+  if (percentage >= 60.0) return 'Your Sādhana Is at Risk';
+  if (percentage >= 40.0) return 'Māyā Is Distracting You';
+  if (percentage >= 20.0) return 'You Are in Māyā';
+  return 'You Are Fallen';
 }
 
 /**
@@ -194,7 +247,7 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
     nightSleepMinutes = calculateSleepDurationMinutes(input.sleepTimeStr, input.wakeUpTimeStr);
   }
   const totalRestMinutes = nightSleepMinutes + (input.restMinutes || 0);
-  const sleepResult = calculateSleepMarks(totalRestMinutes);
+  const sleepResult = calculateSleepMarks(totalRestMinutes, input.sleepTimeStr);
 
   const onlineReadingMarks = input.onlineReadingAttended ? 10 : 0;
   const serviceMarks = input.serviceAttended ? 10 : 0;
@@ -203,7 +256,7 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
   const dailyTotalScore = Number(
     (japaResult.marks + readingMarks + hearingMarks + sleepResult.marks + onlineReadingMarks).toFixed(2)
   );
-  const maxScore = input.onlineReadingAttended ? 50 : SCORING_RULES.maxDailyScore;
+  const maxScore = SCORING_RULES.maxDailyScore; // 50 marks
   const percentage = Number(((dailyTotalScore / maxScore) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
@@ -257,8 +310,8 @@ export function calculateWeeklyScoreAndGrade(params: {
   const hasOnlineReading = params.onlineReadingMarks !== undefined;
 
   const totalScore = Number((dailyTotal + classMarks + morningMarks + onlineReading).toFixed(2));
-  // 7 days * 40 = 280, + 10 (class) + 10 (morning) + (50 if online reading tracked)
-  const maxAvailableMarks = 7 * SCORING_RULES.maxDailyScore + 10 + 10 + (hasOnlineReading ? 50 : 0);
+  // 7 days core (280) + 10 (class) + 10 (morning) = 300 base (+ 50 online reading = 350 max available)
+  const maxAvailableMarks = hasOnlineReading ? 350 : 300;
   const percentage = Number(((totalScore / maxAvailableMarks) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 

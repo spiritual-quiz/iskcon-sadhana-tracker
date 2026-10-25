@@ -1,4 +1,11 @@
-export type Grade = 'A' | 'B' | 'C' | 'D' | 'E';
+export type Grade =
+  | 'Advancing'
+  | 'Good, Please Improve'
+  | 'Your Sādhana Is at Risk'
+  | 'Māyā Is Distracting You'
+  | 'You Are in Māyā'
+  | 'You Are Fallen'
+  | 'A' | 'B' | 'C' | 'D' | 'E';
 
 export interface AuditRecord {
   timestamp: string; // ISO string

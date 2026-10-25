@@ -72,7 +72,7 @@ describe('Service Logic and Integration Verification', () => {
 
       expect(res.dailyTotalScore).toBe(0);
       expect(res.isZeroScore).toBe(true);
-      expect(res.grade).toBe('E');
+      expect(res.grade).toBe('You Are Fallen');
     });
   });
 

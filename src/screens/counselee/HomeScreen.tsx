@@ -156,7 +156,7 @@ export const HomeScreen = ({ navigation }: any) => {
               </Text>
               <Text style={styles.bannerSubtitle}>
                 {todayEntry
-                  ? `Score: ${todayEntry.dailyTotalScore}/50 (Grade ${todayEntry.grade})`
+                  ? `Score: ${todayEntry.dailyTotalScore}/50 (${todayEntry.grade})`
                   : 'Track your japa, reading, hearing & rest today'}
               </Text>
             </View>

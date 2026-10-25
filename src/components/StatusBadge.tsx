@@ -15,22 +15,31 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ type, value, label }) 
 
   if (type === 'grade') {
     switch (value as Grade) {
+      case 'Advancing':
       case 'A':
         backgroundColor = THEME.colors.primaryUltraLight;
         textColor = THEME.colors.gradeA;
         break;
+      case 'Good, Please Improve':
       case 'B':
         backgroundColor = '#EFF6FF';
         textColor = THEME.colors.gradeB;
         break;
+      case 'Your Sādhana Is at Risk':
       case 'C':
         backgroundColor = THEME.colors.warningLight;
         textColor = THEME.colors.gradeC;
         break;
+      case 'Māyā Is Distracting You':
       case 'D':
         backgroundColor = '#FFF7ED';
         textColor = THEME.colors.gradeD;
         break;
+      case 'You Are in Māyā':
+        backgroundColor = '#FEE2E2';
+        textColor = '#DC2626';
+        break;
+      case 'You Are Fallen':
       case 'E':
         backgroundColor = THEME.colors.dangerLight;
         textColor = THEME.colors.gradeE;
@@ -54,10 +63,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ type, value, label }) 
     }
   }
 
+  const isLegacyLetter = ['A', 'B', 'C', 'D', 'E'].includes(value);
+  const displayText = label || (type === 'grade' ? (isLegacyLetter ? `Grade ${value}` : value) : value.toUpperCase());
+
   return (
     <View style={[styles.badge, { backgroundColor }]}>
       <Text style={[styles.badgeText, { color: textColor }]}>
-        {label || (type === 'grade' ? `Grade ${value}` : value.toUpperCase())}
+        {displayText}
       </Text>
     </View>
   );

@@ -49,7 +49,12 @@ export const reportService = {
         totalRounds += entry.completedRounds;
         totalReadingMinutes += entry.readingMinutes;
         totalHearingMinutes += entry.hearingMinutes;
-        dailyScores.push(entry.dailyTotalScore);
+        const coreDailyScore =
+          (entry.japaMarks || 0) +
+          (entry.readingMarks || 0) +
+          (entry.hearingMarks || 0) +
+          (entry.sleepMarks || 0);
+        dailyScores.push(coreDailyScore);
         if (entry.onlineReadingAttended) {
           onlineReadingDaysAttended++;
         }

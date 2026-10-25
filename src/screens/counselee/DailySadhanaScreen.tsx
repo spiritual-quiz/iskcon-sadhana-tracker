@@ -374,7 +374,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         : '';
       Alert.alert(
         'Sadhana Submitted!',
-        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/50 (${saved.percentage}%, Grade ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
+        `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/50 (${saved.percentage}%, ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
           saved.readingMarks
         }/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10${onlinePart}`
       );
@@ -562,7 +562,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 </Text>
               </View>
               <View style={[styles.gradeBadge, { backgroundColor: THEME.colors.primary }]}>
-                <Text style={styles.gradeText}>Grade {dailyGrade50}</Text>
+                <Text style={styles.gradeText}>{dailyGrade50}</Text>
                 <Text style={styles.percentText}>{dailyPercentage50}%</Text>
               </View>
             </View>
@@ -975,17 +975,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : (
-              <View style={styles.weekendNoteBox}>
-                <Ionicons name="sunny-outline" size={18} color="#D97706" />
-                <View style={{ flex: 1, marginLeft: 6 }}>
-                  <Text style={styles.weekendNoteTitle}>Weekend (Saturday/Sunday)</Text>
-                  <Text style={styles.weekendNoteText}>
-                    Sessions run Monday through Friday. You can enter or update your attendance for Monday to Friday below:
-                  </Text>
-                </View>
-              </View>
-            )}
+            ) : null}
 
             {/* Monday to Friday Quick Table with Present/Absent Buttons for Each Day */}
             <View style={styles.weekdayTableContainer}>
@@ -1633,15 +1623,17 @@ const styles = StyleSheet.create({
     fontWeight: 'normal',
   },
   gradeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 10,
     alignItems: 'center',
+    maxWidth: '65%',
   },
   gradeText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   percentText: {
     color: THEME.colors.goldLight,

@@ -21,44 +21,48 @@ import {
 
 describe('Scoring Engine Unit Tests', () => {
   describe('Japa Chanting Marks & Exact Boundary Conditions', () => {
-    test('completed before 7:00 AM awards 10 marks', () => {
-      const res1 = calculateJapaMarks(16, 16, '06:30');
+    test('completed before 7:30 AM awards 10 marks', () => {
+      const res1 = calculateJapaMarks(16, 16, '05:45');
       expect(res1.marks).toBe(10);
       expect(res1.isHonored).toBe(true);
 
-      const res2 = calculateJapaMarks(16, 16, '06:59');
+      const res2 = calculateJapaMarks(16, 16, '07:29');
       expect(res2.marks).toBe(10);
     });
 
-    test('completed at exactly 7:00 AM awards 5 marks', () => {
-      const res = calculateJapaMarks(16, 16, '07:00');
+    test('completed at exactly 7:30 AM awards 5 marks', () => {
+      const res = calculateJapaMarks(16, 16, '07:30');
       expect(res.marks).toBe(5);
       expect(res.isHonored).toBe(true);
     });
 
-    test('completed between 7:00 AM and 9:59 AM awards 5 marks', () => {
-      const res = calculateJapaMarks(16, 16, '09:45');
+    test('completed between 7:30 AM and before 9:30 AM awards 5 marks', () => {
+      const res = calculateJapaMarks(16, 16, '09:15');
       expect(res.marks).toBe(5);
     });
 
-    test('completed at exactly 10:00 AM awards 3 marks', () => {
-      const res = calculateJapaMarks(16, 16, '10:00');
+    test('completed at exactly 9:30 AM awards 3 marks', () => {
+      const res = calculateJapaMarks(16, 16, '09:30');
       expect(res.marks).toBe(3);
     });
 
-    test('completed between 10:00 AM and 12:59 PM awards 3 marks', () => {
+    test('completed between 9:30 AM and before 1:00 PM awards 3 marks', () => {
       const res = calculateJapaMarks(16, 16, '12:45');
       expect(res.marks).toBe(3);
     });
 
-    test('completed at exactly 1:00 PM (13:00) awards 1 mark', () => {
-      const res = calculateJapaMarks(16, 16, '13:00');
-      expect(res.marks).toBe(1);
+    test('completed at 1:00 PM (13:00) to 7:00 PM (19:00) awards 1 mark', () => {
+      const res1 = calculateJapaMarks(16, 16, '13:00');
+      expect(res1.marks).toBe(1);
+
+      const res2 = calculateJapaMarks(16, 16, '19:00');
+      expect(res2.marks).toBe(1);
     });
 
-    test('completed after 1:00 PM awards 1 mark', () => {
-      const res = calculateJapaMarks(16, 16, '18:30');
-      expect(res.marks).toBe(1);
+    test('completed after 7:00 PM awards 0 marks', () => {
+      const res = calculateJapaMarks(16, 16, '19:01');
+      expect(res.marks).toBe(0);
+      expect(res.isHonored).toBe(true);
     });
 
     test('incomplete daily round commitment awards 0 marks even if chanted early', () => {
@@ -110,25 +114,35 @@ describe('Scoring Engine Unit Tests', () => {
   });
 
   describe('Option D: Sleep & Rest Scoring', () => {
-    test('up to 7 hours awards 10 marks', () => {
-      expect(calculateSleepMarks(390).marks).toBe(10); // 6.5 hours
-      expect(calculateSleepMarks(420).marks).toBe(10); // exactly 7 hours
+    test('sleep time <= 9:30 PM and 6.5 hours awards 10 marks', () => {
+      expect(calculateSleepMarks(390, '21:30').marks).toBe(10); // 6.5 hours
+      expect(calculateSleepMarks(360, '21:00').marks).toBe(10); // 6 hours
     });
 
-    test('7 to 8 hours awards 8 marks', () => {
-      expect(calculateSleepMarks(450).marks).toBe(8); // 7.5 hours
-      expect(calculateSleepMarks(480).marks).toBe(8); // 8.0 hours
+    test('sleep time 10:00 PM and 6.5 hours awards 8 marks', () => {
+      expect(calculateSleepMarks(390, '22:00').marks).toBe(8);
     });
 
-    test('above 8 hours to < 10 hours awards 5 marks', () => {
-      expect(calculateSleepMarks(510).marks).toBe(5); // 8.5 hours
-      expect(calculateSleepMarks(540).marks).toBe(5); // 9 hours
-      expect(calculateSleepMarks(570).marks).toBe(5); // 9.5 hours
+    test('sleep time 10:30 PM and 6.5 hours awards 5 marks', () => {
+      expect(calculateSleepMarks(390, '22:30').marks).toBe(5);
     });
 
-    test('10 hours or more awards 0 marks', () => {
-      expect(calculateSleepMarks(600).marks).toBe(0); // 10.0 hours
-      expect(calculateSleepMarks(660).marks).toBe(0); // 11.0 hours
+    test('sleep time 11:00 PM and 6.5 hours awards 2 marks', () => {
+      expect(calculateSleepMarks(390, '23:00').marks).toBe(2);
+    });
+
+    test('sleep time after 11:00 PM awards 0 marks even with 6.5 hours', () => {
+      expect(calculateSleepMarks(390, '23:15').marks).toBe(0);
+      expect(calculateSleepMarks(390, '00:30').marks).toBe(0);
+    });
+
+    test('sleeping more than 6.5 hours reduces 2 marks per half hour', () => {
+      // Base 10 (21:30): 7.0 hours (420 mins = +30m excess) -> 10 - 2 = 8 marks
+      expect(calculateSleepMarks(420, '21:30').marks).toBe(8);
+      // Base 10 (21:30): 7.5 hours (450 mins = +60m excess) -> 10 - 4 = 6 marks
+      expect(calculateSleepMarks(450, '21:30').marks).toBe(6);
+      // Base 8 (22:00): 7.0 hours (420 mins = +30m excess) -> 8 - 2 = 6 marks
+      expect(calculateSleepMarks(420, '22:00').marks).toBe(6);
     });
 
     test('0 minutes awards 0 marks', () => {
@@ -136,35 +150,39 @@ describe('Scoring Engine Unit Tests', () => {
     });
   });
 
-  describe('Grade Boundaries', () => {
-    test('A: 90% to 100%', () => {
-      expect(calculateGrade(100)).toBe('A');
-      expect(calculateGrade(90.0)).toBe('A');
+  describe('Spiritual Status Messages & Grade Boundaries', () => {
+    test('100%: Advancing', () => {
+      expect(calculateGrade(100)).toBe('Advancing');
     });
 
-    test('B: 80% to below 90%', () => {
-      expect(calculateGrade(89.9)).toBe('B');
-      expect(calculateGrade(80.0)).toBe('B');
+    test('80% to 99%: Good, Please Improve', () => {
+      expect(calculateGrade(99)).toBe('Good, Please Improve');
+      expect(calculateGrade(80.0)).toBe('Good, Please Improve');
     });
 
-    test('C: 70% to below 80%', () => {
-      expect(calculateGrade(79.9)).toBe('C');
-      expect(calculateGrade(70.0)).toBe('C');
+    test('60% to 79%: Your Sādhana Is at Risk', () => {
+      expect(calculateGrade(79.9)).toBe('Your Sādhana Is at Risk');
+      expect(calculateGrade(60.0)).toBe('Your Sādhana Is at Risk');
     });
 
-    test('D: 60% to below 70%', () => {
-      expect(calculateGrade(69.9)).toBe('D');
-      expect(calculateGrade(60.0)).toBe('D');
+    test('40% to 59%: Māyā Is Distracting You', () => {
+      expect(calculateGrade(59.9)).toBe('Māyā Is Distracting You');
+      expect(calculateGrade(40.0)).toBe('Māyā Is Distracting You');
     });
 
-    test('E: below 60%', () => {
-      expect(calculateGrade(59.9)).toBe('E');
-      expect(calculateGrade(0)).toBe('E');
+    test('20% to 39%: You Are in Māyā', () => {
+      expect(calculateGrade(39.9)).toBe('You Are in Māyā');
+      expect(calculateGrade(20.0)).toBe('You Are in Māyā');
+    });
+
+    test('0% to 19%: You Are Fallen', () => {
+      expect(calculateGrade(19.9)).toBe('You Are Fallen');
+      expect(calculateGrade(0)).toBe('You Are Fallen');
     });
   });
 
   describe('Daily Sadhana Evaluation Integration', () => {
-    test('perfect sadhana yields 40/40, 100%, Grade A', () => {
+    test('perfect sadhana with online reading yields 50/50, 100%, Advancing', () => {
       const result = evaluateDailySadhana({
         declaredRounds: 16,
         completedRounds: 16,
@@ -174,16 +192,17 @@ describe('Scoring Engine Unit Tests', () => {
         sleepTimeStr: '21:30',
         wakeUpTimeStr: '04:00', // 6.5 hours -> 10 marks
         restMinutes: 0,
+        onlineReadingAttended: true, // 10
       });
 
-      expect(result.dailyTotalScore).toBe(40);
+      expect(result.dailyTotalScore).toBe(50);
       expect(result.percentage).toBe(100);
-      expect(result.grade).toBe('A');
+      expect(result.grade).toBe('Advancing');
       expect(result.sleepMarks).toBe(10);
       expect(result.isZeroScore).toBe(false);
     });
 
-    test('partial japa, reading, hearing, and 8h sleep calculates out of 40', () => {
+    test('partial sadhana without online reading calculates out of 50', () => {
       const result = evaluateDailySadhana({
         declaredRounds: 16,
         completedRounds: 16,
@@ -191,17 +210,18 @@ describe('Scoring Engine Unit Tests', () => {
         readingMinutes: 15, // 5 marks
         hearingMinutes: 15, // 5 marks
         sleepTimeStr: '22:00',
-        wakeUpTimeStr: '06:00', // 8.0 hours -> 8 marks
+        wakeUpTimeStr: '06:00', // 8.0 hours -> 8 base - 3 half hours excess (90m excess = -6) = 2 marks
         restMinutes: 0,
+        onlineReadingAttended: false, // 0 marks
       });
 
       expect(result.japaMarks).toBe(5);
       expect(result.readingMarks).toBe(5);
       expect(result.hearingMarks).toBe(5);
-      expect(result.sleepMarks).toBe(8);
-      expect(result.dailyTotalScore).toBe(23); // 23/40 = 57.5% -> E
-      expect(result.percentage).toBe(57.5);
-      expect(result.grade).toBe('E');
+      expect(result.sleepMarks).toBe(2);
+      expect(result.dailyTotalScore).toBe(17); // 17/50 = 34.0% -> You Are in Māyā
+      expect(result.percentage).toBe(34.0);
+      expect(result.grade).toBe('You Are in Māyā');
     });
   });
 
@@ -217,7 +237,7 @@ describe('Scoring Engine Unit Tests', () => {
       expect(weekly.totalScore).toBe(300);
       expect(weekly.maxAvailableMarks).toBe(300);
       expect(weekly.percentage).toBe(100);
-      expect(weekly.grade).toBe('A');
+      expect(weekly.grade).toBe('Advancing');
     });
 
     test('partial weekly score out of 300', () => {
@@ -231,7 +251,7 @@ describe('Scoring Engine Unit Tests', () => {
       expect(weekly.totalScore).toBe(220);
       expect(weekly.maxAvailableMarks).toBe(300);
       expect(weekly.percentage).toBe(73.3);
-      expect(weekly.grade).toBe('C');
+      expect(weekly.grade).toBe('Your Sādhana Is at Risk');
     });
 
     test('calculates weekly score with online reading session (Mon-Fri, 50 marks max) out of 350', () => {
@@ -246,7 +266,7 @@ describe('Scoring Engine Unit Tests', () => {
       expect(weekly.totalScore).toBe(350);
       expect(weekly.maxAvailableMarks).toBe(350);
       expect(weekly.percentage).toBe(100);
-      expect(weekly.grade).toBe('A');
+      expect(weekly.grade).toBe('Advancing');
     });
 
     test('calculates partial weekly score with 3 online reading sessions (30 marks)', () => {
@@ -258,11 +278,11 @@ describe('Scoring Engine Unit Tests', () => {
         onlineReadingMarks: 30, // +30 (3 days)
       });
 
-      // 280 + 10 + 30 = 320 / 350 = 91.4% -> A
+      // 280 + 10 + 30 = 320 / 350 = 91.4% -> Good, Please Improve
       expect(weekly.totalScore).toBe(320);
       expect(weekly.maxAvailableMarks).toBe(350);
       expect(weekly.percentage).toBe(91.4);
-      expect(weekly.grade).toBe('A');
+      expect(weekly.grade).toBe('Good, Please Improve');
     });
   });
 
@@ -274,7 +294,7 @@ describe('Scoring Engine Unit Tests', () => {
         completionTimeStr: '06:30',
         readingMinutes: 30,
         hearingMinutes: 30,
-        sleepTimeStr: '22:00',
+        sleepTimeStr: '21:30',
         wakeUpTimeStr: '04:00',
         restMinutes: 0,
         onlineReadingAttended: true,
@@ -283,17 +303,17 @@ describe('Scoring Engine Unit Tests', () => {
       expect(res.onlineReadingMarks).toBe(10);
       expect(res.dailyTotalScore).toBe(50); // 40 standard + 10 online reading
       expect(res.percentage).toBe(100);
-      expect(res.grade).toBe('A');
+      expect(res.grade).toBe('Advancing');
     });
 
-    test('awards 0 marks when online reading session is not attended', () => {
+    test('awards 0 marks when online reading session is not attended (evaluated out of 50)', () => {
       const res = evaluateDailySadhana({
         declaredRounds: 16,
         completedRounds: 16,
         completionTimeStr: '06:30',
         readingMinutes: 30,
         hearingMinutes: 30,
-        sleepTimeStr: '22:00',
+        sleepTimeStr: '21:30',
         wakeUpTimeStr: '04:00',
         restMinutes: 0,
         onlineReadingAttended: false,
@@ -301,15 +321,15 @@ describe('Scoring Engine Unit Tests', () => {
 
       expect(res.onlineReadingMarks).toBe(0);
       expect(res.dailyTotalScore).toBe(40);
-      expect(res.percentage).toBe(100);
-      expect(res.grade).toBe('A');
+      expect(res.percentage).toBe(80); // 40/50 = 80%
+      expect(res.grade).toBe('Good, Please Improve');
     });
   });
 
   describe('Dynamic Monthly Satsanga Scoring (50 Marks)', () => {
     test('when monthly satsang was held and attended, awards 50 marks', () => {
-      // 30 days of 40 marks = 1200 marks base
-      const dailyScores = Array(30).fill(40);
+      // 30 days of 50 marks = 1500 marks base
+      const dailyScores = Array(30).fill(50);
       const monthly = calculateMonthlyScoreAndGrade({
         dailyScores,
         totalDaysInMonth: 30,
@@ -321,16 +341,16 @@ describe('Scoring Engine Unit Tests', () => {
         satsangaAttended: true, // 50 marks
       });
 
-      // total = 1200 + 40 + 40 + 50 = 1330
-      // maxAvailable = 30*40 + 4*10 + 4*10 + 50 = 1330
-      expect(monthly.totalScore).toBe(1330);
-      expect(monthly.maxAvailableMarks).toBe(1330);
+      // total = 1500 + 40 + 40 + 50 = 1630
+      // maxAvailable = 30*50 + 4*10 + 4*10 + 50 = 1630
+      expect(monthly.totalScore).toBe(1630);
+      expect(monthly.maxAvailableMarks).toBe(1630);
       expect(monthly.percentage).toBe(100);
-      expect(monthly.grade).toBe('A');
+      expect(monthly.grade).toBe('Advancing');
     });
 
     test('when monthly satsang was NOT held (cancelled / not conducted), zero marks are penalized', () => {
-      const dailyScores = Array(30).fill(40);
+      const dailyScores = Array(30).fill(50);
       const monthly = calculateMonthlyScoreAndGrade({
         dailyScores,
         totalDaysInMonth: 30,
@@ -342,16 +362,16 @@ describe('Scoring Engine Unit Tests', () => {
         satsangaAttended: false,
       });
 
-      // total = 1200 + 40 + 40 + 0 = 1280
-      // maxAvailable = 30*40 + 4*10 + 4*10 + 0 = 1280 (50 marks not added to denominator!)
-      expect(monthly.totalScore).toBe(1280);
-      expect(monthly.maxAvailableMarks).toBe(1280);
+      // total = 1500 + 40 + 40 + 0 = 1580
+      // maxAvailable = 30*50 + 4*10 + 4*10 + 0 = 1580 (50 marks not added to denominator!)
+      expect(monthly.totalScore).toBe(1580);
+      expect(monthly.maxAvailableMarks).toBe(1580);
       expect(monthly.percentage).toBe(100);
-      expect(monthly.grade).toBe('A');
+      expect(monthly.grade).toBe('Advancing');
     });
 
     test('when monthly satsang was held but devotee was absent, devotee receives 0 marks out of 50', () => {
-      const dailyScores = Array(30).fill(40);
+      const dailyScores = Array(30).fill(50);
       const monthly = calculateMonthlyScoreAndGrade({
         dailyScores,
         totalDaysInMonth: 30,
@@ -363,13 +383,13 @@ describe('Scoring Engine Unit Tests', () => {
         satsangaAttended: false, // but absent
       });
 
-      // total = 1200 + 40 + 40 + 0 = 1280
-      // maxAvailable = 30*40 + 4*10 + 4*10 + 50 = 1330
-      // 1280 / 1330 = 96.2% -> A
-      expect(monthly.totalScore).toBe(1280);
-      expect(monthly.maxAvailableMarks).toBe(1330);
-      expect(monthly.percentage).toBe(96.2);
-      expect(monthly.grade).toBe('A');
+      // total = 1500 + 40 + 40 + 0 = 1580
+      // maxAvailable = 30*50 + 4*10 + 4*10 + 50 = 1630
+      // 1580 / 1630 = 96.9% -> Good, Please Improve
+      expect(monthly.totalScore).toBe(1580);
+      expect(monthly.maxAvailableMarks).toBe(1630);
+      expect(monthly.percentage).toBe(96.9);
+      expect(monthly.grade).toBe('Good, Please Improve');
     });
   });
 });
