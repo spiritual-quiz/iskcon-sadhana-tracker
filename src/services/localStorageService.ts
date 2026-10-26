@@ -19,6 +19,7 @@ const KEYS = {
   USERS: '@iskcon_users',
   INVITATIONS: '@iskcon_invitations',
   DELETED_INVITATIONS: '@iskcon_deleted_invitations',
+  DELETED_USERS: '@iskcon_deleted_users',
 };
 
 export const localStorageService = {
@@ -321,6 +322,10 @@ export const localStorageService = {
    */
   getUser: async (uid: string): Promise<LocalStoredUser | null> => {
     try {
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (deletedList.includes(uid)) return null;
+
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       if (!existingRaw) return null;
       const users: Record<string, LocalStoredUser> = JSON.parse(existingRaw);
@@ -336,9 +341,12 @@ export const localStorageService = {
   getUserByEmail: async (email: string): Promise<LocalStoredUser | null> => {
     try {
       const clean = email.trim().toLowerCase();
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       if (!existingRaw) {
-        if (clean === 'madhavcarandas@gmail.com') {
+        if (clean === 'madhavcarandas@gmail.com' && !deletedList.includes('counsellor_admin_uid')) {
           return {
             uid: 'counsellor_admin_uid',
             email: 'madhavcarandas@gmail.com',
@@ -355,7 +363,7 @@ export const localStorageService = {
         return null;
       }
       const users: Record<string, LocalStoredUser> = JSON.parse(existingRaw);
-      if (clean === 'madhavcarandas@gmail.com') {
+      if (clean === 'madhavcarandas@gmail.com' && !deletedList.includes('counsellor_admin_uid')) {
         const admin = users['counsellor_admin_uid'] || {
           uid: 'counsellor_admin_uid',
           email: 'madhavcarandas@gmail.com',
@@ -372,7 +380,9 @@ export const localStorageService = {
         admin.email = 'madhavcarandas@gmail.com';
         return admin;
       }
-      const match = Object.values(users).find((u) => u.email.toLowerCase() === clean);
+      const match = Object.values(users).find(
+        (u) => u.email.toLowerCase() === clean && !deletedList.includes(u.uid)
+      );
       return match || null;
     } catch (e) {
       return null;
@@ -384,10 +394,13 @@ export const localStorageService = {
    */
   getAllUsers: async (): Promise<UserProfile[]> => {
     try {
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const localUsers: Record<string, UserProfile> = existingRaw ? JSON.parse(existingRaw) : {};
 
-      // Seed baseline demo accounts if not already present
+      // Seed baseline demo accounts if not already present and not deleted
       const defaultUsers: Record<string, UserProfile> = {
         'counsellor_admin_uid': {
           uid: 'counsellor_admin_uid',
@@ -419,6 +432,11 @@ export const localStorageService = {
         },
       };
 
+      for (const dUid of deletedList) {
+        delete defaultUsers[dUid];
+        delete localUsers[dUid];
+      }
+
       if (localUsers['counsellor_admin_uid']) {
         localUsers['counsellor_admin_uid'].displayName = 'Madhav Charan Das';
         localUsers['counsellor_admin_uid'].email = 'madhavcarandas@gmail.com';
@@ -428,6 +446,83 @@ export const localStorageService = {
       return Object.values(merged);
     } catch (e) {
       return [];
+    }
+  },
+
+  /**
+   * Permanently delete a user from local storage and purge all their related records
+   */
+  deleteUser: async (uid: string): Promise<void> => {
+    try {
+      // 1. Remove from local users map
+      const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
+      const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
+      delete users[uid];
+      await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
+
+      // 2. Mark in tombstone list so baseline seed never resurrects
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (!deletedList.includes(uid)) {
+        deletedList.push(uid);
+        await AsyncStorage.setItem(KEYS.DELETED_USERS, JSON.stringify(deletedList));
+      }
+
+      // 3. Purge all sadhana entries belonging to this user
+      const entriesRaw = await AsyncStorage.getItem(KEYS.SADHANA_ENTRIES);
+      if (entriesRaw) {
+        const entries: Record<string, SadhanaEntry> = JSON.parse(entriesRaw);
+        const filteredEntries: Record<string, SadhanaEntry> = {};
+        for (const [k, v] of Object.entries(entries)) {
+          if (v.userId !== uid) filteredEntries[k] = v;
+        }
+        await AsyncStorage.setItem(KEYS.SADHANA_ENTRIES, JSON.stringify(filteredEntries));
+      }
+
+      // 4. Purge attendance records belonging to this user
+      const attRaw = await AsyncStorage.getItem(KEYS.WEEKLY_ATTENDANCE);
+      if (attRaw) {
+        const att: Record<string, WeeklyAttendance> = JSON.parse(attRaw);
+        const filteredAtt: Record<string, WeeklyAttendance> = {};
+        for (const [k, v] of Object.entries(att)) {
+          if (v.userId !== uid) filteredAtt[k] = v;
+        }
+        await AsyncStorage.setItem(KEYS.WEEKLY_ATTENDANCE, JSON.stringify(filteredAtt));
+      }
+
+      // 5. Purge monthly satsanga attendance
+      const satsangaRaw = await AsyncStorage.getItem(KEYS.MONTHLY_SATSANGA);
+      if (satsangaRaw) {
+        const sat: Record<string, MonthlySatsangaAttendance> = JSON.parse(satsangaRaw);
+        const filteredSat: Record<string, MonthlySatsangaAttendance> = {};
+        for (const [k, v] of Object.entries(sat)) {
+          if (v.userId !== uid) filteredSat[k] = v;
+        }
+        await AsyncStorage.setItem(KEYS.MONTHLY_SATSANGA, JSON.stringify(filteredSat));
+      }
+
+      // 6. Purge shared weekly and monthly summaries
+      const weeklyRaw = await AsyncStorage.getItem(KEYS.SHARED_WEEKLY);
+      if (weeklyRaw) {
+        const weeklyData: Record<string, SharedWeeklySummary> = JSON.parse(weeklyRaw);
+        const filteredWeekly: Record<string, SharedWeeklySummary> = {};
+        for (const [k, v] of Object.entries(weeklyData)) {
+          if (v.userId !== uid) filteredWeekly[k] = v;
+        }
+        await AsyncStorage.setItem(KEYS.SHARED_WEEKLY, JSON.stringify(filteredWeekly));
+      }
+
+      const monthlyRaw = await AsyncStorage.getItem(KEYS.SHARED_MONTHLY);
+      if (monthlyRaw) {
+        const monthlyData: Record<string, SharedMonthlySummary> = JSON.parse(monthlyRaw);
+        const filteredMonthly: Record<string, SharedMonthlySummary> = {};
+        for (const [k, v] of Object.entries(monthlyData)) {
+          if (v.userId !== uid) filteredMonthly[k] = v;
+        }
+        await AsyncStorage.setItem(KEYS.SHARED_MONTHLY, JSON.stringify(filteredMonthly));
+      }
+    } catch (e) {
+      // safe fallback
     }
   },
 

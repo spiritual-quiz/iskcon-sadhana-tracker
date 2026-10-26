@@ -73,16 +73,28 @@ export const LoginScreen = ({ navigation }: any) => {
       return;
     }
 
-    setIsSendingReset(true);
-    try {
-      const res = await authService.sendPasswordReset(targetEmail);
-      setShowForgotModal(false);
-      Alert.alert('Reset Link Sent', res.message);
-    } catch (err: any) {
-      Alert.alert('Recovery Request Failed', err.message || 'Could not send password reset email.');
-    } finally {
-      setIsSendingReset(false);
-    }
+    Alert.alert(
+      'Confirm Password Reset',
+      `Are you sure you want to send a password reset link to ${targetEmail}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Reset Link',
+          onPress: async () => {
+            setIsSendingReset(true);
+            try {
+              const res = await authService.sendPasswordReset(targetEmail);
+              setShowForgotModal(false);
+              Alert.alert('Reset Link Sent', res.message);
+            } catch (err: any) {
+              Alert.alert('Recovery Request Failed', err.message || 'Could not send password reset email.');
+            } finally {
+              setIsSendingReset(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -111,7 +123,6 @@ export const LoginScreen = ({ navigation }: any) => {
           </View>
           <Text style={styles.brandTitle}>Bhakti Unnati</Text>
           <Text style={styles.brandSubtitle}>Advancement in Devotion</Text>
-          <Text style={styles.institutionName}>Bhaktivedanta Rajavidyalaya</Text>
         </View>
 
         {/* Form Container */}

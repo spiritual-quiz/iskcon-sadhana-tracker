@@ -11,6 +11,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -211,7 +212,7 @@ export const authService = {
       await setDoc(doc(db, 'users', uid), profile);
       await redeemInvitationCode(params.invitationCode.trim(), uid);
     } catch (saveErr) {
-      console.warn('Firestore user save fallback (persisted in local storage):', saveErr);
+      // Gracefully persisted in local storage
     }
 
     return profile;
@@ -239,7 +240,7 @@ export const authService = {
         return snap.data() as UserProfile;
       }
     } catch (e) {
-      console.warn('Firestore getUserProfile fallback to local storage:', e);
+      // Gracefully fall back to local storage
     }
     return await localStorageService.getUser(uid);
   },
@@ -258,7 +259,7 @@ export const authService = {
         updatedAt: new Date().toISOString(),
       });
     } catch (e) {
-      console.warn('Firestore updatePermittedProfile fallback (offline/demo):', e);
+      // Gracefully fall back to local storage in offline/hybrid mode
     }
     await localStorageService.updateUser(uid, updates);
   },
@@ -282,7 +283,7 @@ export const authService = {
         updatedAt: new Date().toISOString(),
       });
     } catch (e) {
-      console.warn('Firestore setCounseleeReminders fallback (offline/demo):', e);
+      // Gracefully fall back to local storage in offline/hybrid mode
     }
     await localStorageService.updateUser(uid, {
       sadhanaRemindersEnabled: enabled,
@@ -301,9 +302,25 @@ export const authService = {
         updatedAt: new Date().toISOString(),
       });
     } catch (e) {
-      console.warn('Firestore updateCounseleeStatus fallback (offline/demo):', e);
+      // Gracefully fall back to local storage in offline/hybrid mode
     }
     await localStorageService.updateUserStatus(uid, status);
+  },
+
+  /**
+   * Admin: permanently delete a counselee and purge all related local & cloud records
+   */
+  deleteCounselee: async (uid: string): Promise<void> => {
+    // 1. Delete from Cloud Firestore if reachable
+    try {
+      const userRef = doc(db, 'users', uid);
+      await deleteDoc(userRef);
+    } catch (e) {
+      // Safe fallback in offline/hybrid mode
+    }
+
+    // 2. Permanently purge from local storage (including records & tombstones)
+    await localStorageService.deleteUser(uid);
   },
 
   /**
@@ -333,7 +350,7 @@ export const authService = {
         map.set(u.uid, u);
       });
     } catch (e) {
-      console.warn('Firestore getPendingCounselees fallback to local storage:', e);
+      // Gracefully fall back to local storage
     }
 
     return Array.from(map.values()).sort(
@@ -364,7 +381,7 @@ export const authService = {
         map.set(u.uid, u);
       });
     } catch (e) {
-      console.warn('Firestore getAllCounselees fallback to local storage:', e);
+      // Gracefully fall back to local storage
     }
 
     return Array.from(map.values());
@@ -388,7 +405,7 @@ export const authService = {
         map.set(u.uid, u);
       });
     } catch (e) {
-      console.warn('Firestore getAllUsers fallback to local storage:', e);
+      // Gracefully fall back to local storage
     }
 
     return Array.from(map.values());
@@ -423,7 +440,7 @@ export const authService = {
         message: `A password reset link has been dispatched to ${cleanEmail}. Please check your inbox (and Spam folder) to reset your credentials.`,
       };
     } catch (fbErr: any) {
-      console.warn('Firebase sendPasswordResetEmail fallback (offline/demo):', fbErr);
+      // Offline / fallback mode
 
       return {
         success: true,

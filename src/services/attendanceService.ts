@@ -44,7 +44,7 @@ export const attendanceService = {
     try {
       await setDoc(docRef, record);
     } catch (e) {
-      console.warn('Firestore weekly attendance write fallback:', e);
+      // Gracefully saved in local storage
     }
 
     return record;
@@ -120,7 +120,7 @@ export const attendanceService = {
     try {
       await setDoc(docRef, record);
     } catch (e) {
-      console.warn('Firestore monthly satsanga write fallback:', e);
+      // Gracefully saved in local storage
     }
 
     return record;

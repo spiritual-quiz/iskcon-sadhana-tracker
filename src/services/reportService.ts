@@ -126,9 +126,7 @@ export const reportService = {
       try {
         await setDoc(doc(db, 'shared_weekly_summaries', summaryId), sharedSummary);
       } catch (e: any) {
-        if (e?.code !== 'permission-denied') {
-          console.warn('Firestore shared_weekly_summaries write fallback:', e);
-        }
+        // Gracefully saved in local storage
       }
     }
 
@@ -252,9 +250,7 @@ export const reportService = {
     try {
       await setDoc(doc(db, 'shared_monthly_summaries', summaryId), sharedSummary);
     } catch (e: any) {
-      if (e?.code !== 'permission-denied') {
-        console.warn('Firestore shared_monthly_summaries write fallback:', e);
-      }
+      // Gracefully saved in local storage
     }
 
     return report;

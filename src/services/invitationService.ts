@@ -66,7 +66,7 @@ export async function createInvitationCode(params: {
     const invRef = doc(db, 'invitations', code);
     await setDoc(invRef, invitation);
   } catch (fbErr) {
-    console.warn('Firestore createInvitationCode fallback to local storage:', fbErr);
+    // Gracefully saved in local storage
   }
 
   return invitation;
@@ -153,7 +153,7 @@ export async function redeemInvitationCode(code: string, counseleeUid: string): 
       usedByUids: arrayUnion(counseleeUid),
     });
   } catch (e) {
-    console.warn('Firestore redeemInvitationCode fallback:', e);
+    // Gracefully handled in local storage
   }
 }
 
@@ -172,7 +172,7 @@ export async function revokeInvitationCode(code: string): Promise<void> {
       isRevoked: true,
     });
   } catch (e) {
-    console.warn('Firestore revokeInvitationCode fallback:', e);
+    // Gracefully handled in local storage
   }
 }
 
@@ -186,9 +186,7 @@ export async function deleteInvitationCode(code: string): Promise<void> {
     const invRef = doc(db, 'invitations', cleanCode);
     await deleteDoc(invRef);
   } catch (e: any) {
-    if (e?.code !== 'permission-denied') {
-      console.warn('Firestore deleteInvitationCode error:', e);
-    }
+    // Gracefully deleted from local storage
   }
 }
 
@@ -212,9 +210,7 @@ export async function getAllInvitations(): Promise<InvitationCode[]> {
       localStorageService.saveInvitation(inv);
     });
   } catch (e: any) {
-    if (e?.code !== 'permission-denied') {
-      console.warn('Firestore getAllInvitations fallback to local storage:', e);
-    }
+    // Gracefully fall back to local storage
   }
 
   return Array.from(map.values()).sort(

@@ -66,6 +66,29 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleDeleteCounselee = async (user: UserProfile) => {
+    Alert.alert(
+      'Delete Counselee Permanently?',
+      `Are you sure you want to permanently delete devotee "${user.displayName}"?\n\nThis will completely purge all their daily sadhana logs, attendance records, and devotee profile from the system. This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.deleteCounselee(user.uid);
+              Alert.alert('Devotee Deleted', `${user.displayName} has been permanently deleted.`);
+              loadCounselees();
+            } catch (err: any) {
+              Alert.alert('Delete Failed', err.message || 'Could not delete devotee.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleToggleReminders = async (user: UserProfile) => {
     const currentEnabled = user.sadhanaRemindersEnabled !== false;
     const newEnabled = !currentEnabled;
@@ -250,11 +273,19 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                      style={styles.actionBtnDelete}
+                      onPress={() => handleDeleteCounselee(devotee)}
+                    >
+                      <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                      <Text style={styles.actionBtnDeleteText}>Delete</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
                       style={styles.actionBtnPrimary}
                       onPress={() => setContactDevotee(devotee)}
                     >
-                      <Ionicons name="chatbubble-ellipses-outline" size={16} color={THEME.colors.textInverse} />
-                      <Text style={styles.actionBtnPrimaryText}>Contact Devotee</Text>
+                      <Ionicons name="chatbubble-ellipses-outline" size={15} color={THEME.colors.textInverse} />
+                      <Text style={styles.actionBtnPrimaryText}>Contact</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -480,6 +511,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: THEME.colors.textMuted,
+  },
+  actionBtnDelete: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: THEME.borderRadius.md,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginRight: 8,
+  },
+  actionBtnDeleteText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#DC2626',
   },
   actionBtnPrimary: {
     flexDirection: 'row',

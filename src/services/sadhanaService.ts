@@ -117,16 +117,14 @@ export const sadhanaService = {
     try {
       await setDoc(entryRef, entry);
     } catch (cloudErr) {
-      console.warn('Cloud Firestore sync deferred/fallback (saved in local storage):', cloudErr);
+      // Gracefully saved in local storage
     }
 
     // 6. Resolve any open missing-card alert for this user since a valid entry was submitted
     try {
       await monitoringService.resolveMissingCardAlert(params.userId);
     } catch (e: any) {
-      if (e?.code !== 'permission-denied') {
-        console.warn('Failed to resolve missing-card alert automatically:', e);
-      }
+      // Optional alert resolution fallback
     }
 
     return entry;

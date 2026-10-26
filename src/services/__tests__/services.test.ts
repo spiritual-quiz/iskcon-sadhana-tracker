@@ -18,6 +18,28 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+// Mock Firebase Auth and Firestore for fast, offline unit testing without real network requests
+jest.mock('firebase/auth', () => {
+  const actual = jest.requireActual('firebase/auth');
+  return {
+    ...actual,
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+    signInWithEmailAndPassword: jest.fn().mockRejectedValue(new Error('Firebase: offline test mode')),
+  };
+});
+
+jest.mock('firebase/firestore', () => {
+  const actual = jest.requireActual('firebase/firestore');
+  return {
+    ...actual,
+    getDocs: jest.fn().mockRejectedValue(new Error('Firebase: offline test mode')),
+    getDoc: jest.fn().mockRejectedValue(new Error('Firebase: offline test mode')),
+    setDoc: jest.fn().mockRejectedValue(new Error('Firebase: offline test mode')),
+    updateDoc: jest.fn().mockRejectedValue(new Error('Firebase: offline test mode')),
+    deleteDoc: jest.fn().mockRejectedValue(new Error('Firebase: offline test mode')),
+  };
+});
+
 import { evaluateDailySadhana } from '../../utils/scoringEngine';
 import { getDaysDifference, getBirthdayInYear } from '../../utils/dateUtils';
 import { generateRandomCode } from '../invitationService';
@@ -204,6 +226,13 @@ describe('Service Logic and Integration Verification', () => {
       await authService.updateCounseleeStatus('test_devotee_uid_108', 'approved');
       const updatedUser = await localStorageService.getUser('test_devotee_uid_108');
       expect(updatedUser?.status).toBe('approved');
+
+      // Permanently delete devotee and verify removal from all queries
+      await authService.deleteCounselee('test_devotee_uid_108');
+      const deletedUser = await localStorageService.getUser('test_devotee_uid_108');
+      expect(deletedUser).toBeNull();
+      const allCounseleesAfter = await authService.getAllCounselees();
+      expect(allCounseleesAfter.find((u) => u.uid === 'test_devotee_uid_108')).toBeUndefined();
     });
   });
 });

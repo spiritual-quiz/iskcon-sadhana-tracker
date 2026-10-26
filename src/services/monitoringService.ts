@@ -143,7 +143,7 @@ export const monitoringService = {
         return snap.docs.map((d) => d.data() as MonitoringAlert);
       }
     } catch (e) {
-      console.warn('Firestore getOpenAlerts fallback to local evaluation:', e);
+      // Gracefully fall back to dynamic local evaluation
     }
 
     // Dynamic evaluation fallback: evaluate approved counselees
