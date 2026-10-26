@@ -57,7 +57,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const [completedRounds, setCompletedRounds] = useState<string>(
     user?.declaredRounds ? String(user.declaredRounds) : '16'
   );
-  const [completionTime, setCompletionTime] = useState<string>('06:30');
+  const [completionTime, setCompletionTime] = useState<string>('07:30');
 
   const [readingMinutes, setReadingMinutes] = useState<string>('30');
   const [hearingMinutes, setHearingMinutes] = useState<string>('30');
@@ -124,7 +124,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       if (entry) {
         setDeclaredRounds(String(entry.declaredRounds));
         setCompletedRounds(String(entry.completedRounds));
-        setCompletionTime(entry.completionTimeStr || '06:30');
+        setCompletionTime(entry.completionTimeStr || '07:30');
         setReadingMinutes(String(entry.readingMinutes));
         setHearingMinutes(String(entry.hearingMinutes));
         setSleepTime(entry.sleepTimeStr || '21:30');
@@ -137,7 +137,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         // Reset defaults for fresh entry
         setDeclaredRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
         setCompletedRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
-        setCompletionTime('06:30');
+        setCompletionTime('07:30');
         setReadingMinutes('30');
         setHearingMinutes('30');
         setSleepTime('21:30');
@@ -191,6 +191,15 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const handleSetWeekdayAttendance = async (dateStr: string, attended: boolean) => {
     if (!user?.uid) return;
+
+    const todayStr = getTodayDateStringIST();
+    if (dateStr > todayStr) {
+      Alert.alert(
+        'Future Attendance Not Allowed',
+        'You can only mark attendance for today or past reading sessions. Attendance cannot be recorded for future dates.'
+      );
+      return;
+    }
 
     // Immediately update local UI state for instant responsiveness
     setWeekReadingMap((prev) => ({ ...prev, [dateStr]: attended }));
@@ -376,7 +385,16 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         'Sadhana Submitted!',
         `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/50 (${saved.percentage}%, ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
           saved.readingMarks
-        }/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10${onlinePart}`
+        }/10\n• Hearing: ${saved.hearingMarks}/10\n• Sleep & Rest: ${saved.sleepMarks}/10${onlinePart}`,
+        [
+          {
+            text: 'Go to Dashboard',
+            onPress: () => {
+              navigation.navigate('Home');
+            },
+          },
+        ],
+        { cancelable: false }
       );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save daily sadhana.');
@@ -391,6 +409,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     { label: '6:00 AM', time: '06:00' },
     { label: '6:30 AM', time: '06:30' },
     { label: '7:00 AM', time: '07:00' },
+    { label: '7:30 AM', time: '07:30' },
     { label: '8:00 AM', time: '08:00' },
     { label: '9:30 AM', time: '09:30' },
     { label: '11:00 AM', time: '11:00' },

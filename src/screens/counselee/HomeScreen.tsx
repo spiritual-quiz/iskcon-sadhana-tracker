@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { Header } from '../../components/Header';
@@ -30,9 +31,17 @@ export const HomeScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  useEffect(() => {
-    loadHomeData();
-  }, [user?.uid]);
+  useFocusEffect(
+    useCallback(() => {
+      loadHomeData();
+    }, [user?.uid])
+  );
+
+  const formatNumericDate = (isoDate?: string) => {
+    if (!isoDate || !isoDate.includes('-')) return isoDate || '';
+    const [y, m, d] = isoDate.split('-');
+    return `${parseInt(d, 10)}-${parseInt(m, 10)}-${y}`;
+  };
 
   const loadHomeData = async () => {
     if (!user?.uid) return;
@@ -168,12 +177,32 @@ export const HomeScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
 
+          {/* Quick Devotee Profile Pill */}
+          <View style={styles.quickProfileCard}>
+            <View style={styles.quickProfileLeft}>
+              <View style={styles.quickAvatarCircle}>
+                <Ionicons name="person" size={16} color={THEME.colors.gold} />
+              </View>
+              <View>
+                <Text style={styles.quickProfileName}>{user?.displayName || 'Devotee'}</Text>
+                <Text style={styles.quickProfilePhone}>{user?.phoneNumber || 'No phone added'}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.quickEditBtn}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Ionicons name="create-outline" size={14} color={THEME.colors.primary} />
+              <Text style={styles.quickEditBtnText}>Edit Details</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Current Week Summary */}
           {weeklyReport && (
             <View style={styles.section}>
               <Text style={styles.sectionHeaderTitle}>Current Week Progress</Text>
               <ScoreCard
-                title={`Week (${weeklyReport.startDate} to ${weeklyReport.endDate})`}
+                title={`${formatNumericDate(weeklyReport.startDate)} to ${formatNumericDate(weeklyReport.endDate)}`}
                 score={weeklyReport.totalScore}
                 maxScore={weeklyReport.maxAvailableMarks}
                 percentage={weeklyReport.percentage}
@@ -192,7 +221,7 @@ export const HomeScreen = ({ navigation }: any) => {
             <View style={styles.section}>
               <Text style={styles.sectionHeaderTitle}>Current Month Progress</Text>
               <ScoreCard
-                title={`Month (${monthlyReport.monthName})`}
+                title={monthlyReport.monthName}
                 score={monthlyReport.totalScore}
                 maxScore={monthlyReport.maxAvailableMarks}
                 percentage={monthlyReport.percentage}
@@ -363,8 +392,62 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.lg,
     padding: THEME.spacing.base,
     borderWidth: 1,
-    marginBottom: THEME.spacing.base,
+    marginBottom: 10,
     ...THEME.shadows.soft,
+  },
+  quickProfileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: THEME.spacing.base,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    ...THEME.shadows.soft,
+  },
+  quickProfileLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  quickAvatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  quickProfileName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+  },
+  quickProfilePhone: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+  },
+  quickEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  quickEditBtnText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: THEME.colors.primary,
   },
   bannerDone: {
     backgroundColor: THEME.colors.successLight,

@@ -38,6 +38,7 @@ export const RegisterScreen = ({ navigation }: any) => {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [declaredRounds, setDeclaredRounds] = useState('16');
 
@@ -192,7 +193,7 @@ export const RegisterScreen = ({ navigation }: any) => {
           <View style={styles.invitationRow}>
             <TextInput
               style={[styles.textInput, styles.invitationInput]}
-              placeholder="KRISHNA7"
+              placeholder="xxxxxxx"
               value={invitationCode}
               onChangeText={(val) => {
                 setInvitationCode(val.toUpperCase());
@@ -230,7 +231,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             <Text style={styles.inputLabel}>Initiated / Devotional Name *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g. Ramesh Das"
+              placeholder=""
               value={displayName}
               onChangeText={setDisplayName}
               onFocus={() => handleFieldFocus('name')}
@@ -260,14 +261,27 @@ export const RegisterScreen = ({ navigation }: any) => {
             onLayout={(e) => handleFieldLayout('password', e.nativeEvent.layout.y)}
           >
             <Text style={styles.inputLabel}>Create Password *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="••••••••"
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => handleFieldFocus('password')}
-              secureTextEntry
-            />
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => handleFieldFocus('password')}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={THEME.colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* WhatsApp / Phone */}
@@ -324,7 +338,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                     !dateOfBirthDisplay && styles.dateSelectorPlaceholder,
                   ]}
                 >
-                  {dateOfBirthDisplay ? dateOfBirthDisplay : 'Scroll & Select (e.g. 10-May-1988)'}
+                  {dateOfBirthDisplay ? dateOfBirthDisplay : 'Scroll & Select (e.g. 10-June-2000)'}
                 </Text>
               </View>
               <View style={styles.dateBadge}>
@@ -364,7 +378,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 >
                   {iskconConnectDisplay
                     ? iskconConnectDisplay
-                    : 'Scroll & Select (e.g. 15-Jan-2018)'}
+                    : 'Scroll & Select (e.g. 10-June-2000)'}
                 </Text>
               </View>
               <View style={styles.dateBadge}>
@@ -534,6 +548,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     fontSize: 13,
     color: THEME.colors.text,
+  },
+  passwordWrapper: {
+    height: 40,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 13,
+    color: THEME.colors.text,
+  },
+  eyeIcon: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dateSelectorCard: {
     height: 44,

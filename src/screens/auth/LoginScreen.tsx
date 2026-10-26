@@ -180,7 +180,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
           {/* Register Prompt */}
           <View style={styles.registerPrompt}>
-            <Text style={styles.registerPromptText}>New devotee counselee?</Text>
+            <Text style={styles.registerPromptText}>New Counselee?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
               <Text style={styles.registerLinkText}>Register with Invitation Code</Text>
             </TouchableOpacity>

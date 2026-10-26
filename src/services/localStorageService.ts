@@ -30,8 +30,79 @@ export const localStorageService = {
       const entries: Record<string, SadhanaEntry> = existingRaw ? JSON.parse(existingRaw) : {};
       entries[entry.id] = entry;
       await AsyncStorage.setItem(KEYS.SADHANA_ENTRIES, JSON.stringify(entries));
+      // Auto-prune older entries (> 30 days)
+      await localStorageService.applyRetentionPolicy(entry.userId);
     } catch (e) {
       console.warn('Error saving sadhana entry to local storage:', e);
+    }
+  },
+
+  /**
+   * Automatically enforces retention limits:
+   * - Daily entries: kept for 30 days (1 month), older deleted
+   * - Weekly summaries: kept up to 20 reports, older deleted
+   * - Monthly summaries: kept up to 12 reports, older deleted
+   */
+  applyRetentionPolicy: async (userId?: string): Promise<void> => {
+    try {
+      // 1. Purge daily entries older than 30 days (1 month)
+      const existingEntriesRaw = await AsyncStorage.getItem(KEYS.SADHANA_ENTRIES);
+      if (existingEntriesRaw) {
+        const entries: Record<string, SadhanaEntry> = JSON.parse(existingEntriesRaw);
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 30);
+        const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+        const prunedEntries: Record<string, SadhanaEntry> = {};
+        for (const [key, entry] of Object.entries(entries)) {
+          if (entry.date >= cutoffStr || (userId && entry.userId !== userId)) {
+            prunedEntries[key] = entry;
+          }
+        }
+        await AsyncStorage.setItem(KEYS.SADHANA_ENTRIES, JSON.stringify(prunedEntries));
+      }
+
+      // 2. Limit weekly reports to last 20
+      const existingWeeklyRaw = await AsyncStorage.getItem(KEYS.SHARED_WEEKLY);
+      if (existingWeeklyRaw) {
+        const weeklyData: Record<string, SharedWeeklySummary> = JSON.parse(existingWeeklyRaw);
+        const userSummaries = Object.values(weeklyData)
+          .filter((s) => !userId || s.userId === userId)
+          .sort((a, b) => b.weekId.localeCompare(a.weekId));
+
+        if (userSummaries.length > 20) {
+          const keepIds = new Set(userSummaries.slice(0, 20).map((s) => s.id));
+          const prunedWeekly: Record<string, SharedWeeklySummary> = {};
+          for (const [id, s] of Object.entries(weeklyData)) {
+            if (s.userId !== userId || keepIds.has(id)) {
+              prunedWeekly[id] = s;
+            }
+          }
+          await AsyncStorage.setItem(KEYS.SHARED_WEEKLY, JSON.stringify(prunedWeekly));
+        }
+      }
+
+      // 3. Limit monthly reports to last 12
+      const existingMonthlyRaw = await AsyncStorage.getItem(KEYS.SHARED_MONTHLY);
+      if (existingMonthlyRaw) {
+        const monthlyData: Record<string, SharedMonthlySummary> = JSON.parse(existingMonthlyRaw);
+        const userSummaries = Object.values(monthlyData)
+          .filter((s) => !userId || s.userId === userId)
+          .sort((a, b) => b.monthId.localeCompare(a.monthId));
+
+        if (userSummaries.length > 12) {
+          const keepIds = new Set(userSummaries.slice(0, 12).map((s) => s.id));
+          const prunedMonthly: Record<string, SharedMonthlySummary> = {};
+          for (const [id, s] of Object.entries(monthlyData)) {
+            if (s.userId !== userId || keepIds.has(id)) {
+              prunedMonthly[id] = s;
+            }
+          }
+          await AsyncStorage.setItem(KEYS.SHARED_MONTHLY, JSON.stringify(prunedMonthly));
+        }
+      }
+    } catch (e) {
+      // Retention cleanup error fallback
     }
   },
 
@@ -181,6 +252,7 @@ export const localStorageService = {
       const data: Record<string, SharedWeeklySummary> = raw ? JSON.parse(raw) : {};
       data[summary.id] = summary;
       await AsyncStorage.setItem(KEYS.SHARED_WEEKLY, JSON.stringify(data));
+      await localStorageService.applyRetentionPolicy(summary.userId);
     } catch (e) {
       console.warn('Error saving shared weekly summary to local storage:', e);
     }
@@ -209,6 +281,7 @@ export const localStorageService = {
       const data: Record<string, SharedMonthlySummary> = raw ? JSON.parse(raw) : {};
       data[summary.id] = summary;
       await AsyncStorage.setItem(KEYS.SHARED_MONTHLY, JSON.stringify(data));
+      await localStorageService.applyRetentionPolicy(summary.userId);
     } catch (e) {
       console.warn('Error saving shared monthly summary to local storage:', e);
     }

@@ -38,6 +38,12 @@ export const MyReportsScreen = () => {
     loadReports();
   }, [user?.uid, activeTab]);
 
+  const formatNumericDate = (isoDate?: string) => {
+    if (!isoDate || !isoDate.includes('-')) return isoDate || '';
+    const [y, m, d] = isoDate.split('-');
+    return `${parseInt(d, 10)}-${parseInt(m, 10)}-${y}`;
+  };
+
   const loadReports = async () => {
     if (!user?.uid) return;
     setIsLoading(true);
@@ -59,9 +65,9 @@ export const MyReportsScreen = () => {
         });
         setMonthlyReport(rep);
       } else {
-        // Daily: fetch past 14 days entries
+        // Daily: fetch past 30 days (1 month) entries
         const d = new Date();
-        d.setDate(d.getDate() - 14);
+        d.setDate(d.getDate() - 30);
         const pastStr = d.toISOString().split('T')[0];
         const entries = await sadhanaService.getEntriesForDateRange(user.uid, pastStr, todayStr);
         setRecentDailyEntries(entries.reverse());
@@ -102,7 +108,7 @@ export const MyReportsScreen = () => {
           {activeTab === 'weekly' && weeklyReport && (
             <View>
               <ScoreCard
-                title={`Weekly Score (${weeklyReport.startDate} to ${weeklyReport.endDate})`}
+                title={`${formatNumericDate(weeklyReport.startDate)} to ${formatNumericDate(weeklyReport.endDate)}`}
                 score={weeklyReport.totalScore}
                 maxScore={weeklyReport.maxAvailableMarks}
                 percentage={weeklyReport.percentage}
@@ -163,7 +169,7 @@ export const MyReportsScreen = () => {
           {activeTab === 'monthly' && monthlyReport && (
             <View>
               <ScoreCard
-                title={`Monthly Score (${monthlyReport.monthName})`}
+                title={monthlyReport.monthName}
                 score={monthlyReport.totalScore}
                 maxScore={monthlyReport.maxAvailableMarks}
                 percentage={monthlyReport.percentage}

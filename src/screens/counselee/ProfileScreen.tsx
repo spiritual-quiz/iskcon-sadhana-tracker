@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,15 @@ export const ProfileScreen = () => {
   const [declaredRounds, setDeclaredRounds] = useState(String(user?.declaredRounds || 16));
   const [consent, setConsent] = useState(user?.publicAppreciationConsent ?? true);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || '');
+      setPhoneNumber(user.phoneNumber || '');
+      setDeclaredRounds(String(user.declaredRounds || 16));
+      setConsent(user.publicAppreciationConsent ?? true);
+    }
+  }, [user]);
 
   // Dynamic calculations
   const dynamicAge = calculateAge(user?.dateOfBirth);

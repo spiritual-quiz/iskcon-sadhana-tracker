@@ -194,8 +194,10 @@ export async function getAllInvitations(): Promise<InvitationCode[]> {
       map.set(inv.code, inv);
       localStorageService.saveInvitation(inv);
     });
-  } catch (e) {
-    console.warn('Firestore getAllInvitations fallback to local storage:', e);
+  } catch (e: any) {
+    if (e?.code !== 'permission-denied') {
+      console.warn('Firestore getAllInvitations fallback to local storage:', e);
+    }
   }
 
   return Array.from(map.values()).sort(
