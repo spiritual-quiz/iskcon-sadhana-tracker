@@ -21,6 +21,7 @@ import { birthdayService } from '../../services/birthdayService';
 import { authService } from '../../services/authService';
 import { sadhanaService } from '../../services/sadhanaService';
 import { reportService } from '../../services/reportService';
+import { localStorageService } from '../../services/localStorageService';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const { user, signOut } = useAuth();
@@ -65,34 +66,17 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       setMissingAlertsCount(missing.length);
       setLowScoreCount(low.length);
 
-      // 4. Weekly & Monthly <50% counts
+      // 4. Weekly & Monthly <50% counts (read directly from cached summaries for instant speed)
       try {
-        const weeklyReps = await Promise.all(
-          approved.map((u) =>
-            reportService.generateWeeklyReport({
-              userId: u.uid,
-              counseleeName: u.displayName,
-              weekDateString: todayStr,
-              publishSharedSummary: false,
-            })
-          )
-        );
-        setWeeklyLowScoreCount(weeklyReps.filter((r) => (r.percentage ?? 0) < 50).length);
+        const sharedWeekly = await localStorageService.getSharedWeeklySummaries(todayStr);
+        setWeeklyLowScoreCount(sharedWeekly.filter((r) => (r.percentage ?? 0) < 50).length);
 
         const now = new Date();
-        const monthlyReps = await Promise.all(
-          approved.map((u) =>
-            reportService.generateMonthlyReport({
-              userId: u.uid,
-              counseleeName: u.displayName,
-              year: now.getFullYear(),
-              month: now.getMonth() + 1,
-            })
-          )
-        );
-        setMonthlyLowScoreCount(monthlyReps.filter((r) => (r.percentage ?? 0) < 50).length);
+        const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const sharedMonthly = await localStorageService.getSharedMonthlySummaries(monthId);
+        setMonthlyLowScoreCount(sharedMonthly.filter((r) => (r.percentage ?? 0) < 50).length);
       } catch (repErr) {
-        console.warn('Dashboard weekly/monthly low score calculation:', repErr);
+        // Safe fallback
       }
 
       // 5. Upcoming birthdays

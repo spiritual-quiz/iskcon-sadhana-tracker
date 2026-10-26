@@ -57,13 +57,22 @@ export const attendanceService = {
     userId: string,
     weekId: string
   ): Promise<{ weeklyClass?: WeeklyAttendance; morningProgramme?: WeeklyAttendance }> => {
+    // 1. Instant check from local persistent storage (0ms latency)
+    const local = await localStorageService.getWeeklyAttendanceForUser(userId, weekId);
+    if (local.weeklyClass || local.morningProgramme) {
+      return local;
+    }
+
     const classId = `${userId}_${weekId}_weekly_class`;
     const morningId = `${userId}_${weekId}_morning_programme`;
 
     try {
-      const [classSnap, morningSnap] = await Promise.all([
-        getDoc(doc(db, 'weekly_attendance', classId)),
-        getDoc(doc(db, 'weekly_attendance', morningId)),
+      const [classSnap, morningSnap] = await Promise.race([
+        Promise.all([
+          getDoc(doc(db, 'weekly_attendance', classId)),
+          getDoc(doc(db, 'weekly_attendance', morningId)),
+        ]),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
       ]);
 
       if (classSnap.exists() || morningSnap.exists()) {
@@ -79,7 +88,7 @@ export const attendanceService = {
       // Permission denied or offline fallback
     }
 
-    return await localStorageService.getWeeklyAttendanceForUser(userId, weekId);
+    return local;
   },
 
   /**
@@ -133,9 +142,18 @@ export const attendanceService = {
     userId: string,
     monthId: string
   ): Promise<MonthlySatsangaAttendance | null> => {
+    // 1. Instant check from local persistent storage (0ms latency)
+    const local = await localStorageService.getMonthlySatsangaForUser(userId, monthId);
+    if (local) {
+      return local;
+    }
+
     const id = `${userId}_${monthId}`;
     try {
-      const snap = await getDoc(doc(db, 'monthly_satsanga', id));
+      const snap = await Promise.race([
+        getDoc(doc(db, 'monthly_satsanga', id)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (snap.exists()) {
         const data = snap.data() as MonthlySatsangaAttendance;
         await localStorageService.saveMonthlySatsanga(data);
@@ -145,6 +163,6 @@ export const attendanceService = {
       // Fallback
     }
 
-    return await localStorageService.getMonthlySatsangaForUser(userId, monthId);
+    return null;
   },
 };

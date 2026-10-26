@@ -200,10 +200,13 @@ export async function getAllInvitations(): Promise<InvitationCode[]> {
   const localList = await localStorageService.getAllInvitations();
   localList.forEach((inv) => map.set(inv.code, inv));
 
-  // 2. Fetch from Firestore if available
+  // 2. Fetch from Firestore if available with quick 1.5s timeout
   try {
     const q = query(collection(db, 'invitations'), orderBy('createdAt', 'desc'));
-    const snap = await getDocs(q);
+    const snap = await Promise.race([
+      getDocs(q),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+    ]);
     snap.docs.forEach((d) => {
       const inv = d.data() as InvitationCode;
       map.set(inv.code, inv);

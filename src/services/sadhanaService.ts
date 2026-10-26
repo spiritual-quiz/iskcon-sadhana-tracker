@@ -134,9 +134,19 @@ export const sadhanaService = {
    * Get daily sadhana entry for a specific user and date
    */
   getDailyEntry: async (userId: string, dateStr: string): Promise<SadhanaEntry | null> => {
+    // 1. Instant check from local persistent storage (0ms latency)
+    const local = await localStorageService.getSadhanaEntry(userId, dateStr);
+    if (local) {
+      return local;
+    }
+
+    // 2. Fallback to Cloud Firestore if not present locally
     const entryId = `${userId}_${dateStr}`;
     try {
-      const snap = await getDoc(doc(db, 'sadhana_entries', entryId));
+      const snap = await Promise.race([
+        getDoc(doc(db, 'sadhana_entries', entryId)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (snap.exists()) {
         const data = snap.data() as SadhanaEntry;
         await localStorageService.saveSadhanaEntry(data);
@@ -146,8 +156,7 @@ export const sadhanaService = {
       // Permission denied or offline fallback
     }
 
-    // Fallback to local storage
-    return await localStorageService.getSadhanaEntry(userId, dateStr);
+    return null;
   },
 
   /**
@@ -158,6 +167,12 @@ export const sadhanaService = {
     startDate: string,
     endDate: string
   ): Promise<SadhanaEntry[]> => {
+    // 1. Check local persistent storage first (instant)
+    const localEntries = await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
+    if (localEntries && localEntries.length > 0) {
+      return localEntries;
+    }
+
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
@@ -166,7 +181,10 @@ export const sadhanaService = {
         where('date', '<=', endDate),
         orderBy('date', 'asc')
       );
-      const snap = await getDocs(q);
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (!snap.empty) {
         return snap.docs.map((d) => d.data() as SadhanaEntry);
       }
@@ -174,16 +192,24 @@ export const sadhanaService = {
       // Permission denied or offline fallback
     }
 
-    return await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
+    return localEntries || [];
   },
 
   /**
    * Admin: Get all counselees' entries for a specific date
    */
   getAllEntriesForDate: async (dateStr: string): Promise<SadhanaEntry[]> => {
+    const localEntries = await localStorageService.getAllEntriesForDate(dateStr);
+    if (localEntries && localEntries.length > 0) {
+      return localEntries;
+    }
+
     try {
       const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
-      const snap = await getDocs(q);
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (!snap.empty) {
         return snap.docs.map((d) => d.data() as SadhanaEntry);
       }
@@ -191,20 +217,28 @@ export const sadhanaService = {
       // Permission denied or offline fallback
     }
 
-    return await localStorageService.getAllEntriesForDate(dateStr);
+    return localEntries || [];
   },
 
   /**
    * Admin: Get latest entry of a user to determine inactivity
    */
   getLatestEntryForUser: async (userId: string): Promise<SadhanaEntry | null> => {
+    const localLatest = await localStorageService.getLatestEntryForUser(userId);
+    if (localLatest) {
+      return localLatest;
+    }
+
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
         where('userId', '==', userId),
         orderBy('date', 'desc')
       );
-      const snap = await getDocs(q);
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (!snap.empty) {
         return snap.docs[0].data() as SadhanaEntry;
       }
@@ -212,7 +246,7 @@ export const sadhanaService = {
       // Permission denied or offline fallback
     }
 
-    return await localStorageService.getLatestEntryForUser(userId);
+    return null;
   },
 
   /**

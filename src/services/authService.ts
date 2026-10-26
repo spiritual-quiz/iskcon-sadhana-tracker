@@ -233,16 +233,23 @@ export const authService = {
    * Fetch user profile by UID
    */
   getUserProfile: async (uid: string): Promise<UserProfile | null> => {
+    // 1. Instant check from local persistent storage (0ms latency)
+    const local = await localStorageService.getUser(uid);
+    if (local) return local;
+
     try {
       const userRef = doc(db, 'users', uid);
-      const snap = await getDoc(userRef);
+      const snap = await Promise.race([
+        getDoc(userRef),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (snap.exists()) {
         return snap.data() as UserProfile;
       }
     } catch (e) {
       // Gracefully fall back to local storage
     }
-    return await localStorageService.getUser(uid);
+    return null;
   },
 
   /**
@@ -337,14 +344,17 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge
+    // 2. Load from Firestore and merge with quick 1.5s timeout
     try {
       const q = query(
         collection(db, 'users'),
         where('role', '==', 'counselee'),
         where('status', '==', 'pending')
       );
-      const snap = await getDocs(q);
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       snap.docs.forEach((d) => {
         const u = d.data() as UserProfile;
         map.set(u.uid, u);
@@ -372,10 +382,13 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge
+    // 2. Load from Firestore and merge with quick 1.5s timeout
     try {
       const q = query(collection(db, 'users'), where('role', '==', 'counselee'));
-      const snap = await getDocs(q);
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       snap.docs.forEach((d) => {
         const u = d.data() as UserProfile;
         map.set(u.uid, u);
@@ -399,7 +412,10 @@ export const authService = {
     }
 
     try {
-      const snap = await getDocs(collection(db, 'users'));
+      const snap = await Promise.race([
+        getDocs(collection(db, 'users')),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       snap.docs.forEach((d) => {
         const u = d.data() as UserProfile;
         map.set(u.uid, u);

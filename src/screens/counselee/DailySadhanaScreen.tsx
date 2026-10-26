@@ -718,9 +718,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </TouchableOpacity>
 
-            <Text style={styles.hintText}>
-              Before 7:31 AM: 10 marks • 7:31 AM to 10:00 AM: 5 marks • 10:00 AM to 1:00 PM: 3 marks • After 1:00 PM: 1 mark
-            </Text>
+            <View style={styles.highlightBadge}>
+              <Ionicons name="time-outline" size={15} color="#B45309" />
+              <Text style={styles.highlightBadgeText}>
+                Before 7:31 AM: 10 marks • 7:31 AM to 10:00 AM: 5 marks • 10:00 AM to 1:00 PM: 3 marks • After 1:00 PM: 1 mark
+              </Text>
+            </View>
           </View>
 
           {/* Section B: Reading */}
@@ -761,7 +764,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 ))}
               </View>
             </View>
-            <Text style={styles.hintText}>Target: 30 minutes for full 10 marks (proportional)</Text>
+            <View style={[styles.highlightBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+              <Ionicons name="book-outline" size={15} color="#15803D" />
+              <Text style={[styles.highlightBadgeText, { color: '#166534' }]}>
+                Target: 30 minutes for full 10 marks (proportional scoring: e.g. 15 mins = 5 marks)
+              </Text>
+            </View>
           </View>
 
           {/* Section C: Hearing */}
@@ -801,7 +809,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 ))}
               </View>
             </View>
-            <Text style={styles.hintText}>Target: 30 minutes for full 10 marks (proportional)</Text>
+            <View style={[styles.highlightBadge, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+              <Ionicons name="headset-outline" size={15} color="#0284C7" />
+              <Text style={[styles.highlightBadgeText, { color: '#075985' }]}>
+                Target: 30 minutes for full 10 marks (proportional scoring: e.g. 15 mins = 5 marks)
+              </Text>
+            </View>
           </View>
 
           {/* Section D: Sleep & Rest */}
@@ -915,9 +928,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
 
-            <Text style={styles.onlineReadingDescription}>
-              Daily 30-minute reading with Counsellor. 10 marks each day (Mon to Fri). Evaluated under Weekly Report.
-            </Text>
+            <View style={[styles.highlightBadge, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+              <Ionicons name="laptop-outline" size={15} color="#2563EB" />
+              <Text style={[styles.highlightBadgeText, { color: '#1E40AF' }]}>
+                Daily 30-min reading with Counsellor • Monday to Friday: 10 marks each day (Total 50 marks in Weekly Report)
+              </Text>
+            </View>
 
             {/* Selected Date Session Controls (When viewing a weekday) */}
             {isWeekday() ? (
@@ -1117,9 +1133,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
 
-            <Text style={styles.satsangDescription}>
-              Weekly service activity. Marks are counted towards your weekly progress report.
-            </Text>
+            <View style={[styles.highlightBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+              <Ionicons name="hand-left-outline" size={15} color="#EA580C" />
+              <Text style={[styles.highlightBadgeText, { color: '#9A3412' }]}>
+                Weekly service activity • Attended: 10 marks • Absent: 0 marks (counted towards Weekly Report)
+              </Text>
+            </View>
 
             <View style={styles.satsangPillsRow}>
               <TouchableOpacity
@@ -1204,9 +1223,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
 
-            <Text style={styles.satsangDescription}>
-              Every month we hold one special Satsang class (50 marks). This is dynamic: if cancelled or not conducted this month, no marks are deducted from your score.
-            </Text>
+            <View style={[styles.highlightBadge, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}>
+              <Ionicons name="people-outline" size={15} color="#9333EA" />
+              <Text style={[styles.highlightBadgeText, { color: '#6B21A8' }]}>
+                Special monthly Satsang class • Attended: 50 marks • Absent: 0 marks • Dynamic: no marks deducted if not held this month
+              </Text>
+            </View>
 
             <View style={styles.satsangPillsRow}>
               <TouchableOpacity
@@ -1306,9 +1328,12 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
 
-            <Text style={styles.satsangDescription}>
-              Monthly one-on-one meeting with your counsellor. Marks are counted towards your monthly progress report.
-            </Text>
+            <View style={[styles.highlightBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+              <Ionicons name="chatbubbles-outline" size={15} color="#16A34A" />
+              <Text style={[styles.highlightBadgeText, { color: '#14532D' }]}>
+                Monthly one-on-one meeting with Counsellor • Attended: 50 marks • Absent: 0 marks (counted towards Monthly Report)
+              </Text>
+            </View>
 
             <View style={styles.satsangPillsRow}>
               <TouchableOpacity
@@ -1837,6 +1862,26 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: THEME.colors.textMuted,
     marginTop: 2,
+  },
+  highlightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 7,
+  },
+  highlightBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#92400E',
+    flex: 1,
+    lineHeight: 16,
   },
   restSummaryBox: {
     backgroundColor: THEME.colors.primaryUltraLight,
