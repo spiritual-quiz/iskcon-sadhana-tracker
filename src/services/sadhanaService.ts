@@ -123,8 +123,10 @@ export const sadhanaService = {
     // 6. Resolve any open missing-card alert for this user since a valid entry was submitted
     try {
       await monitoringService.resolveMissingCardAlert(params.userId);
-    } catch (e) {
-      console.warn('Failed to resolve missing-card alert automatically:', e);
+    } catch (e: any) {
+      if (e?.code !== 'permission-denied') {
+        console.warn('Failed to resolve missing-card alert automatically:', e);
+      }
     }
 
     return entry;

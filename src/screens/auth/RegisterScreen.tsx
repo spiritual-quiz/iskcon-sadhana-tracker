@@ -186,14 +186,11 @@ export const RegisterScreen = ({ navigation }: any) => {
           onLayout={(e) => handleFieldLayout('invitationCard', e.nativeEvent.layout.y)}
         >
           <Text style={styles.cardSectionTitle}>Step 1: Counsellor Invitation Code</Text>
-          <Text style={styles.helperText}>
-            Enter the invitation code (e.g. KRISHNA7 or SADHANA16) provided by your counsellor.
-          </Text>
 
           <View style={styles.invitationRow}>
             <TextInput
               style={[styles.textInput, styles.invitationInput]}
-              placeholder="xxxxxxx"
+              placeholder=""
               value={invitationCode}
               onChangeText={(val) => {
                 setInvitationCode(val.toUpperCase());
@@ -228,7 +225,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             style={styles.inputGroup}
             onLayout={(e) => handleFieldLayout('name', e.nativeEvent.layout.y)}
           >
-            <Text style={styles.inputLabel}>Initiated / Devotional Name *</Text>
+            <Text style={styles.inputLabel}>Name / Initiated Name *</Text>
             <TextInput
               style={styles.textInput}
               placeholder=""
@@ -246,7 +243,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             <Text style={styles.inputLabel}>Email Address *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="devotee@iskcon.org"
+              placeholder=""
               value={email}
               onChangeText={setEmail}
               onFocus={() => handleFieldFocus('email')}
@@ -264,7 +261,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             <View style={styles.passwordWrapper}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="••••••••"
+                placeholder=""
                 value={password}
                 onChangeText={setPassword}
                 onFocus={() => handleFieldFocus('password')}
@@ -292,7 +289,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="+919876543210"
+              placeholder=""
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               onFocus={() => handleFieldFocus('phone')}
@@ -308,7 +305,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             <Text style={styles.inputLabel}>Daily Japa Commitment (Rounds) *</Text>
             <TextInput
               style={styles.textInput}
-              placeholder="16"
+              placeholder=""
               value={declaredRounds}
               onChangeText={setDeclaredRounds}
               onFocus={() => handleFieldFocus('rounds')}

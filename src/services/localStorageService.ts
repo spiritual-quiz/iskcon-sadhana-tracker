@@ -18,6 +18,7 @@ const KEYS = {
   SHARED_MONTHLY: '@iskcon_shared_monthly',
   USERS: '@iskcon_users',
   INVITATIONS: '@iskcon_invitations',
+  DELETED_INVITATIONS: '@iskcon_deleted_invitations',
 };
 
 export const localStorageService = {
@@ -529,16 +530,47 @@ export const localStorageService = {
   },
 
   /**
+   * Delete an invitation code permanently from local storage
+   */
+  deleteInvitation: async (code: string): Promise<void> => {
+    try {
+      const clean = code.trim().toUpperCase();
+      const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
+      const data: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
+      delete data[clean];
+      await AsyncStorage.setItem(KEYS.INVITATIONS, JSON.stringify(data));
+
+      // Record in deleted tombstone list so seeds never resurrect
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_INVITATIONS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (!deletedList.includes(clean)) {
+        deletedList.push(clean);
+        await AsyncStorage.setItem(KEYS.DELETED_INVITATIONS, JSON.stringify(deletedList));
+      }
+    } catch (e) {
+      console.warn('Error deleting invitation from local storage:', e);
+    }
+  },
+
+  /**
    * Get an invitation code by code string
    */
   getInvitation: async (code: string): Promise<InvitationCode | null> => {
     try {
       const clean = code.trim().toUpperCase();
+
+      // Check if code was permanently deleted
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_INVITATIONS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (deletedList.includes(clean)) {
+        return null;
+      }
+
       const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
       const data: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
       if (data[clean]) return data[clean];
 
-      // Check default seeds
+      // Check default seeds if not deleted
       if (clean === 'KRISHNA7' || clean === 'SADHANA16') {
         return {
           code: clean,
@@ -559,12 +591,16 @@ export const localStorageService = {
   },
 
   /**
-   * Get all invitations from local storage (including default seeds)
+   * Get all invitations from local storage (including default seeds unless deleted)
    */
   getAllInvitations: async (): Promise<InvitationCode[]> => {
     try {
-      const defaultInvitations: Record<string, InvitationCode> = {
-        KRISHNA7: {
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_INVITATIONS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+
+      const defaultInvitations: Record<string, InvitationCode> = {};
+      if (!deletedList.includes('KRISHNA7')) {
+        defaultInvitations['KRISHNA7'] = {
           code: 'KRISHNA7',
           createdBy: 'counsellor_admin_uid',
           createdAt: '2025-01-01T00:00:00.000Z',
@@ -574,8 +610,10 @@ export const localStorageService = {
           isRevoked: false,
           usedByUids: ['devotee_uid_108'],
           notes: 'General Devotee Registration (Default)',
-        },
-        SADHANA16: {
+        };
+      }
+      if (!deletedList.includes('SADHANA16')) {
+        defaultInvitations['SADHANA16'] = {
           code: 'SADHANA16',
           createdBy: 'counsellor_admin_uid',
           createdAt: '2025-01-01T00:00:00.000Z',
@@ -585,13 +623,16 @@ export const localStorageService = {
           isRevoked: false,
           usedByUids: [],
           notes: '16 Rounds Committed Devotees',
-        },
-      };
+        };
+      }
 
       const existingRaw = await AsyncStorage.getItem(KEYS.INVITATIONS);
       const localData: Record<string, InvitationCode> = existingRaw ? JSON.parse(existingRaw) : {};
       const merged = { ...defaultInvitations, ...localData };
-      return Object.values(merged).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      return Object.values(merged)
+        .filter((inv) => !deletedList.includes(inv.code))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } catch (e) {
       return [];
     }

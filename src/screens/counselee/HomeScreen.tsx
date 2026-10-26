@@ -279,7 +279,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
             <TouchableOpacity
               style={styles.shortcutCard}
-              onPress={() => navigation.navigate('CommunityReports')}
+              onPress={() => navigation.navigate('Community')}
             >
               <Ionicons name="people-outline" size={24} color={THEME.colors.goldDark} />
               <Text style={styles.shortcutTitle}>Community</Text>

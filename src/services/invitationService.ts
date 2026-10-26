@@ -3,6 +3,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   getDocs,
@@ -172,6 +173,22 @@ export async function revokeInvitationCode(code: string): Promise<void> {
     });
   } catch (e) {
     console.warn('Firestore revokeInvitationCode fallback:', e);
+  }
+}
+
+/**
+ * Admin: Permanently delete an invitation code (both local storage & Firestore)
+ */
+export async function deleteInvitationCode(code: string): Promise<void> {
+  const cleanCode = code.trim().toUpperCase();
+  await localStorageService.deleteInvitation(cleanCode);
+  try {
+    const invRef = doc(db, 'invitations', cleanCode);
+    await deleteDoc(invRef);
+  } catch (e: any) {
+    if (e?.code !== 'permission-denied') {
+      console.warn('Firestore deleteInvitationCode error:', e);
+    }
   }
 }
 

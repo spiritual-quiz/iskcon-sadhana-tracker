@@ -2,8 +2,15 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth } from 'firebase/auth';
 // @ts-ignore - React Native specific persistence export
 import { getReactNativePersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, setLogLevel } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Silence non-critical backend connection warnings in offline / hybrid mode
+try {
+  setLogLevel('error');
+} catch (e) {
+  // Ignore in environments where setLogLevel is not available
+}
 
 // Production Firebase Configuration
 // Values can be supplied via environment variables in .env (EXPO_PUBLIC_*)

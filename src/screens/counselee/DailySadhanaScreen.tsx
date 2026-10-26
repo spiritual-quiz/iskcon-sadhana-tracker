@@ -719,7 +719,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </TouchableOpacity>
 
             <Text style={styles.hintText}>
-              &lt;7 AM: 10 marks • 7-10 AM: 5 marks • 10 AM-1 PM: 3 marks • After 1 PM: 1 mark
+              Before 7:31 AM: 10 marks • 7:31 AM to 10:00 AM: 5 marks • 10:00 AM to 1:00 PM: 3 marks • After 1:00 PM: 1 mark
             </Text>
           </View>
 

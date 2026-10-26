@@ -28,7 +28,6 @@ export const RootNavigator = () => {
         </View>
         <Text style={styles.splashTitle}>Bhakti Unnati</Text>
         <Text style={styles.splashSubtitle}>Advancement in Devotion</Text>
-        <Text style={styles.institutionTag}>Bhaktivedanta Rajavidyalaya</Text>
         <ActivityIndicator size="large" color={THEME.colors.gold} style={styles.loader} />
       </View>
     );

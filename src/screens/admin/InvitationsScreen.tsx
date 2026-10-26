@@ -19,6 +19,7 @@ import {
   createInvitationCode,
   getAllInvitations,
   revokeInvitationCode,
+  deleteInvitationCode,
 } from '../../services/invitationService';
 import { InvitationCode } from '../../types/monitoring';
 
@@ -96,6 +97,30 @@ export const InvitationsScreen = ({ navigation }: any) => {
               if (selectedInv?.code === code) setSelectedInv(null);
             } catch (e: any) {
               Alert.alert('Error', e.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeletePermanently = async (code: string) => {
+    Alert.alert(
+      'Delete Invitation Code?',
+      `Are you sure you want to permanently delete code "${code}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteInvitationCode(code);
+              Alert.alert('Deleted', `Code "${code}" has been permanently removed.`);
+              loadInvitations();
+              if (selectedInv?.code === code) setSelectedInv(null);
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not delete invitation.');
             }
           },
         },
@@ -218,15 +243,25 @@ export const InvitationsScreen = ({ navigation }: any) => {
                       </Text>
                     </TouchableOpacity>
 
-                    {!inv.isRevoked && (
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      {!inv.isRevoked && (
+                        <TouchableOpacity
+                          style={styles.revokeBtn}
+                          onPress={() => handleRevoke(inv.code)}
+                        >
+                          <Ionicons name="ban-outline" size={15} color={THEME.colors.warning} />
+                          <Text style={[styles.revokeBtnText, { color: THEME.colors.warning }]}>Revoke</Text>
+                        </TouchableOpacity>
+                      )}
+
                       <TouchableOpacity
-                        style={styles.revokeBtn}
-                        onPress={() => handleRevoke(inv.code)}
+                        style={styles.deletePermanentlyBtn}
+                        onPress={() => handleDeletePermanently(inv.code)}
                       >
-                        <Ionicons name="trash-outline" size={16} color={THEME.colors.danger} />
-                        <Text style={styles.revokeBtnText}>Revoke</Text>
+                        <Ionicons name="trash-outline" size={15} color={THEME.colors.danger} />
+                        <Text style={styles.deletePermanentlyBtnText}>Delete</Text>
                       </TouchableOpacity>
-                    )}
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -476,16 +511,34 @@ const styles = StyleSheet.create({
   revokeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: THEME.colors.dangerLight,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
   revokeBtnText: {
     fontSize: 11,
     fontWeight: 'bold',
+    color: '#D97706',
+    marginLeft: 3,
+  },
+  deletePermanentlyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: THEME.colors.dangerLight,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deletePermanentlyBtnText: {
+    fontSize: 11,
+    fontWeight: 'bold',
     color: THEME.colors.danger,
-    marginLeft: 4,
+    marginLeft: 3,
   },
   emptyContainer: {
     alignItems: 'center',
