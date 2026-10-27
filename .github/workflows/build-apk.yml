@@ -44,24 +44,23 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x android/gradlew
 
-      - name: Build Android APK
+      - name: Build Android Release APK
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m"
         run: |
           cd android
-          # Try assembleRelease first, fall back to assembleDebug
-          ./gradlew assembleRelease || ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Prepare APK Output
         run: |
           mkdir -p build-output
-          # Find any generated .apk file
-          APK_FILE=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          # Find generated release .apk file
+          APK_FILE=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "Error: No APK file was generated!"
+            echo "Error: Release APK file was not found!"
             exit 1
           fi
-          echo "Found APK at: $APK_FILE"
+          echo "Found Release APK at: $APK_FILE"
           cp "$APK_FILE" build-output/Bhakti-Unnati.apk
           ls -la build-output/
 
