@@ -14,6 +14,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,7 @@ import { otpService } from '../../services/otpService';
 import { DateSelectorModal } from '../../components/DateSelectorModal';
 
 export const RegisterScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { register } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -239,7 +241,10 @@ export const RegisterScreen = ({ navigation }: any) => {
         ref={scrollViewRef}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 36 },
+          {
+            paddingTop: Math.max(insets.top, 16) + 6,
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 40 : Math.max(insets.bottom, 16) + 20,
+          },
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -247,14 +252,18 @@ export const RegisterScreen = ({ navigation }: any) => {
       >
         {/* Header with Official Logo */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="arrow-back" size={20} color={THEME.colors.primary} />
           </TouchableOpacity>
           <View style={styles.headerBrandRow}>
             <Image source={require('../../../assets/logo.png')} style={styles.miniLogo} />
             <View>
-              <Text style={styles.headerTitle}>Bhakti Unnati</Text>
-              <Text style={styles.headerSubtitle}>Advancement in Devotion</Text>
+              <Text style={styles.headerTitle}>Devotee Registration</Text>
+              <Text style={styles.headerSubtitle}>Bhakti Unnati • ISKCON Sadhana</Text>
             </View>
           </View>
         </View>
@@ -635,56 +644,56 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 36,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   backBtn: {
     padding: 6,
-    marginRight: 8,
+    marginRight: 6,
   },
   headerBrandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   miniLogo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: THEME.colors.primary,
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: THEME.colors.goldDark,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
   },
   cardSectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
     marginBottom: 4,
   },
   helperText: {
-    fontSize: 11,
+    fontSize: 10,
     color: THEME.colors.textMuted,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   invitationRow: {
     flexDirection: 'row',
@@ -692,15 +701,15 @@ const styles = StyleSheet.create({
   },
   invitationInput: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 6,
     fontWeight: 'bold',
     letterSpacing: 1.5,
   },
   verifyButton: {
     backgroundColor: THEME.colors.primary,
-    paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -710,55 +719,55 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 11,
   },
   inputGroup: {
-    marginBottom: 10,
+    marginBottom: 6,
   },
   inputLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
     color: THEME.colors.text,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   textInput: {
-    height: 40,
+    height: 36,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 13,
+    borderRadius: 7,
+    paddingHorizontal: 9,
+    fontSize: 12.5,
     color: THEME.colors.text,
   },
   passwordWrapper: {
-    height: 40,
+    height: 36,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderRadius: 7,
+    paddingHorizontal: 9,
     flexDirection: 'row',
     alignItems: 'center',
   },
   passwordInput: {
     flex: 1,
-    height: 40,
-    fontSize: 13,
+    height: 36,
+    fontSize: 12.5,
     color: THEME.colors.text,
   },
   eyeIcon: {
-    padding: 6,
+    padding: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dateSelectorCard: {
-    height: 44,
+    height: 36,
     backgroundColor: '#F9FAFB',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 7,
+    paddingHorizontal: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -766,16 +775,16 @@ const styles = StyleSheet.create({
   dateSelectorContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flex: 1,
   },
   dateSelectorText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     color: THEME.colors.primary,
   },
   dateSelectorPlaceholder: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: 'normal',
     color: THEME.colors.textMuted,
   },
@@ -783,13 +792,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
     gap: 2,
   },
   dateBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: THEME.colors.goldDark,
   },
@@ -797,54 +806,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
+    marginTop: 2,
   },
   dynamicCalculationText: {
-    fontSize: 11,
+    fontSize: 10,
     color: THEME.colors.goldDark,
     fontWeight: 'bold',
   },
   submitButton: {
     backgroundColor: THEME.colors.primary,
-    height: 44,
+    height: 40,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   labelWithStatusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#86EFAC',
   },
   verifiedBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#15803D',
   },
   inputWithActionRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     alignItems: 'center',
   },
   inputLocked: {
@@ -854,18 +863,18 @@ const styles = StyleSheet.create({
   },
   sendOtpBtn: {
     backgroundColor: THEME.colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 36,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 84,
+    minWidth: 72,
   },
   sendOtpBtnDisabled: {
     opacity: 0.6,
   },
   sendOtpBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
@@ -873,41 +882,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 8,
+    borderRadius: 7,
+    padding: 6,
+    marginTop: 4,
   },
   otpSubLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: THEME.colors.textMuted,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   otpInputRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     alignItems: 'center',
   },
   otpBoxInput: {
     flex: 1,
-    letterSpacing: 3,
+    letterSpacing: 2.5,
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 13,
     backgroundColor: '#FFFFFF',
-    height: 42,
+    height: 34,
   },
   verifyOtpBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#15803D',
-    paddingHorizontal: 14,
-    height: 42,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 6,
     justifyContent: 'center',
   },
   verifyOtpBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
