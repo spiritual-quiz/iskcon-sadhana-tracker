@@ -45,14 +45,25 @@ export const ProfileScreen = () => {
     setIsSaving(true);
     try {
       const rounds = parseInt(declaredRounds, 10) || 16;
+      const targetChanged = rounds !== (user.declaredRounds || 16);
+
       await authService.updatePermittedProfile(user.uid, {
         displayName: displayName.trim(),
         phoneNumber: phoneNumber.trim(),
         publicAppreciationConsent: consent,
-        declaredRounds: rounds,
       });
-      await reloadUser();
-      Alert.alert('Profile Updated', 'Your profile details and chanting commitment have been saved.');
+
+      if (targetChanged) {
+        await authService.requestTargetRoundsChange(user.uid, rounds);
+        await reloadUser();
+        Alert.alert(
+          'Target Change Requested',
+          `Profile details saved. Your request to change chanting target to ${rounds} rounds has been submitted for counsellor approval.`
+        );
+      } else {
+        await reloadUser();
+        Alert.alert('Profile Updated', 'Your profile details have been saved successfully.');
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not update profile.');
     } finally {
@@ -153,6 +164,17 @@ export const ProfileScreen = () => {
               keyboardType="numeric"
               placeholder="16"
             />
+            <Text style={styles.fieldHint}>
+              Changes require counsellor approval before taking effect.
+            </Text>
+            {user?.targetRoundsRequested && (
+              <View style={styles.pendingBadge}>
+                <Ionicons name="hourglass" size={13} color="#B45309" />
+                <Text style={styles.pendingBadgeText}>
+                  Pending: {user.targetRoundsRequested} Rounds (Awaiting Counsellor Approval)
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.switchRow}>
@@ -367,5 +389,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: THEME.typography.sizes.sm,
     marginLeft: 6,
+  },
+  fieldHint: {
+    fontSize: 10,
+    color: THEME.colors.textMuted,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 6,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    color: '#92400E',
+    fontWeight: '600',
   },
 });

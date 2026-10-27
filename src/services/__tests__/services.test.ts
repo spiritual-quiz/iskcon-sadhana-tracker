@@ -51,6 +51,7 @@ import { getDaysDifference, getBirthdayInYear } from '../../utils/dateUtils';
 import { generateRandomCode } from '../invitationService';
 import { authService } from '../authService';
 import { localStorageService } from '../localStorageService';
+import { sadhanaService } from '../sadhanaService';
 import { otpService } from '../otpService';
 
 describe('Service Logic and Integration Verification', () => {
@@ -282,6 +283,41 @@ describe('Service Logic and Integration Verification', () => {
 
     test('rejects invalid phone number formats for WhatsApp OTP', async () => {
       await expect(otpService.sendWhatsappOtp('123')).rejects.toThrow('valid WhatsApp mobile number');
+    });
+  });
+
+  describe('Target Rounds Approval Workflow & 1-Week Reports', () => {
+    test('counselee requests target rounds change and counsellor approves', async () => {
+      const user = await authService.getUserProfile('devotee_user_uid');
+      expect(user).toBeDefined();
+
+      // Request change to 24 rounds
+      await authService.requestTargetRoundsChange('devotee_user_uid', 24);
+      const requestedUser = await authService.getUserProfile('devotee_user_uid');
+      expect(requestedUser?.targetRoundsRequested).toBe(24);
+      expect(requestedUser?.targetRoundsRequestedAt).toBeDefined();
+
+      // Counsellor approves
+      await authService.approveTargetRoundsChange('devotee_user_uid', 24);
+      const approvedUser = await authService.getUserProfile('devotee_user_uid');
+      expect(approvedUser?.declaredRounds).toBe(24);
+      expect(approvedUser?.targetRoundsRequested).toBeUndefined();
+    });
+
+    test('counselee requests target rounds change and counsellor rejects', async () => {
+      await authService.requestTargetRoundsChange('devotee_user_uid', 32);
+      let user = await authService.getUserProfile('devotee_user_uid');
+      expect(user?.targetRoundsRequested).toBe(32);
+
+      await authService.rejectTargetRoundsChange('devotee_user_uid');
+      user = await authService.getUserProfile('devotee_user_uid');
+      expect(user?.targetRoundsRequested).toBeUndefined();
+    });
+
+    test('fetches range entries across multiple dates for 1-week reporting', async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const range = await sadhanaService.getAllEntriesForDateRange('2026-01-01', today);
+      expect(Array.isArray(range)).toBe(true);
     });
   });
 });

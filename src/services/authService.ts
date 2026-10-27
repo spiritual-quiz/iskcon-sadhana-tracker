@@ -12,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   collection,
   query,
   where,
@@ -257,7 +258,7 @@ export const authService = {
    */
   updatePermittedProfile: async (
     uid: string,
-    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'reminderOptOutRequestedAt' | 'sadhanaRemindersEnabled'>>
+    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'reminderOptOutRequestedAt' | 'sadhanaRemindersEnabled' | 'targetRoundsRequested' | 'targetRoundsRequestedAt'>>
   ) => {
     try {
       const userRef = doc(db, 'users', uid);
@@ -269,6 +270,115 @@ export const authService = {
       // Gracefully fall back to local storage in offline/hybrid mode
     }
     await localStorageService.updateUser(uid, updates);
+  },
+
+  /**
+   * Counselee: Request counsellor approval to update daily chanting target rounds
+   */
+  requestTargetRoundsChange: async (uid: string, targetRounds: number) => {
+    const nowIso = new Date().toISOString();
+    await authService.updatePermittedProfile(uid, {
+      targetRoundsRequested: targetRounds,
+      targetRoundsRequestedAt: nowIso,
+    });
+    try {
+      const user = await authService.getUserProfile(uid);
+      const notifRef = doc(db, 'admin_notifications', `target_rounds_request_${uid}`);
+      await setDoc(notifRef, {
+        id: `target_rounds_request_${uid}`,
+        type: 'target_rounds_request',
+        userId: uid,
+        userName: user?.displayName || 'Devotee',
+        userEmail: user?.email || '',
+        message: `${user?.displayName || 'Student'} requested to update daily chanting target from ${user?.declaredRounds || 16} to ${targetRounds} rounds.`,
+        requestedRounds: targetRounds,
+        currentRounds: user?.declaredRounds || 16,
+        createdAt: nowIso,
+        status: 'open',
+      });
+    } catch (e) {
+      // Offline fallback
+    }
+  },
+
+  /**
+   * Counselee: Cancel pending target rounds change request
+   */
+  cancelTargetRoundsRequest: async (uid: string) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        targetRoundsRequested: deleteField ? deleteField() : (null as any),
+        targetRoundsRequestedAt: (null as any),
+        updatedAt: new Date().toISOString(),
+      });
+      try {
+        const notifRef = doc(db, 'admin_notifications', `target_rounds_request_${uid}`);
+        await deleteDoc(notifRef);
+      } catch (delErr) {
+        // ignore
+      }
+    } catch (e) {
+      // Offline fallback
+    }
+    await localStorageService.updateUser(uid, {
+      targetRoundsRequested: undefined,
+      targetRoundsRequestedAt: undefined,
+    });
+  },
+
+  /**
+   * Counsellor: Approve counselee's chanting target change request
+   */
+  approveTargetRoundsChange: async (uid: string, approvedRounds: number) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        declaredRounds: approvedRounds,
+        targetRoundsRequested: (null as any),
+        targetRoundsRequestedAt: (null as any),
+        updatedAt: new Date().toISOString(),
+      });
+      try {
+        const notifRef = doc(db, 'admin_notifications', `target_rounds_request_${uid}`);
+        await deleteDoc(notifRef);
+      } catch (delErr) {
+        // ignore
+      }
+    } catch (e) {
+      // Offline fallback
+    }
+    await localStorageService.updateUser(uid, {
+      declaredRounds: approvedRounds,
+      targetRoundsRequested: undefined,
+      targetRoundsRequestedAt: undefined,
+    });
+  },
+
+  /**
+   * Counsellor: Reject counselee's chanting target change request
+   */
+  rejectTargetRoundsChange: async (uid: string) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        targetRoundsRequested: (null as any),
+        targetRoundsRequestedAt: (null as any),
+        updatedAt: new Date().toISOString(),
+      });
+      try {
+        const notifRef = doc(db, 'admin_notifications', `target_rounds_request_${uid}`);
+        await deleteDoc(notifRef);
+      } catch (delErr) {
+        // ignore
+      }
+    } catch (e) {
+      // Offline fallback
+    }
+    await localStorageService.updateUser(uid, {
+      targetRoundsRequested: undefined,
+      targetRoundsRequestedAt: undefined,
+    });
   },
 
   /**

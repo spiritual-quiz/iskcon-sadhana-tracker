@@ -34,7 +34,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
       {!user ? (
         // Unauthenticated Flow
         <>

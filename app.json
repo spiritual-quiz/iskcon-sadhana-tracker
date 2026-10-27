@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1B4D3E"
+      "backgroundColor": "#FFA600"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,9 +19,10 @@
       "package": "org.iskcon.sadhanatracker",
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize",
+      "backgroundColor": "#FFA600",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1B4D3E"
+        "backgroundColor": "#FFA600"
       },
       "permissions": [
         "INTERNET",

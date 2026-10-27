@@ -34,7 +34,7 @@ import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
-  const { user, updateDeclaredRounds } = useAuth();
+  const { user, updateDeclaredRounds, requestDeclaredRoundsChange, cancelDeclaredRoundsRequest } = useAuth();
   const todayStr = getTodayDateStringIST();
 
   // Date selection states
@@ -243,12 +243,24 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       return;
     }
     try {
-      await updateDeclaredRounds(val);
-      setDeclaredRounds(String(val));
+      await requestDeclaredRoundsChange(val);
       setShowEditDeclaredModal(false);
-      Alert.alert('Commitment Updated', `Your registered daily chanting commitment is now set to ${val} rounds.`);
+      Alert.alert(
+        'Request Sent to Counsellor',
+        `Your request to update daily chanting target to ${val} rounds has been submitted. It will take effect once your counsellor approves.`
+      );
     } catch (e: any) {
-      Alert.alert('Update Failed', e.message || 'Could not update commitment.');
+      Alert.alert('Request Failed', e.message || 'Could not submit target change request.');
+    }
+  };
+
+  const handleCancelDeclaredTargetRequest = async () => {
+    try {
+      await cancelDeclaredRoundsRequest();
+      setShowEditDeclaredModal(false);
+      Alert.alert('Request Cancelled', 'Your pending target change request has been cancelled.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not cancel request.');
     }
   };
 
@@ -636,7 +648,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <TouchableOpacity
                 style={styles.editCommitmentBtn}
                 onPress={() => {
-                  setNewDeclaredTarget(String(numDeclared));
+                  setNewDeclaredTarget(user?.targetRoundsRequested ? String(user.targetRoundsRequested) : String(numDeclared));
                   setShowEditDeclaredModal(true);
                 }}
               >
@@ -644,6 +656,15 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 <Text style={styles.editCommitmentBtnText}>Edit</Text>
               </TouchableOpacity>
             </View>
+
+            {user?.targetRoundsRequested && (
+              <View style={styles.pendingTargetBanner}>
+                <Ionicons name="time-outline" size={15} color="#B45309" />
+                <Text style={styles.pendingTargetBannerText}>
+                  Requested change to <Text style={{ fontWeight: 'bold' }}>{user.targetRoundsRequested} Rounds</Text> (Awaiting Counsellor Approval)
+                </Text>
+              </View>
+            )}
 
             {/* ONLY Completed Rounds */}
             <View style={styles.completedSection}>
@@ -1542,8 +1563,17 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 </View>
 
                 <Text style={styles.modalDescription}>
-                  This is your daily commitment target set during registration. You can adjust your target commitment here:
+                  Target rounds can be modified after your counsellor approves your request. Select or enter your desired daily chanting target below:
                 </Text>
+
+                {user?.targetRoundsRequested && (
+                  <View style={styles.modalPendingNotice}>
+                    <Ionicons name="hourglass" size={15} color="#B45309" />
+                    <Text style={styles.modalPendingNoticeText}>
+                      Pending Request: {user.targetRoundsRequested} Rounds (Awaiting Counsellor Approval)
+                    </Text>
+                  </View>
+                )}
 
                 {/* Quick Target Chips */}
                 <View style={styles.targetChipsGrid}>
@@ -1610,9 +1640,21 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   style={styles.modalSaveButton}
                   onPress={handleSaveDeclaredTarget}
                 >
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.modalSaveButtonText}>Save New Target</Text>
+                  <Ionicons name="paper-plane" size={18} color="#FFFFFF" />
+                  <Text style={styles.modalSaveButtonText}>
+                    {user?.targetRoundsRequested ? 'Update Target Request' : 'Submit for Counsellor Approval'}
+                  </Text>
                 </TouchableOpacity>
+
+                {user?.targetRoundsRequested && (
+                  <TouchableOpacity
+                    style={styles.modalCancelRequestBtn}
+                    onPress={handleCancelDeclaredTargetRequest}
+                  >
+                    <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+                    <Text style={styles.modalCancelRequestBtnText}>Cancel Pending Request</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -2256,6 +2298,54 @@ const styles = StyleSheet.create({
   modalSaveButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  pendingTargetBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
+  pendingTargetBannerText: {
+    fontSize: 11,
+    color: '#92400E',
+    flex: 1,
+    lineHeight: 15,
+  },
+  modalPendingNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderLeftWidth: 3,
+    borderLeftColor: '#D97706',
+    padding: 9,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  modalPendingNoticeText: {
+    fontSize: 11,
+    color: '#92400E',
+    fontWeight: '600',
+    flex: 1,
+  },
+  modalCancelRequestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  modalCancelRequestBtnText: {
+    color: '#DC2626',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   onlineReadingDescription: {

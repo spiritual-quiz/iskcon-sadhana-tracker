@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -28,6 +30,10 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
 
   // Follow-up modal
   const [contactDevotee, setContactDevotee] = useState<UserProfile | null>(null);
+
+  // Direct edit target rounds modal
+  const [directEditDevotee, setDirectEditDevotee] = useState<UserProfile | null>(null);
+  const [directEditRounds, setDirectEditRounds] = useState<string>('16');
 
   useEffect(() => {
     loadCounselees();
@@ -114,6 +120,70 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleApproveTargetChange = async (user: UserProfile) => {
+    if (!user.targetRoundsRequested) return;
+    const requested = user.targetRoundsRequested;
+    Alert.alert(
+      'Approve Target Change?',
+      `Approve ${user.displayName}'s request to update daily chanting target to ${requested} rounds?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: async () => {
+            try {
+              await authService.approveTargetRoundsChange(user.uid, requested);
+              Alert.alert('Target Approved', `Chanting target for ${user.displayName} is now updated to ${requested} rounds.`);
+              loadCounselees();
+            } catch (err: any) {
+              Alert.alert('Error', err.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRejectTargetChange = async (user: UserProfile) => {
+    Alert.alert(
+      'Decline Target Change Request?',
+      `Decline ${user.displayName}'s request to change daily chanting target to ${user.targetRoundsRequested} rounds?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authService.rejectTargetRoundsChange(user.uid);
+              Alert.alert('Declined', `Target change request for ${user.displayName} has been declined.`);
+              loadCounselees();
+            } catch (err: any) {
+              Alert.alert('Error', err.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveDirectEditTarget = async () => {
+    if (!directEditDevotee) return;
+    const rounds = parseInt(directEditRounds, 10);
+    if (isNaN(rounds) || rounds <= 0) {
+      Alert.alert('Invalid Rounds', 'Please enter a valid round commitment (e.g. 16).');
+      return;
+    }
+    try {
+      await authService.approveTargetRoundsChange(directEditDevotee.uid, rounds);
+      setDirectEditDevotee(null);
+      Alert.alert('Target Updated', `Chanting target for ${directEditDevotee.displayName} set to ${rounds} rounds.`);
+      loadCounselees();
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    }
+  };
+
   const filtered = counselees.filter((c) => {
     const matchesSearch =
       c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,7 +268,18 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                       <Text style={styles.detailValue}>{devotee.phoneNumber || 'N/A'}</Text>
                     </View>
                     <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>Chanting Rounds</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={styles.detailLabel}>Chanting Rounds</Text>
+                        <TouchableOpacity
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                          onPress={() => {
+                            setDirectEditDevotee(devotee);
+                            setDirectEditRounds(String(devotee.declaredRounds || 16));
+                          }}
+                        >
+                          <Ionicons name="pencil" size={12} color={THEME.colors.goldDark} />
+                        </TouchableOpacity>
+                      </View>
                       <Text style={styles.detailValueBold}>{devotee.declaredRounds || 16} Rounds</Text>
                     </View>
                     <View style={styles.detailItem}>
@@ -240,6 +321,39 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                       </View>
                     )}
                   </View>
+
+                  {/* Target Rounds Change Request Card */}
+                  {devotee.targetRoundsRequested && (
+                    <View style={styles.targetChangeReqCard}>
+                      <View style={styles.targetChangeReqHeader}>
+                        <Ionicons name="ribbon-outline" size={16} color="#B45309" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.targetChangeReqTitle}>
+                            Target Change Request: <Text style={{ fontWeight: 'bold' }}>{devotee.targetRoundsRequested} Rounds</Text>
+                          </Text>
+                          <Text style={styles.targetChangeReqSub}>
+                            Current: {devotee.declaredRounds || 16} rounds • Awaiting your approval
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.targetReqActionsRow}>
+                        <TouchableOpacity
+                          style={styles.approveTargetBtn}
+                          onPress={() => handleApproveTargetChange(devotee)}
+                        >
+                          <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+                          <Text style={styles.approveTargetBtnText}>Approve {devotee.targetRoundsRequested}R</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.rejectTargetBtn}
+                          onPress={() => handleRejectTargetChange(devotee)}
+                        >
+                          <Ionicons name="close-circle-outline" size={14} color="#B91C1C" />
+                          <Text style={styles.rejectTargetBtnText}>Decline</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
 
                   <View style={styles.actionsRow}>
                     <TouchableOpacity
@@ -306,6 +420,74 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
           initialTemplate="encouragement"
         />
       )}
+
+      {/* Counsellor Direct Edit Chanting Target Modal */}
+      <Modal
+        visible={!!directEditDevotee}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDirectEditDevotee(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setDirectEditDevotee(null)}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback>
+              <View style={styles.editTargetModalCard}>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.modalTitleText}>Set Chanting Target</Text>
+                  <TouchableOpacity onPress={() => setDirectEditDevotee(null)}>
+                    <Ionicons name="close" size={22} color={THEME.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.modalSubtitleText}>
+                  Update daily round target for {directEditDevotee?.displayName}:
+                </Text>
+
+                <View style={styles.stepperContainer}>
+                  <TouchableOpacity
+                    style={styles.modalStepperBtn}
+                    onPress={() => {
+                      const cur = parseInt(directEditRounds, 10) || 16;
+                      if (cur > 1) setDirectEditRounds(String(cur - 1));
+                    }}
+                  >
+                    <Ionicons name="remove" size={18} color={THEME.colors.primary} />
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.modalStepperInput}
+                    keyboardType="numeric"
+                    value={directEditRounds}
+                    onChangeText={setDirectEditRounds}
+                  />
+                  <TouchableOpacity
+                    style={styles.modalStepperBtn}
+                    onPress={() => {
+                      const cur = parseInt(directEditRounds, 10) || 16;
+                      setDirectEditRounds(String(cur + 1));
+                    }}
+                  >
+                    <Ionicons name="add" size={18} color={THEME.colors.primary} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalBtnRow}>
+                  <TouchableOpacity
+                    style={styles.modalCancelBtn}
+                    onPress={() => setDirectEditDevotee(null)}
+                  >
+                    <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalSubmitBtn}
+                    onPress={handleSaveDirectEditTarget}
+                  >
+                    <Text style={styles.modalSubmitBtnText}>Save Target</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 };
@@ -559,5 +741,152 @@ const styles = StyleSheet.create({
   emptyText: {
     color: THEME.colors.textMuted,
     fontSize: THEME.typography.sizes.sm,
+  },
+  targetChangeReqCard: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: THEME.borderRadius.md,
+    padding: THEME.spacing.sm,
+    marginBottom: THEME.spacing.sm,
+  },
+  targetChangeReqHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  targetChangeReqTitle: {
+    fontSize: 12,
+    color: '#92400E',
+  },
+  targetChangeReqSub: {
+    fontSize: 10,
+    color: '#B45309',
+    marginTop: 1,
+  },
+  targetReqActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    justifyContent: 'flex-end',
+  },
+  approveTargetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#15803D',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  approveTargetBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  rejectTargetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  rejectTargetBtnText: {
+    color: '#B91C1C',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  editTargetModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 340,
+    ...THEME.shadows.medium,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitleText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+  },
+  modalSubtitleText: {
+    fontSize: 12,
+    color: THEME.colors.textMuted,
+    marginBottom: 16,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalStepperBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.colors.surfaceVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
+  modalStepperInput: {
+    width: 70,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: THEME.colors.primary,
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: THEME.colors.primaryDark,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    alignItems: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: THEME.colors.textMuted,
+  },
+  modalSubmitBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: THEME.colors.primary,
+    alignItems: 'center',
+  },
+  modalSubmitBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });

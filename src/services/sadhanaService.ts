@@ -221,6 +221,35 @@ export const sadhanaService = {
   },
 
   /**
+   * Admin: Get all counselees' entries within a date range (e.g. past 1 week)
+   */
+  getAllEntriesForDateRange: async (startDate: string, endDate: string): Promise<SadhanaEntry[]> => {
+    const localEntries = await localStorageService.getAllEntriesForDateRange(startDate, endDate);
+    if (localEntries && localEntries.length > 0) {
+      return localEntries;
+    }
+
+    try {
+      const q = query(
+        collection(db, 'sadhana_entries'),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate)
+      );
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+      ]);
+      if (!snap.empty) {
+        return snap.docs.map((d) => d.data() as SadhanaEntry);
+      }
+    } catch (e) {
+      // Permission denied or offline fallback
+    }
+
+    return localEntries || [];
+  },
+
+  /**
    * Admin: Get latest entry of a user to determine inactivity
    */
   getLatestEntryForUser: async (userId: string): Promise<SadhanaEntry | null> => {

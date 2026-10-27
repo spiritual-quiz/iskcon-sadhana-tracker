@@ -9,6 +9,8 @@ interface AuthContextType extends AuthState {
   signOut: () => Promise<void>;
   reloadUser: () => Promise<void>;
   updateDeclaredRounds: (newRounds: number) => Promise<void>;
+  requestDeclaredRoundsChange: (newRounds: number) => Promise<void>;
+  cancelDeclaredRoundsRequest: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -78,6 +80,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser((prev) => (prev ? { ...prev, declaredRounds: newRounds } : prev));
   };
 
+  const requestDeclaredRoundsChange = async (newRounds: number) => {
+    if (!user?.uid) return;
+    try {
+      await authService.requestTargetRoundsChange(user.uid, newRounds);
+    } catch (e) {
+      console.warn('Error requesting declared rounds change:', e);
+    }
+    setUser((prev) => (prev ? { ...prev, targetRoundsRequested: newRounds, targetRoundsRequestedAt: new Date().toISOString() } : prev));
+  };
+
+  const cancelDeclaredRoundsRequest = async () => {
+    if (!user?.uid) return;
+    try {
+      await authService.cancelTargetRoundsRequest(user.uid);
+    } catch (e) {
+      console.warn('Error cancelling declared rounds request:', e);
+    }
+    setUser((prev) => (prev ? { ...prev, targetRoundsRequested: undefined, targetRoundsRequestedAt: undefined } : prev));
+  };
+
   const isAdmin = user?.role === 'counsellor';
   const isApproved = user?.status === 'approved';
   const isPending = user?.status === 'pending';
@@ -98,6 +120,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signOut,
         reloadUser,
         updateDeclaredRounds,
+        requestDeclaredRoundsChange,
+        cancelDeclaredRoundsRequest,
       }}
     >
       {children}

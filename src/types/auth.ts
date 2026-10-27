@@ -12,6 +12,8 @@ export interface UserProfile {
   dateOfBirth?: string; // YYYY-MM-DD
   iskconConnectDate?: string; // YYYY-MM-DD
   declaredRounds: number; // default daily round commitment, e.g. 16
+  targetRoundsRequested?: number; // target round change requested by counselee, pending counsellor approval
+  targetRoundsRequestedAt?: string; // ISO string when requested
   invitationCode?: string;
   publicAppreciationConsent: boolean;
   sadhanaRemindersEnabled?: boolean; // defaults to true (6 PM & 9 PM daily reminders)

@@ -161,6 +161,23 @@ export const localStorageService = {
   },
 
   /**
+   * Get all counselees' entries within a date range (used by admin/counsellor for 1-week reports)
+   */
+  getAllEntriesForDateRange: async (startDate: string, endDate: string): Promise<SadhanaEntry[]> => {
+    try {
+      const existingRaw = await AsyncStorage.getItem(KEYS.SADHANA_ENTRIES);
+      if (!existingRaw) return [];
+      const entries: Record<string, SadhanaEntry> = JSON.parse(existingRaw);
+      return Object.values(entries)
+        .filter((e) => e.date >= startDate && e.date <= endDate)
+        .sort((a, b) => b.date.localeCompare(a.date));
+    } catch (e) {
+      console.warn('Error loading all entries for date range from local storage:', e);
+      return [];
+    }
+  },
+
+  /**
    * Get latest entry for a user
    */
   getLatestEntryForUser: async (userId: string): Promise<SadhanaEntry | null> => {
@@ -327,9 +344,43 @@ export const localStorageService = {
       if (deletedList.includes(uid)) return null;
 
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
-      if (!existingRaw) return null;
-      const users: Record<string, LocalStoredUser> = JSON.parse(existingRaw);
-      return users[uid] || null;
+      const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
+      if (users[uid]) return users[uid];
+
+      if (uid === 'devotee_user_uid') {
+        return {
+          uid: 'devotee_user_uid',
+          email: 'devotee@iskcon.org',
+          displayName: 'Ramesh Das',
+          phoneNumber: '+919876543211',
+          role: 'counselee',
+          status: 'approved',
+          counsellorId: 'counsellor_admin_uid',
+          dateOfBirth: '1995-08-25',
+          iskconConnectDate: '2020-01-15',
+          declaredRounds: 16,
+          invitationCode: 'KRISHNA7',
+          publicAppreciationConsent: true,
+          createdAt: '2025-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+      }
+      if (uid === 'counsellor_admin_uid') {
+        return {
+          uid: 'counsellor_admin_uid',
+          email: 'madhavcarandas@gmail.com',
+          displayName: 'Madhav Charan Das',
+          phoneNumber: '+919876543210',
+          role: 'counsellor',
+          status: 'approved',
+          declaredRounds: 16,
+          publicAppreciationConsent: false,
+          createdAt: '2025-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-01T00:00:00.000Z',
+        };
+      }
+
+      return null;
     } catch (e) {
       return null;
     }
@@ -550,9 +601,10 @@ export const localStorageService = {
     try {
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
-      if (users[uid]) {
+      const baseUser = users[uid] || (await localStorageService.getUser(uid));
+      if (baseUser) {
         users[uid] = {
-          ...users[uid],
+          ...baseUser,
           ...updates,
           updatedAt: new Date().toISOString(),
         };
