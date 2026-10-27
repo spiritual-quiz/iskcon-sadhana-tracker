@@ -23,6 +23,7 @@ import {
   formatDateToDevoteeFormat,
 } from '../../utils/dateUtils';
 import { validateInvitationCode } from '../../services/invitationService';
+import { otpService } from '../../services/otpService';
 import { DateSelectorModal } from '../../components/DateSelectorModal';
 
 export const RegisterScreen = ({ navigation }: any) => {
@@ -41,6 +42,18 @@ export const RegisterScreen = ({ navigation }: any) => {
   const [showPassword, setShowPassword] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [declaredRounds, setDeclaredRounds] = useState('16');
+
+  // Email OTP Verification
+  const [emailOtp, setEmailOtp] = useState('');
+  const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+
+  // WhatsApp OTP Verification
+  const [whatsappOtp, setWhatsappOtp] = useState('');
+  const [isSendingWhatsappOtp, setIsSendingWhatsappOtp] = useState(false);
+  const [whatsappOtpSent, setWhatsappOtpSent] = useState(false);
+  const [isWhatsappVerified, setIsWhatsappVerified] = useState(false);
 
   // Scrolling Date Picker States
   const [dateOfBirthDisplay, setDateOfBirthDisplay] = useState(''); // e.g. 10-May-1988
@@ -115,9 +128,75 @@ export const RegisterScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleSendEmailOtp = async () => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      Alert.alert('Email Required', 'Please enter a valid email address first.');
+      return;
+    }
+    setIsSendingEmailOtp(true);
+    try {
+      const res = await otpService.sendEmailOtp(cleanEmail);
+      setEmailOtpSent(true);
+      Alert.alert('Email Verification Code', res.message);
+    } catch (err: any) {
+      Alert.alert('Failed to Send OTP', err.message || 'Could not dispatch Email OTP.');
+    } finally {
+      setIsSendingEmailOtp(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = () => {
+    const res = otpService.verifyEmailOtp(email, emailOtp);
+    if (res.valid) {
+      setIsEmailVerified(true);
+      Alert.alert('Email Verified', 'Your email address has been successfully verified.');
+    } else {
+      Alert.alert('Verification Failed', res.message);
+    }
+  };
+
+  const handleSendWhatsappOtp = async () => {
+    const cleanPhone = phoneNumber.trim();
+    if (!cleanPhone || cleanPhone.length < 10) {
+      Alert.alert('WhatsApp Number Required', 'Please enter a valid WhatsApp mobile number with country code (e.g. +91 9876543210).');
+      return;
+    }
+    setIsSendingWhatsappOtp(true);
+    try {
+      const res = await otpService.sendWhatsappOtp(cleanPhone);
+      setWhatsappOtpSent(true);
+      Alert.alert('WhatsApp Verification Code', res.message);
+    } catch (err: any) {
+      Alert.alert('Failed to Send OTP', err.message || 'Could not dispatch WhatsApp OTP.');
+    } finally {
+      setIsSendingWhatsappOtp(false);
+    }
+  };
+
+  const handleVerifyWhatsappOtp = () => {
+    const res = otpService.verifyWhatsappOtp(phoneNumber, whatsappOtp);
+    if (res.valid) {
+      setIsWhatsappVerified(true);
+      Alert.alert('WhatsApp Verified', 'Your WhatsApp mobile number has been successfully verified.');
+    } else {
+      Alert.alert('Verification Failed', res.message);
+    }
+  };
+
   const handleRegister = async () => {
     if (!invitationCode.trim() || !displayName.trim() || !email.trim() || !password || !phoneNumber.trim()) {
-      Alert.alert('Required Fields', 'Please fill in all required fields (Invitation Code, Name, Email, Password, Phone).');
+      Alert.alert('Required Fields', 'Please fill in all required fields (Invitation Code, Name, Email, Password, WhatsApp Number).');
+      return;
+    }
+
+    if (!isEmailVerified) {
+      Alert.alert('Email Verification Required', 'Please verify your email address using the 6-digit OTP code before proceeding.');
+      return;
+    }
+
+    if (!isWhatsappVerified) {
+      Alert.alert('WhatsApp Verification Required', 'Please verify your WhatsApp mobile number using the 6-digit OTP code before proceeding.');
       return;
     }
 
@@ -240,16 +319,69 @@ export const RegisterScreen = ({ navigation }: any) => {
             style={styles.inputGroup}
             onLayout={(e) => handleFieldLayout('email', e.nativeEvent.layout.y)}
           >
-            <Text style={styles.inputLabel}>Email Address *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder=""
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => handleFieldFocus('email')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View style={styles.labelWithStatusRow}>
+              <Text style={styles.inputLabel}>Email Address *</Text>
+              {isEmailVerified && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#15803D" />
+                  <Text style={styles.verifiedBadgeText}>Verified</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.inputWithActionRow}>
+              <TextInput
+                style={[styles.textInput, { flex: 1 }, isEmailVerified && styles.inputLocked]}
+                placeholder=""
+                value={email}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  setIsEmailVerified(false);
+                  setEmailOtpSent(false);
+                }}
+                editable={!isEmailVerified}
+                onFocus={() => handleFieldFocus('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              {!isEmailVerified && (
+                <TouchableOpacity
+                  style={[styles.sendOtpBtn, isSendingEmailOtp && styles.sendOtpBtnDisabled]}
+                  onPress={handleSendEmailOtp}
+                  disabled={isSendingEmailOtp}
+                >
+                  {isSendingEmailOtp ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.sendOtpBtnText}>{emailOtpSent ? 'Resend' : 'Send OTP'}</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Email OTP Input Row */}
+            {emailOtpSent && !isEmailVerified && (
+              <View style={styles.otpVerifyContainer}>
+                <Text style={styles.otpSubLabel}>Enter 6-Digit Email OTP Code</Text>
+                <View style={styles.otpInputRow}>
+                  <TextInput
+                    style={[styles.textInput, styles.otpBoxInput]}
+                    placeholder="123456"
+                    value={emailOtp}
+                    onChangeText={setEmailOtp}
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
+                  <TouchableOpacity
+                    style={styles.verifyOtpBtn}
+                    onPress={handleVerifyEmailOtp}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={14} color="#FFFFFF" />
+                    <Text style={styles.verifyOtpBtnText}>Verify OTP</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Password */}
@@ -286,15 +418,68 @@ export const RegisterScreen = ({ navigation }: any) => {
             style={styles.inputGroup}
             onLayout={(e) => handleFieldLayout('phone', e.nativeEvent.layout.y)}
           >
-            <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder=""
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              onFocus={() => handleFieldFocus('phone')}
-              keyboardType="phone-pad"
-            />
+            <View style={styles.labelWithStatusRow}>
+              <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
+              {isWhatsappVerified && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#15803D" />
+                  <Text style={styles.verifiedBadgeText}>Verified</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.inputWithActionRow}>
+              <TextInput
+                style={[styles.textInput, { flex: 1 }, isWhatsappVerified && styles.inputLocked]}
+                placeholder=""
+                value={phoneNumber}
+                onChangeText={(val) => {
+                  setPhoneNumber(val);
+                  setIsWhatsappVerified(false);
+                  setWhatsappOtpSent(false);
+                }}
+                editable={!isWhatsappVerified}
+                onFocus={() => handleFieldFocus('phone')}
+                keyboardType="phone-pad"
+              />
+              {!isWhatsappVerified && (
+                <TouchableOpacity
+                  style={[styles.sendOtpBtn, isSendingWhatsappOtp && styles.sendOtpBtnDisabled]}
+                  onPress={handleSendWhatsappOtp}
+                  disabled={isSendingWhatsappOtp}
+                >
+                  {isSendingWhatsappOtp ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.sendOtpBtnText}>{whatsappOtpSent ? 'Resend' : 'Send OTP'}</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* WhatsApp OTP Input Row */}
+            {whatsappOtpSent && !isWhatsappVerified && (
+              <View style={styles.otpVerifyContainer}>
+                <Text style={styles.otpSubLabel}>Enter 6-Digit WhatsApp OTP Code</Text>
+                <View style={styles.otpInputRow}>
+                  <TextInput
+                    style={[styles.textInput, styles.otpBoxInput]}
+                    placeholder="123456"
+                    value={whatsappOtp}
+                    onChangeText={setWhatsappOtp}
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
+                  <TouchableOpacity
+                    style={styles.verifyOtpBtn}
+                    onPress={handleVerifyWhatsappOtp}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={14} color="#FFFFFF" />
+                    <Text style={styles.verifyOtpBtnText}>Verify OTP</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Daily Rounds */}
@@ -634,5 +819,96 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  labelWithStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  verifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  inputWithActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  inputLocked: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#86EFAC',
+    color: '#15803D',
+  },
+  sendOtpBtn: {
+    backgroundColor: THEME.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+  },
+  sendOtpBtnDisabled: {
+    opacity: 0.6,
+  },
+  sendOtpBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  otpVerifyContainer: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  otpSubLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: THEME.colors.textMuted,
+    marginBottom: 6,
+  },
+  otpInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  otpBoxInput: {
+    flex: 1,
+    letterSpacing: 3,
+    fontWeight: 'bold',
+    fontSize: 15,
+    backgroundColor: '#FFFFFF',
+    height: 42,
+  },
+  verifyOtpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#15803D',
+    paddingHorizontal: 14,
+    height: 42,
+    borderRadius: 8,
+    justifyContent: 'center',
+  },
+  verifyOtpBtnText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });

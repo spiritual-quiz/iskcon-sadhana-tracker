@@ -40,11 +40,18 @@ jest.mock('firebase/firestore', () => {
   };
 });
 
+jest.mock('expo-linking', () => ({
+  __esModule: true,
+  canOpenURL: jest.fn().mockResolvedValue(true),
+  openURL: jest.fn().mockResolvedValue(true),
+}));
+
 import { evaluateDailySadhana } from '../../utils/scoringEngine';
 import { getDaysDifference, getBirthdayInYear } from '../../utils/dateUtils';
 import { generateRandomCode } from '../invitationService';
 import { authService } from '../authService';
 import { localStorageService } from '../localStorageService';
+import { otpService } from '../otpService';
 
 describe('Service Logic and Integration Verification', () => {
   describe('Invitation Code Logic', () => {
@@ -233,6 +240,48 @@ describe('Service Logic and Integration Verification', () => {
       expect(deletedUser).toBeNull();
       const allCounseleesAfter = await authService.getAllCounselees();
       expect(allCounseleesAfter.find((u) => u.uid === 'test_devotee_uid_108')).toBeUndefined();
+    });
+  });
+
+  describe('OTP Verification Service', () => {
+    test('sends and verifies Email OTP successfully', async () => {
+      const email = 'devotee_test@iskcon.org';
+      const sendRes = await otpService.sendEmailOtp(email);
+      expect(sendRes.success).toBe(true);
+      expect(sendRes.otpCode).toBeDefined();
+      expect(sendRes.otpCode).toHaveLength(6);
+
+      // Verify wrong code fails
+      const failRes = otpService.verifyEmailOtp(email, '000000');
+      expect(failRes.valid).toBe(false);
+
+      // Verify correct code succeeds
+      const passRes = otpService.verifyEmailOtp(email, sendRes.otpCode!);
+      expect(passRes.valid).toBe(true);
+    });
+
+    test('rejects invalid email formats for OTP', async () => {
+      await expect(otpService.sendEmailOtp('invalid')).rejects.toThrow('valid email');
+    });
+
+    test('sends and verifies WhatsApp OTP successfully', async () => {
+      const phone = '+919876543210';
+      const sendRes = await otpService.sendWhatsappOtp(phone);
+      expect(sendRes.success).toBe(true);
+      expect(sendRes.otpCode).toBeDefined();
+      expect(sendRes.otpCode).toHaveLength(6);
+
+      // Verify wrong code fails
+      const failRes = otpService.verifyWhatsappOtp(phone, '111111');
+      expect(failRes.valid).toBe(false);
+
+      // Verify correct code succeeds
+      const passRes = otpService.verifyWhatsappOtp(phone, sendRes.otpCode!);
+      expect(passRes.valid).toBe(true);
+    });
+
+    test('rejects invalid phone number formats for WhatsApp OTP', async () => {
+      await expect(otpService.sendWhatsappOtp('123')).rejects.toThrow('valid WhatsApp mobile number');
     });
   });
 });
