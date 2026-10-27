@@ -65,19 +65,27 @@ export const reportService = {
     });
 
     const onlineReadingMarks = onlineReadingDaysAttended * 10;
+    const hasAnySubmitted = entries.length > 0;
 
     // Fetch weekly attendance
     const attendance = await attendanceService.getWeeklyAttendanceForUser(params.userId, weekId);
-    const classAttended = attendance.weeklyClass?.attended || false;
-    const morningAttended = attendance.morningProgramme?.attended || false;
+    const classAttended = hasAnySubmitted ? (attendance.weeklyClass?.attended || false) : false;
+    const morningAttended = hasAnySubmitted ? (attendance.morningProgramme?.attended || false) : false;
 
     // Calculate score out of 350 (280 daily + 10 class + 10 morning + 50 online reading)
-    const scoreCalc = calculateWeeklyScoreAndGrade({
-      dailyScores,
-      weeklyClassAttended: classAttended,
-      morningProgrammeAttended: morningAttended,
-      onlineReadingMarks,
-    });
+    const scoreCalc = hasAnySubmitted
+      ? calculateWeeklyScoreAndGrade({
+          dailyScores,
+          weeklyClassAttended: classAttended,
+          morningProgrammeAttended: morningAttended,
+          onlineReadingMarks,
+        })
+      : {
+          totalScore: 0,
+          maxAvailableMarks: 350,
+          percentage: 0,
+          grade: 'You Are Fallen' as const,
+        };
 
     const report: WeeklyReport = {
       userId: params.userId,
@@ -171,31 +179,57 @@ export const reportService = {
       }
     });
 
+    const hasAnySubmitted = entries.length > 0;
+
     // Monthly satsanga attendance (50 marks, dynamic attendance)
     const satsanga = await attendanceService.getMonthlySatsangaForUser(params.userId, monthId);
-    const satsangaAttended = satsanga?.attended || false;
-    const isConducted = satsanga ? (satsanga.conducted !== false && satsanga.status !== 'not_conducted') : true;
+    const satsangaAttended = hasAnySubmitted ? (satsanga?.attended || false) : false;
+    const isConducted = satsanga ? (satsanga.conducted !== false && satsanga.status !== 'not_conducted') : false;
     const satsangaStatus = satsanga?.status || (satsangaAttended ? 'attended' : (isConducted ? 'absent' : 'not_conducted'));
 
-    // Approximate 4 weekly cycles per month
-    const weeklyClassesScheduled = 4;
-    const weeklyClassesAttended = 3;
-    const morningProgrammesScheduled = 4;
-    const morningProgrammesAttended = 3;
+    // Dynamic weekly cycles per month based on calendar weeks
+    const weekIds = Array.from(new Set(dates.map((d) => getWeekDetails(d).weekId)));
+    const weeklyClassesScheduled = weekIds.length;
+    const morningProgrammesScheduled = weekIds.length;
 
-    const scoreCalc = calculateMonthlyScoreAndGrade({
-      dailyScores,
-      totalDaysInMonth: dates.length,
-      weeklyClassesScheduled,
-      weeklyClassesAttended,
-      morningProgrammesScheduled,
-      morningProgrammesAttended,
-      satsangaScheduled: isConducted,
-      satsangaAttended,
-    });
+    let weeklyClassesAttended = 0;
+    let morningProgrammesAttended = 0;
+
+    if (hasAnySubmitted) {
+      await Promise.all(
+        weekIds.map(async (wId) => {
+          const att = await attendanceService.getWeeklyAttendanceForUser(params.userId, wId);
+          if (att.weeklyClass?.attended) weeklyClassesAttended++;
+          if (att.morningProgramme?.attended) morningProgrammesAttended++;
+        })
+      );
+    }
+
+    const scoreCalc = hasAnySubmitted
+      ? calculateMonthlyScoreAndGrade({
+          dailyScores,
+          totalDaysInMonth: dates.length,
+          weeklyClassesScheduled,
+          weeklyClassesAttended,
+          morningProgrammesScheduled,
+          morningProgrammesAttended,
+          satsangaScheduled: isConducted,
+          satsangaAttended,
+        })
+      : {
+          totalScore: 0,
+          maxAvailableMarks:
+            dates.length * 50 +
+            weeklyClassesScheduled * 10 +
+            morningProgrammesScheduled * 10 +
+            (isConducted ? 50 : 0),
+          percentage: 0,
+          grade: 'You Are Fallen' as const,
+        };
 
     let consistencyRating: 'Consistent' | 'Improving' | 'Needs Encouragement' = 'Consistent';
-    if (scoreCalc.percentage >= 80) consistencyRating = 'Consistent';
+    if (!hasAnySubmitted) consistencyRating = 'Needs Encouragement';
+    else if (scoreCalc.percentage >= 80) consistencyRating = 'Consistent';
     else if (scoreCalc.percentage >= 60) consistencyRating = 'Improving';
     else consistencyRating = 'Needs Encouragement';
 

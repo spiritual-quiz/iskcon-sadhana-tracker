@@ -120,6 +120,15 @@ export const MyReportsScreen = () => {
                 }}
               />
 
+              {weeklyReport.missingReportDays === weeklyReport.dailyEntries.length && (
+                <View style={styles.noSubmissionsBanner}>
+                  <Ionicons name="information-circle" size={18} color="#D97706" />
+                  <Text style={styles.noSubmissionsBannerText}>
+                    No daily sadhana cards submitted for this week yet (Score: 0 / 0%).
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.summaryCard}>
                 <Text style={styles.cardHeaderTitle}>Weekly Overview</Text>
                 <View style={styles.metricRow}>
@@ -180,6 +189,15 @@ export const MyReportsScreen = () => {
                   satsangaMarks: monthlyReport.satsangaScheduled ? monthlyReport.satsangaMarks : undefined,
                 }}
               />
+
+              {monthlyReport.missingReportDays === monthlyReport.dailyEntries.length && (
+                <View style={styles.noSubmissionsBanner}>
+                  <Ionicons name="information-circle" size={18} color="#D97706" />
+                  <Text style={styles.noSubmissionsBannerText}>
+                    No daily sadhana cards submitted for this month yet (Score: 0 / 0%).
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.summaryCard}>
                 <Text style={styles.cardHeaderTitle}>Monthly Overview</Text>
@@ -408,5 +426,23 @@ const styles = StyleSheet.create({
   emptyText: {
     color: THEME.colors.textMuted,
     fontSize: THEME.typography.sizes.sm,
+  },
+  noSubmissionsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: THEME.borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: THEME.spacing.md,
+    gap: 8,
+  },
+  noSubmissionsBannerText: {
+    color: '#92400E',
+    fontSize: THEME.typography.sizes.xs,
+    fontWeight: '600',
+    flex: 1,
   },
 });

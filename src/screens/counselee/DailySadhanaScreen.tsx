@@ -20,6 +20,7 @@ import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 import { sadhanaService } from '../../services/sadhanaService';
 import { attendanceService } from '../../services/attendanceService';
+import { notificationService } from '../../services/notificationService';
 import { evaluateDailySadhana, calculateGrade } from '../../utils/scoringEngine';
 import {
   getTodayDateStringIST,
@@ -384,6 +385,10 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       });
 
       setExistingEntry(saved);
+      const todayStr = getTodayDateStringIST();
+      if (selectedDate === todayStr) {
+        await notificationService.cancelTodayReminders();
+      }
       if (isWeekday()) {
         setWeekReadingMap((prev) => ({
           ...prev,

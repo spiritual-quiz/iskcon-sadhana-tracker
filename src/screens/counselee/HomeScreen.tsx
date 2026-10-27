@@ -20,6 +20,7 @@ import { getTodayDateStringIST, getNowInIST } from '../../utils/dateUtils';
 import { SadhanaEntry } from '../../types/sadhana';
 import { WeeklyReport, MonthlyReport } from '../../types/report';
 import { reminderService } from '../../services/reminderService';
+import { notificationService } from '../../services/notificationService';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -66,6 +67,16 @@ export const HomeScreen = ({ navigation }: any) => {
       setTodayEntry(entry);
       setWeeklyReport(week);
       setMonthlyReport(month);
+
+      if (entry) {
+        // Today is already filled, ensure reminder notification does NOT come
+        await notificationService.cancelTodayReminders();
+      } else {
+        // Devotee has not filled today's card yet: check and schedule mobile notification with short chime
+        await notificationService.setupNotifications();
+        await notificationService.checkAndTriggerSadhanaReminder(user);
+        await notificationService.scheduleDailyReminders(user);
+      }
     } catch (e) {
       console.warn('Error loading home data:', e);
     } finally {

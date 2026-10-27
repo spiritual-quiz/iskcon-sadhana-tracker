@@ -40,6 +40,10 @@ jest.mock('firebase/firestore', () => {
   };
 });
 
+jest.mock('react-native', () => ({
+  Platform: { OS: 'android' },
+}));
+
 jest.mock('expo-linking', () => ({
   __esModule: true,
   canOpenURL: jest.fn().mockResolvedValue(true),
@@ -53,6 +57,8 @@ import { authService } from '../authService';
 import { localStorageService } from '../localStorageService';
 import { sadhanaService } from '../sadhanaService';
 import { otpService } from '../otpService';
+import { reportService } from '../reportService';
+import { notificationService } from '../notificationService';
 
 describe('Service Logic and Integration Verification', () => {
   describe('Invitation Code Logic', () => {
@@ -318,6 +324,46 @@ describe('Service Logic and Integration Verification', () => {
       const today = new Date().toISOString().split('T')[0];
       const range = await sadhanaService.getAllEntriesForDateRange('2026-01-01', today);
       expect(Array.isArray(range)).toBe(true);
+    });
+
+    test('weekly report returns 0 score and 0 percentage when devotee has not filled anything', async () => {
+      const emptyWeekly = await reportService.generateWeeklyReport({
+        userId: 'empty_user_uid',
+        counseleeName: 'Empty Devotee',
+        weekDateString: '2026-10-27',
+        publishSharedSummary: false,
+      });
+
+      expect(emptyWeekly.totalScore).toBe(0);
+      expect(emptyWeekly.percentage).toBe(0);
+      expect(emptyWeekly.dailySadhanaScore).toBe(0);
+      expect(emptyWeekly.weeklyClassMarks).toBe(0);
+      expect(emptyWeekly.morningProgrammeMarks).toBe(0);
+      expect(emptyWeekly.onlineReadingMarks).toBe(0);
+    });
+
+    test('monthly report returns 0 score and 0 percentage when devotee has not filled anything', async () => {
+      const emptyMonthly = await reportService.generateMonthlyReport({
+        userId: 'empty_user_uid',
+        counseleeName: 'Empty Devotee',
+        year: 2026,
+        month: 10,
+      });
+
+      expect(emptyMonthly.totalScore).toBe(0);
+      expect(emptyMonthly.percentage).toBe(0);
+      expect(emptyMonthly.dailySadhanaScore).toBe(0);
+      expect(emptyMonthly.weeklyClassesMarks).toBe(0);
+      expect(emptyMonthly.morningProgrammesMarks).toBe(0);
+      expect(emptyMonthly.satsangaMarks).toBe(0);
+      expect(emptyMonthly.consistencyRating).toBe('Needs Encouragement');
+    });
+
+    test('notificationService safely sets up channels and cancels reminders without error', async () => {
+      const setupResult = await notificationService.setupNotifications();
+      expect(typeof setupResult).toBe('boolean');
+
+      await expect(notificationService.cancelTodayReminders()).resolves.not.toThrow();
     });
   });
 });

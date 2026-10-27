@@ -56,7 +56,8 @@ export const AwaitingApprovalScreen = () => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+        <TouchableOpacity style={styles.signOutButton} onPress={signOut} activeOpacity={0.85}>
+          <Ionicons name="log-out-outline" size={18} color="#DC2626" />
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -141,11 +142,21 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   signOutButton: {
-    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: '#DC2626',
+    backgroundColor: '#FFF1F2',
+    marginTop: 8,
   },
   signOutText: {
-    color: THEME.colors.textMuted,
+    color: '#DC2626',
+    fontWeight: 'bold',
     fontSize: THEME.typography.sizes.sm,
-    textDecorationLine: 'underline',
+    marginLeft: 6,
   },
 });

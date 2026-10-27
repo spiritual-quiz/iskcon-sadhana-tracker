@@ -206,8 +206,8 @@ export const ProfileScreen = () => {
         </View>
 
         {/* Sign Out */}
-        <TouchableOpacity style={styles.signOutBtn} onPress={signOut}>
-          <Ionicons name="log-out-outline" size={20} color={THEME.colors.danger} />
+        <TouchableOpacity style={styles.signOutBtn} onPress={signOut} activeOpacity={0.85}>
+          <Ionicons name="log-out" size={20} color="#FFFFFF" />
           <Text style={styles.signOutBtnText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -380,15 +380,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: THEME.borderRadius.md,
-    backgroundColor: THEME.colors.dangerLight,
-    borderWidth: 1,
-    borderColor: '#FECDD3',
+    backgroundColor: '#DC2626',
+    elevation: 3,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    marginTop: THEME.spacing.md,
   },
   signOutBtnText: {
-    color: THEME.colors.danger,
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    fontSize: THEME.typography.sizes.sm,
-    marginLeft: 6,
+    fontSize: THEME.typography.sizes.base,
+    marginLeft: 8,
+    letterSpacing: 0.3,
   },
   fieldHint: {
     fontSize: 10,

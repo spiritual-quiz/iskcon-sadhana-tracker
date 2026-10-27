@@ -131,7 +131,7 @@ export const NotificationsScreen = () => {
             </View>
 
             <Text style={styles.remindersDesc}>
-              Daily notifications are sent automatically at 6:00 PM and 9:00 PM IST if today's sadhana card is not yet submitted.
+              Daily notifications are sent automatically to your mobile with a short chime tone ('ting') at 6:00 PM and 9:00 PM IST if today's sadhana card is not yet submitted. Once you submit today's card, no reminder will be sent.
             </Text>
 
             <View style={styles.remindersPolicyBox}>
