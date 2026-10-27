@@ -102,12 +102,12 @@ export const NotificationsScreen = () => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
-          {/* Daily Reminders Policy & Controls Card */}
+          {/* Sadhana Reminder Policy & Controls Card */}
           <View style={styles.remindersCard}>
             <View style={styles.remindersCardHeader}>
               <View style={styles.remindersHeaderLeft}>
                 <Ionicons name="alarm" size={22} color={THEME.colors.primary} />
-                <Text style={styles.remindersCardTitle}>Daily Sadhana Reminders</Text>
+                <Text style={styles.remindersCardTitle}>Sadhana Reminder</Text>
               </View>
               <View
                 style={[
@@ -424,9 +424,11 @@ const styles = StyleSheet.create({
     borderColor: '#FCD34D',
   },
   pendingRequestText: {
+    flex: 1,
     fontSize: 11,
     fontWeight: 'bold',
     color: '#B45309',
+    lineHeight: 16,
   },
   requestTurnOffBtn: {
     flexDirection: 'row',

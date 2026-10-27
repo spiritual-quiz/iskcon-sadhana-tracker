@@ -233,7 +233,10 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                     </View>
                     {devotee.reminderOptOutRequested && (
                       <View style={styles.optOutReqBadge}>
-                        <Text style={styles.optOutReqText}>⚠️ Student Requested Turn-Off</Text>
+                        <Ionicons name="warning-outline" size={14} color="#B45309" />
+                        <Text style={styles.optOutReqText}>
+                          Student Requested to Switch Off Reminders
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -435,12 +438,12 @@ const styles = StyleSheet.create({
     borderTopColor: THEME.colors.surfaceVariant,
   },
   remindersCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 6,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: THEME.borderRadius.sm,
     marginTop: 4,
     borderWidth: 1,
@@ -454,19 +457,25 @@ const styles = StyleSheet.create({
   remindersLabel: {
     fontSize: 11,
     color: THEME.colors.textMuted,
+    flexShrink: 1,
   },
   optOutReqBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#FCD34D',
   },
   optOutReqText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#B45309',
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   actionBtnReminderOff: {
     flexDirection: 'row',

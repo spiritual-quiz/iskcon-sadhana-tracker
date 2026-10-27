@@ -9,6 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Keyboard,
+  Platform,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -35,6 +39,22 @@ export const InvitationsScreen = ({ navigation }: any) => {
   const [expiryDays, setExpiryDays] = useState<string>('30');
   const [notes, setNotes] = useState<string>('Bhakti Vriksha Sanga');
   const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => setKeyboardHeight(e.endCoordinates.height)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     loadInvitations();
@@ -61,13 +81,32 @@ export const InvitationsScreen = ({ navigation }: any) => {
 
   const handleCreate = async () => {
     if (!user?.uid) return;
+
+    const trimmedName = notes.trim();
+    if (!trimmedName) {
+      Alert.alert('Missing Name', 'Please enter an invitation name or group purpose.');
+      return;
+    }
+
+    // Uniqueness validation check
+    const isDuplicate = invitations.some(
+      (inv) => !inv.isRevoked && (inv.notes || '').trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      Alert.alert(
+        'Duplicate Invitation Name',
+        `An active invitation named "${trimmedName}" already exists. Please choose a unique name.`
+      );
+      return;
+    }
+
     setIsCreating(true);
     try {
       const newInv = await createInvitationCode({
         adminUid: user.uid,
         maxUses: parseInt(maxUses, 10) || 50,
         expiryDays: parseInt(expiryDays, 10) || 30,
-        notes: notes.trim(),
+        notes: trimmedName,
       });
       setShowCreateModal(false);
       setSelectedInv(newInv);
@@ -271,57 +310,79 @@ export const InvitationsScreen = ({ navigation }: any) => {
       )}
 
       {/* Modal for Creating Invitation */}
-      <Modal visible={showCreateModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Generate Devotee Invitation</Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                <Ionicons name="close" size={24} color={THEME.colors.textMuted} />
-              </TouchableOpacity>
+      <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={() => setShowCreateModal(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlayInner}>
+              <TouchableWithoutFeedback>
+                <View
+                  style={[
+                    styles.modalContainer,
+                    { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 10 : 20 },
+                  ]}
+                >
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Generate Devotee Invitation</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowCreateModal(false)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={24} color={THEME.colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView
+                    style={styles.modalBody}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <Text style={styles.inputLabel}>Invitation Name / Group (Must be Unique)</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Youth Sanga / Sunday Feast"
+                      value={notes}
+                      onChangeText={setNotes}
+                      autoCapitalize="words"
+                    />
+
+                    <Text style={styles.inputLabel}>Maximum Uses</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="50"
+                      value={maxUses}
+                      onChangeText={setMaxUses}
+                      keyboardType="number-pad"
+                    />
+
+                    <Text style={styles.inputLabel}>Validity Duration (Days)</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="30"
+                      value={expiryDays}
+                      onChangeText={setExpiryDays}
+                      keyboardType="number-pad"
+                    />
+
+                    <TouchableOpacity
+                      style={styles.submitModalBtn}
+                      onPress={handleCreate}
+                      disabled={isCreating}
+                    >
+                      {isCreating ? (
+                        <ActivityIndicator color={THEME.colors.textInverse} />
+                      ) : (
+                        <Text style={styles.submitModalBtnText}>Generate Invitation & QR Code</Text>
+                      )}
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-
-            <ScrollView style={styles.modalBody}>
-              <Text style={styles.inputLabel}>Purpose / Group Note</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Youth Sanga / New Bhaktas"
-                value={notes}
-                onChangeText={setNotes}
-              />
-
-              <Text style={styles.inputLabel}>Maximum Uses</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="50"
-                value={maxUses}
-                onChangeText={setMaxUses}
-                keyboardType="number-pad"
-              />
-
-              <Text style={styles.inputLabel}>Validity Duration (Days)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="30"
-                value={expiryDays}
-                onChangeText={setExpiryDays}
-                keyboardType="number-pad"
-              />
-
-              <TouchableOpacity
-                style={styles.submitModalBtn}
-                onPress={handleCreate}
-                disabled={isCreating}
-              >
-                {isCreating ? (
-                  <ActivityIndicator color={THEME.colors.textInverse} />
-                ) : (
-                  <Text style={styles.submitModalBtnText}>Generate Invitation & QR Code</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -551,6 +612,9 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalOverlayInner: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   modalContainer: {

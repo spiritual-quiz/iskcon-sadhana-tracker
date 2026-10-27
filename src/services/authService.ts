@@ -257,7 +257,7 @@ export const authService = {
    */
   updatePermittedProfile: async (
     uid: string,
-    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'sadhanaRemindersEnabled'>>
+    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'reminderOptOutRequestedAt' | 'sadhanaRemindersEnabled'>>
   ) => {
     try {
       const userRef = doc(db, 'users', uid);
@@ -275,7 +275,27 @@ export const authService = {
    * Counselee: Request counsellor to turn off daily reminders
    */
   requestReminderTurnOff: async (uid: string) => {
-    await authService.updatePermittedProfile(uid, { reminderOptOutRequested: true });
+    const nowIso = new Date().toISOString();
+    await authService.updatePermittedProfile(uid, {
+      reminderOptOutRequested: true,
+      reminderOptOutRequestedAt: nowIso,
+    });
+    try {
+      const user = await authService.getUserProfile(uid);
+      const notifRef = doc(db, 'admin_notifications', `reminder_opt_out_${uid}`);
+      await setDoc(notifRef, {
+        id: `reminder_opt_out_${uid}`,
+        type: 'reminder_opt_out_request',
+        userId: uid,
+        userName: user?.displayName || 'Devotee',
+        userEmail: user?.email || '',
+        message: `${user?.displayName || 'Student'} requested to switch off daily sadhana reminders.`,
+        createdAt: nowIso,
+        status: 'open',
+      });
+    } catch (e) {
+      // Offline fallback
+    }
   },
 
   /**
@@ -289,6 +309,12 @@ export const authService = {
         reminderOptOutRequested: false,
         updatedAt: new Date().toISOString(),
       });
+      try {
+        const notifRef = doc(db, 'admin_notifications', `reminder_opt_out_${uid}`);
+        await deleteDoc(notifRef);
+      } catch (delErr) {
+        // ignore
+      }
     } catch (e) {
       // Gracefully fall back to local storage in offline/hybrid mode
     }

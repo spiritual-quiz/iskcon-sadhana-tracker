@@ -42,6 +42,17 @@ export async function createInvitationCode(params: {
   expiryDays?: number;
   notes?: string;
 }): Promise<InvitationCode> {
+  const cleanName = (params.notes || '').trim();
+  if (cleanName) {
+    const existing = await getAllInvitations();
+    const isDuplicate = existing.some(
+      (inv) => !inv.isRevoked && (inv.notes || '').trim().toLowerCase() === cleanName.toLowerCase()
+    );
+    if (isDuplicate) {
+      throw new Error(`An invitation with the name "${cleanName}" already exists. Please choose a unique name.`);
+    }
+  }
+
   const code = generateRandomCode(8);
   const now = new Date();
   const expiryDate = new Date(now);
@@ -56,7 +67,7 @@ export async function createInvitationCode(params: {
     usedCount: 0,
     isRevoked: false,
     usedByUids: [],
-    notes: params.notes || '',
+    notes: cleanName,
   };
 
   // Always save to local storage immediately

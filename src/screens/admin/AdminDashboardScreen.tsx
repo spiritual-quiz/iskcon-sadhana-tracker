@@ -31,6 +31,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
   const [approvedCount, setApprovedCount] = useState<number>(0);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [reminderRequestsCount, setReminderRequestsCount] = useState<number>(0);
   const [todaySubmissionsCount, setTodaySubmissionsCount] = useState<number>(0);
   const [missingAlertsCount, setMissingAlertsCount] = useState<number>(0);
   const [lowScoreCount, setLowScoreCount] = useState<number>(0);
@@ -52,8 +53,10 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
       const approved = allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved');
       const pending = allUsers.filter((u) => u.role === 'counselee' && u.status === 'pending');
+      const reminderReqs = allUsers.filter((u) => u.role === 'counselee' && u.reminderOptOutRequested === true);
       setApprovedCount(approved.length);
       setPendingCount(pending.length);
+      setReminderRequestsCount(reminderReqs.length);
 
       // 2. Today's submissions & low score count (<50%)
       const todayEntries = await sadhanaService.getAllEntriesForDate(todayStr);
@@ -103,7 +106,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       title: 'Manage Counselees',
       subtitle: `${approvedCount} active devotees`,
       icon: 'people-outline',
-      badge: null,
+      badge: reminderRequestsCount > 0 ? `${reminderRequestsCount} Req` : null,
+      badgeColor: THEME.colors.warning,
       color: THEME.colors.primary,
     },
     {
@@ -245,11 +249,18 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Alert Highlights Banner if any pending or missing */}
-          {(pendingCount > 0 || missingAlertsCount > 0) && (
+          {/* Alert Highlights Banner if any pending, missing, or reminder requests */}
+          {(pendingCount > 0 || missingAlertsCount > 0 || reminderRequestsCount > 0) && (
             <View style={styles.attentionBanner}>
               <Ionicons name="alert-circle" size={22} color={THEME.colors.warning} />
               <View style={styles.bannerText}>
+                {reminderRequestsCount > 0 && (
+                  <TouchableOpacity onPress={() => navigation.navigate('ManageCounselees')} activeOpacity={0.8}>
+                    <Text style={[styles.bannerItemText, { color: '#B45309' }]}>
+                      🔔 {reminderRequestsCount} student(s) requested to switch off sadhana reminders
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 {pendingCount > 0 && (
                   <Text style={styles.bannerItemText}>
                     • {pendingCount} new devotee registration(s) awaiting approval

@@ -53,9 +53,9 @@ export const SettingsScreen = () => {
           </View>
         </View>
 
-        {/* Daily Reminders */}
+        {/* Sadhana Reminder */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Daily Sadhana Reminders</Text>
+          <Text style={styles.cardTitle}>Sadhana Reminder</Text>
 
           <View style={styles.row}>
             <Text style={styles.label}>Reminder Schedule:</Text>

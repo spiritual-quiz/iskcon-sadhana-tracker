@@ -52,20 +52,18 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     user?.declaredRounds ? String(user.declaredRounds) : '16'
   );
 
-  // Form states
+  // Form states - initialize fresh entries with empty/0 values so all marks start at 0
   const [declaredRounds, setDeclaredRounds] = useState<string>(
     user?.declaredRounds ? String(user.declaredRounds) : '16'
   );
-  const [completedRounds, setCompletedRounds] = useState<string>(
-    user?.declaredRounds ? String(user.declaredRounds) : '16'
-  );
-  const [completionTime, setCompletionTime] = useState<string>('07:30');
+  const [completedRounds, setCompletedRounds] = useState<string>('');
+  const [completionTime, setCompletionTime] = useState<string>('');
 
-  const [readingMinutes, setReadingMinutes] = useState<string>('30');
-  const [hearingMinutes, setHearingMinutes] = useState<string>('30');
+  const [readingMinutes, setReadingMinutes] = useState<string>('');
+  const [hearingMinutes, setHearingMinutes] = useState<string>('');
 
-  const [sleepTime, setSleepTime] = useState<string>('21:30');
-  const [wakeUpTime, setWakeUpTime] = useState<string>('04:00');
+  const [sleepTime, setSleepTime] = useState<string>('');
+  const [wakeUpTime, setWakeUpTime] = useState<string>('');
   const [restMinutes, setRestMinutes] = useState<string>('0');
 
   // E. Online Reading Session (Monday to Friday, 10 Marks)
@@ -126,24 +124,24 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       if (entry) {
         setDeclaredRounds(String(entry.declaredRounds));
         setCompletedRounds(String(entry.completedRounds));
-        setCompletionTime(entry.completionTimeStr || '07:30');
+        setCompletionTime(entry.completionTimeStr || '');
         setReadingMinutes(String(entry.readingMinutes));
         setHearingMinutes(String(entry.hearingMinutes));
-        setSleepTime(entry.sleepTimeStr || '21:30');
-        setWakeUpTime(entry.wakeUpTimeStr || '04:00');
+        setSleepTime(entry.sleepTimeStr || '');
+        setWakeUpTime(entry.wakeUpTimeStr || '');
         setRestMinutes(String(entry.restMinutes || 0));
         setOnlineReadingAttended(entry.onlineReadingAttended ?? false);
         setServiceAttended(entry.serviceAttended ?? false);
         setMonthlyMeetingAttended(entry.monthlyMeetingAttended ?? false);
       } else {
-        // Reset defaults for fresh entry
+        // Reset defaults for fresh entry - all entry marks start at 0
         setDeclaredRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
-        setCompletedRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
-        setCompletionTime('07:30');
-        setReadingMinutes('30');
-        setHearingMinutes('30');
-        setSleepTime('21:30');
-        setWakeUpTime('04:00');
+        setCompletedRounds('');
+        setCompletionTime('');
+        setReadingMinutes('');
+        setHearingMinutes('');
+        setSleepTime('');
+        setWakeUpTime('');
         setRestMinutes('0');
         setOnlineReadingAttended(false);
         setServiceAttended(false);
@@ -292,10 +290,10 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   // Format 24-hr time to friendly 12-hr for display
   const formatFriendlyTime = (t24: string) => {
-    if (!t24 || !t24.includes(':')) return t24;
+    if (!t24 || !t24.includes(':')) return t24 || 'Not Set';
     const [hStr, mStr] = t24.split(':');
     let h = parseInt(hStr, 10);
-    const m = mStr.padStart(2, '0');
+    const m = (mStr || '00').padStart(2, '0');
     const period = h >= 12 ? 'PM' : 'AM';
     let h12 = h % 12;
     if (h12 === 0) h12 = 12;
@@ -666,7 +664,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   keyboardType="numeric"
                   value={completedRounds}
                   onChangeText={setCompletedRounds}
-                  placeholder="16"
+                  placeholder="0"
+                  placeholderTextColor={THEME.colors.textMuted}
                   selectTextOnFocus
                 />
 
@@ -715,7 +714,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               >
                 <Ionicons name="time" size={18} color={THEME.colors.primary} />
                 <Text style={styles.timePickerButtonText}>
-                  {formatFriendlyTime(completionTime)} ({completionTime})
+                  {completionTime
+                    ? `${formatFriendlyTime(completionTime)} (${completionTime})`
+                    : 'Select Completion Time'}
                 </Text>
                 <View style={styles.changeTimeBadge}>
                   <Text style={styles.changeTimeBadgeText}>Select</Text>
@@ -725,7 +726,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.directTimeInputWrapper}>
                 <TextInput
                   style={styles.directTimeInput}
-                  placeholder="07:30"
+                  placeholder="HH:MM"
                   placeholderTextColor="#9CA3AF"
                   value={completionTime}
                   onChangeText={(val) => setCompletionTime(val)}
@@ -800,7 +801,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 keyboardType="numeric"
                 value={readingMinutes}
                 onChangeText={setReadingMinutes}
-                placeholder="30"
+                placeholder="0"
+                placeholderTextColor={THEME.colors.textMuted}
               />
               {/* Quick duration chips */}
               <View style={styles.quickDurationRow}>
@@ -846,7 +848,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 keyboardType="numeric"
                 value={hearingMinutes}
                 onChangeText={setHearingMinutes}
-                placeholder="30"
+                placeholder="0"
+                placeholderTextColor={THEME.colors.textMuted}
               />
               <View style={styles.quickDurationRow}>
                 {['15', '30', '45', '60'].map((mins) => (
@@ -894,7 +897,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 >
                   <Ionicons name="moon" size={14} color={THEME.colors.primary} />
                   <Text style={styles.timePickerButtonTextCompact}>
-                    {formatFriendlyTime(sleepTime)}
+                    {sleepTime ? formatFriendlyTime(sleepTime) : 'Select Bedtime'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -908,7 +911,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 >
                   <Ionicons name="sunny" size={14} color={THEME.colors.goldDark} />
                   <Text style={styles.timePickerButtonTextCompact}>
-                    {formatFriendlyTime(wakeUpTime)}
+                    {wakeUpTime ? formatFriendlyTime(wakeUpTime) : 'Select Wake Time'}
                   </Text>
                 </TouchableOpacity>
               </View>

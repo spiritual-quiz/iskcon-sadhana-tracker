@@ -16,6 +16,7 @@ export interface UserProfile {
   publicAppreciationConsent: boolean;
   sadhanaRemindersEnabled?: boolean; // defaults to true (6 PM & 9 PM daily reminders)
   reminderOptOutRequested?: boolean; // student requested counsellor to turn off
+  reminderOptOutRequestedAt?: string; // ISO string when requested
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 }
