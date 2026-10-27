@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { Header } from '../../components/Header';
@@ -24,6 +25,7 @@ import { reportService } from '../../services/reportService';
 import { localStorageService } from '../../services/localStorageService';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const todayStr = getTodayDateStringIST();
 
@@ -210,7 +212,10 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom, 24) + 40 },
+          ]}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
           {/* Executive Metrics Overview Strip */}
@@ -304,15 +309,14 @@ const styles = StyleSheet.create({
     color: THEME.colors.textMuted,
   },
   scrollContent: {
-    padding: THEME.spacing.base,
-    paddingBottom: THEME.spacing.xxl,
+    padding: 12,
   },
   metricsStrip: {
     flexDirection: 'row',
     backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    paddingVertical: THEME.spacing.md,
-    marginBottom: THEME.spacing.base,
+    borderRadius: THEME.borderRadius.md,
+    paddingVertical: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
@@ -328,12 +332,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   metricValue: {
-    fontSize: THEME.typography.sizes.xl,
+    fontSize: 18,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
   },
   metricLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: THEME.colors.textMuted,
     marginTop: 2,
     textTransform: 'uppercase',
@@ -349,8 +353,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: THEME.colors.warningLight,
     borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.md,
-    marginBottom: THEME.spacing.base,
+    padding: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
@@ -359,16 +363,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bannerItemText: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 11,
     color: THEME.colors.text,
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   sectionsTitle: {
-    fontSize: THEME.typography.sizes.base,
+    fontSize: 14,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
-    marginBottom: THEME.spacing.sm,
+    marginBottom: 8,
   },
   grid: {
     flexDirection: 'row',
@@ -378,9 +382,9 @@ const styles = StyleSheet.create({
   card: {
     width: '48.5%',
     backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.base,
-    marginBottom: THEME.spacing.md,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
@@ -389,22 +393,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: THEME.spacing.sm,
+    marginBottom: 6,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     color: THEME.colors.textInverse,
   },

@@ -13,6 +13,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { Header } from '../../components/Header';
@@ -32,6 +33,7 @@ import { TimeSelectorModal } from '../../components/TimeSelectorModal';
 import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { user, updateDeclaredRounds } = useAuth();
   const todayStr = getTodayDateStringIST();
 
@@ -563,7 +565,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : 28 },
+            { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 90 : Math.max(insets.bottom, 24) + 90 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -703,25 +705,78 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
 
-            {/* Completion Time Button */}
-            <Text style={styles.inputLabel}>Completion Time</Text>
-            <TouchableOpacity
-              style={styles.timePickerButton}
-              onPress={() => setTimePickerTarget('japa')}
-            >
-              <Ionicons name="time" size={18} color={THEME.colors.primary} />
-              <Text style={styles.timePickerButtonText}>
-                {formatFriendlyTime(completionTime)} ({completionTime})
-              </Text>
-              <View style={styles.changeTimeBadge}>
-                <Text style={styles.changeTimeBadgeText}>Select</Text>
+            {/* Completion Time Button, Direct Entry & Quick Presets */}
+            <Text style={styles.inputLabel}>Completion Time (Select or Enter Custom Time)</Text>
+            <View style={styles.customTimeRow}>
+              <TouchableOpacity
+                style={styles.timePickerButtonFlex}
+                onPress={() => setTimePickerTarget('japa')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="time" size={18} color={THEME.colors.primary} />
+                <Text style={styles.timePickerButtonText}>
+                  {formatFriendlyTime(completionTime)} ({completionTime})
+                </Text>
+                <View style={styles.changeTimeBadge}>
+                  <Text style={styles.changeTimeBadgeText}>Select</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.directTimeInputWrapper}>
+                <TextInput
+                  style={styles.directTimeInput}
+                  placeholder="07:30"
+                  placeholderTextColor="#9CA3AF"
+                  value={completionTime}
+                  onChangeText={(val) => setCompletionTime(val)}
+                  maxLength={5}
+                />
               </View>
-            </TouchableOpacity>
+            </View>
+
+            {/* Quick Japa Presets */}
+            <View style={styles.quickPresetsScrollContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickPresetsList}
+              >
+                {[
+                  { label: '5:30 AM (10M)', time: '05:30' },
+                  { label: '6:30 AM (10M)', time: '06:30' },
+                  { label: '7:00 AM (10M)', time: '07:00' },
+                  { label: '7:30 AM (10M)', time: '07:30' },
+                  { label: '8:30 AM (5M)', time: '08:30' },
+                  { label: '9:30 AM (5M)', time: '09:30' },
+                  { label: '10:00 AM (5M)', time: '10:00' },
+                  { label: '12:00 PM (3M)', time: '12:00' },
+                  { label: '1:00 PM (1M)', time: '13:00' },
+                ].map((qp) => {
+                  const isSelected = completionTime === qp.time;
+                  return (
+                    <TouchableOpacity
+                      key={qp.time}
+                      style={[styles.quickPresetChip, isSelected && styles.quickPresetChipActive]}
+                      onPress={() => setCompletionTime(qp.time)}
+                    >
+                      <Text
+                        style={[
+                          styles.quickPresetChipText,
+                          isSelected && styles.quickPresetChipTextActive,
+                        ]}
+                      >
+                        {qp.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
             <View style={styles.highlightBadge}>
               <Ionicons name="time-outline" size={15} color="#B45309" />
               <Text style={styles.highlightBadgeText}>
-                Before 7:31 AM: 10 marks • 7:31 AM to 10:00 AM: 5 marks • 10:00 AM to 1:00 PM: 3 marks • After 1:00 PM: 1 mark
+                ≤ 7:30 AM: 10 marks • 7:31 AM to 10:00 AM: 5 marks • 10:01 AM to 1:00 PM: 3 marks • 1:01 PM to 7:00 PM: 1 mark • After 7:00 PM: 0 marks
               </Text>
             </View>
           </View>
@@ -1793,6 +1848,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 9,
     marginBottom: 4,
+  },
+  customTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  timePickerButtonFlex: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  directTimeInputWrapper: {
+    width: 75,
+  },
+  directTimeInput: {
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: THEME.colors.primary,
+    borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: THEME.colors.text,
+  },
+  quickPresetsScrollContainer: {
+    marginBottom: 6,
+  },
+  quickPresetsList: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  quickPresetChip: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  quickPresetChipActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primaryDark,
+  },
+  quickPresetChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  quickPresetChipTextActive: {
+    color: '#FFFFFF',
   },
   timePickerButtonText: {
     flex: 1,

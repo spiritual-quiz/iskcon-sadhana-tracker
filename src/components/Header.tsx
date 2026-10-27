@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 
@@ -21,11 +22,18 @@ export const Header: React.FC<HeaderProps> = ({
   onBackPress,
   rightAction,
 }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, 8);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: topInset + 4 }]}>
       <View style={styles.topRow}>
         {showBack ? (
-          <TouchableOpacity onPress={onBackPress} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={onBackPress}
+            style={styles.iconButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Ionicons name="arrow-back" size={22} color="#261200" />
           </TouchableOpacity>
         ) : (
@@ -50,7 +58,11 @@ export const Header: React.FC<HeaderProps> = ({
         </View>
 
         {rightAction ? (
-          <TouchableOpacity onPress={rightAction.onPress} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={rightAction.onPress}
+            style={styles.iconButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Ionicons name={rightAction.iconName} size={20} color="#261200" />
           </TouchableOpacity>
         ) : (
@@ -65,8 +77,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFA600',
     paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingBottom: 8,
     borderBottomWidth: 1.5,
     borderBottomColor: '#E08500',
   },
@@ -76,16 +87,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   logoContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#D4AF37',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   logoImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
   },
   titleContainer: {
     flex: 1,
@@ -94,13 +108,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#261200',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     letterSpacing: 0.3,
   },
   subtitle: {
     color: '#5C2D00',
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
     fontWeight: '600',
     letterSpacing: 0.2,

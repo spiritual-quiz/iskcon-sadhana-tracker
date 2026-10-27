@@ -21,34 +21,40 @@ import {
 
 describe('Scoring Engine Unit Tests', () => {
   describe('Japa Chanting Marks & Exact Boundary Conditions', () => {
-    test('completed before 7:30 AM awards 10 marks', () => {
+    test('completed on or before 7:30 AM awards 10 marks', () => {
       const res1 = calculateJapaMarks(16, 16, '05:45');
       expect(res1.marks).toBe(10);
       expect(res1.isHonored).toBe(true);
 
       const res2 = calculateJapaMarks(16, 16, '07:29');
       expect(res2.marks).toBe(10);
+
+      const res3 = calculateJapaMarks(16, 16, '07:30');
+      expect(res3.marks).toBe(10);
+      expect(res3.isHonored).toBe(true);
     });
 
-    test('completed at exactly 7:30 AM awards 5 marks', () => {
-      const res = calculateJapaMarks(16, 16, '07:30');
-      expect(res.marks).toBe(5);
-      expect(res.isHonored).toBe(true);
+    test('completed between 7:31 AM and 10:00 AM awards 5 marks', () => {
+      const res1 = calculateJapaMarks(16, 16, '07:31');
+      expect(res1.marks).toBe(5);
+      expect(res1.isHonored).toBe(true);
+
+      const res2 = calculateJapaMarks(16, 16, '09:15');
+      expect(res2.marks).toBe(5);
+
+      const res3 = calculateJapaMarks(16, 16, '10:00');
+      expect(res3.marks).toBe(5);
     });
 
-    test('completed between 7:30 AM and before 9:30 AM awards 5 marks', () => {
-      const res = calculateJapaMarks(16, 16, '09:15');
-      expect(res.marks).toBe(5);
-    });
+    test('completed between 10:01 AM and before 1:00 PM awards 3 marks', () => {
+      const res1 = calculateJapaMarks(16, 16, '10:01');
+      expect(res1.marks).toBe(3);
 
-    test('completed at exactly 9:30 AM awards 3 marks', () => {
-      const res = calculateJapaMarks(16, 16, '09:30');
-      expect(res.marks).toBe(3);
-    });
+      const res2 = calculateJapaMarks(16, 16, '12:45');
+      expect(res2.marks).toBe(3);
 
-    test('completed between 9:30 AM and before 1:00 PM awards 3 marks', () => {
-      const res = calculateJapaMarks(16, 16, '12:45');
-      expect(res.marks).toBe(3);
+      const res3 = calculateJapaMarks(16, 16, '12:59');
+      expect(res3.marks).toBe(3);
     });
 
     test('completed at 1:00 PM (13:00) to 7:00 PM (19:00) awards 1 mark', () => {

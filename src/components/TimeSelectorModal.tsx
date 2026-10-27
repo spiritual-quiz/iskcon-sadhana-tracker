@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   TouchableWithoutFeedback,
+  TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 
@@ -36,9 +38,11 @@ export const TimeSelectorModal: React.FC<TimeSelectorModalProps> = ({
   onSelectTime,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
   const [selectedHour, setSelectedHour] = useState<string>('06');
   const [selectedMinute, setSelectedMinute] = useState<string>('30');
   const [selectedPeriod, setSelectedPeriod] = useState<'AM' | 'PM'>('AM');
+  const [customInputTime, setCustomInputTime] = useState<string>('');
 
   // Parse 24-hour initialTime on open
   useEffect(() => {
@@ -52,17 +56,32 @@ export const TimeSelectorModal: React.FC<TimeSelectorModalProps> = ({
       if (h12 === 0) h12 = 12;
 
       setSelectedHour(String(h12).padStart(2, '0'));
-      // Match closest 5-minute interval
       const roundedM = Math.round(m / 5) * 5;
       const finalM = roundedM >= 60 ? 55 : roundedM;
       setSelectedMinute(String(finalM).padStart(2, '0'));
       setSelectedPeriod(period);
+      setCustomInputTime(initialTime);
     }
   }, [initialTime, visible]);
 
   const handleApplyPreset = (presetTime: string) => {
     onSelectTime(presetTime);
     onClose();
+  };
+
+  const handleApplyCustomDirect = () => {
+    if (customInputTime && customInputTime.includes(':')) {
+      const parts = customInputTime.split(':');
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        onSelectTime(formatted);
+        onClose();
+        return;
+      }
+    }
+    handleConfirm();
   };
 
   const handleConfirm = () => {
@@ -80,14 +99,14 @@ export const TimeSelectorModal: React.FC<TimeSelectorModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.backdrop}>
           <TouchableWithoutFeedback>
-            <View style={styles.sheetContainer}>
+            <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
               {/* Header */}
               <View style={styles.sheetHeader}>
                 <View style={styles.titleRow}>
                   <Ionicons name="time-outline" size={20} color={THEME.colors.gold} />
                   <Text style={styles.sheetTitle}>{title}</Text>
                 </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <Ionicons name="close" size={22} color={THEME.colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -98,6 +117,25 @@ export const TimeSelectorModal: React.FC<TimeSelectorModalProps> = ({
                 <Text style={styles.displayTime}>
                   {selectedHour}:{selectedMinute} {selectedPeriod}
                 </Text>
+              </View>
+
+              {/* Direct Custom Typing Option */}
+              <View style={styles.customDirectRow}>
+                <Text style={styles.customDirectLabel}>Custom Exact Time (HH:MM):</Text>
+                <View style={styles.customInputBox}>
+                  <TextInput
+                    style={styles.customTextInput}
+                    placeholder="e.g. 07:15"
+                    placeholderTextColor="#9CA3AF"
+                    value={customInputTime}
+                    onChangeText={setCustomInputTime}
+                    keyboardType="numbers-and-punctuation"
+                    maxLength={5}
+                  />
+                  <TouchableOpacity style={styles.customApplyBtn} onPress={handleApplyCustomDirect}>
+                    <Text style={styles.customApplyBtnText}>Apply</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Quick Preset Chips */}
@@ -269,6 +307,50 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: THEME.colors.primary,
     marginTop: 2,
+  },
+  customDirectRow: {
+    marginBottom: 10,
+    backgroundColor: '#FFFBEB',
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  customDirectLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  customInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  customTextInput: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1C1917',
+  },
+  customApplyBtn: {
+    backgroundColor: THEME.colors.primary,
+    paddingHorizontal: 14,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customApplyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   presetSection: {
     marginBottom: 12,

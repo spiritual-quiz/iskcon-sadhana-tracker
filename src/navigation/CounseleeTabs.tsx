@@ -1,6 +1,8 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 
@@ -28,23 +30,35 @@ function HomeStack() {
 }
 
 export const CounseleeTabs = () => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
+  const tabHeight = 56 + Math.max(bottomInset, 8);
+  const paddingBottom = Math.max(bottomInset, 8);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: '#261200',
         tabBarInactiveTintColor: '#78350F',
         tabBarStyle: {
           backgroundColor: '#FFA600',
           borderTopColor: '#E08500',
           borderTopWidth: 1.5,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
+          height: tabHeight,
+          paddingBottom: paddingBottom,
+          paddingTop: 5,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: 'bold',
+          marginTop: -2,
         },
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'ellipse';

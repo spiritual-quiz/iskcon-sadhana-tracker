@@ -37,10 +37,10 @@ export interface CalculatedSadhanaScore {
  * Calculates Japa marks strictly adhering to the prompt rules:
  * - Completed rounds must reach or exceed declared commitment (otherwise 0 marks).
  * - Time brackets (Asia/Kolkata):
- *   - Completed before 7:30 AM: 10 marks
- *   - Exactly 7:30 AM to before 9:30 AM: 5 marks
- *   - Exactly 9:30 AM to before 1:00 PM: 3 marks
- *   - Exactly 1:00 PM to 7:00 PM: 1 mark
+ *   - Completed on or before 7:30 AM (<= 07:30): 10 marks
+ *   - 7:31 AM to 10:00 AM: 5 marks
+ *   - 10:01 AM to 1:00 PM: 3 marks
+ *   - 1:01 PM to 7:00 PM: 1 mark
  *   - After 7:00 PM: 0 marks
  */
 export function calculateJapaMarks(
@@ -71,19 +71,19 @@ export function calculateJapaMarks(
 
   const totalMinutes = hours * 60 + minutes;
 
-  // Before 7:30 AM: 7 * 60 + 30 = 450 minutes -> 10 marks
-  if (totalMinutes < 450) {
-    return { marks: 10, isHonored: true, reason: 'Completed before 7:30 AM (10 marks)' };
+  // On or before 7:30 AM (<= 7:30): 7 * 60 + 30 = 450 minutes -> 10 marks
+  if (totalMinutes <= 450) {
+    return { marks: 10, isHonored: true, reason: 'Completed on or before 7:30 AM (10 marks)' };
   }
 
-  // 7:30 AM to before 9:30 AM: 9 * 60 + 30 = 570 minutes -> 5 marks
-  if (totalMinutes < 570) {
-    return { marks: 5, isHonored: true, reason: 'Completed between 7:30 AM and 9:30 AM (5 marks)' };
+  // 7:31 AM to 10:00 AM: 10 * 60 = 600 minutes -> 5 marks
+  if (totalMinutes <= 600) {
+    return { marks: 5, isHonored: true, reason: 'Completed between 7:31 AM and 10:00 AM (5 marks)' };
   }
 
-  // 9:30 AM to before 1:00 PM: 13 * 60 = 780 minutes -> 3 marks
+  // 10:01 AM to before 1:00 PM: 13 * 60 = 780 minutes -> 3 marks
   if (totalMinutes < 780) {
-    return { marks: 3, isHonored: true, reason: 'Completed between 9:30 AM and 1:00 PM (3 marks)' };
+    return { marks: 3, isHonored: true, reason: 'Completed between 10:01 AM and before 1:00 PM (3 marks)' };
   }
 
   // 1:00 PM to 7:00 PM: 19 * 60 = 1140 minutes -> 1 mark

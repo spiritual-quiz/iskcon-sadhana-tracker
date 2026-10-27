@@ -15,12 +15,14 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 
 export const LoginScreen = ({ navigation }: any) => {
+  const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -106,13 +108,16 @@ export const LoginScreen = ({ navigation }: any) => {
         ref={scrollViewRef}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 40 : 32 },
+          {
+            paddingTop: Math.max(insets.top, 16) + 12,
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 40 : Math.max(insets.bottom, 20) + 24,
+          },
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
-        {/* Branding Header with Official Logo */}
+        {/* Branding Header with Round Official Logo */}
         <View style={styles.brandContainer}>
           <View style={styles.logoCircle}>
             <Image
@@ -127,15 +132,16 @@ export const LoginScreen = ({ navigation }: any) => {
 
         {/* Form Container */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sign In</Text>
+          <Text style={styles.cardTitle}>Devotee Login</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email Address</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={18} color={THEME.colors.textMuted} style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={20} color={THEME.colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
-                placeholder="devotee@iskcon.org"
+                placeholder="devotee@example.com"
+                placeholderTextColor={THEME.colors.textLight}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -147,18 +153,23 @@ export const LoginScreen = ({ navigation }: any) => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={18} color={THEME.colors.textMuted} style={styles.inputIcon} />
+              <Ionicons name="lock-closed-outline" size={20} color={THEME.colors.textMuted} style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
-                placeholder="••••••••"
+                placeholder="Enter your password"
+                placeholderTextColor={THEME.colors.textLight}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
+                  size={20}
                   color={THEME.colors.textMuted}
                 />
               </TouchableOpacity>
@@ -172,6 +183,7 @@ export const LoginScreen = ({ navigation }: any) => {
               setResetEmail(email.trim());
               setShowForgotModal(true);
             }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
@@ -181,24 +193,25 @@ export const LoginScreen = ({ navigation }: any) => {
             style={styles.loginButton}
             onPress={handleLogin}
             disabled={isSubmitting}
+            activeOpacity={0.8}
           >
             {isSubmitting ? (
               <ActivityIndicator color={THEME.colors.textInverse} size="small" />
             ) : (
-              <Text style={styles.loginButtonText}>Log In</Text>
+              <Text style={styles.loginButtonText}>Sign In</Text>
             )}
           </TouchableOpacity>
 
           {/* Register Prompt */}
           <View style={styles.registerPrompt}>
-            <Text style={styles.registerPromptText}>New Counselee?</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLinkText}>Register with Invitation Code</Text>
+            <Text style={styles.registerPromptText}>New Counselee with Invitation Code?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.registerLinkText}>Register Here</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Footer */}
+        {/* Footer Mantra */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             Hare Krishna Hare Krishna Krishna Krishna Hare Hare{'\n'}
@@ -300,28 +313,31 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: THEME.colors.primary,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2.5,
+    borderColor: '#D4AF37',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    marginBottom: 12,
+    elevation: 6,
+    shadowColor: '#B45309',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    overflow: 'hidden',
   },
   logoImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
   },
   brandTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: THEME.colors.primary,
+    color: THEME.colors.primaryDark,
     letterSpacing: 0.5,
   },
   brandSubtitle: {
@@ -340,27 +356,29 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
     borderColor: THEME.colors.border,
     ...THEME.shadows.medium,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
-    marginBottom: 14,
+    marginBottom: 16,
     textAlign: 'center',
   },
   inputGroup: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
   inputLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: THEME.colors.text,
-    marginBottom: 5,
+    fontWeight: '700',
+    color: THEME.colors.textMuted,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -368,9 +386,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    height: 44,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 48,
   },
   inputIcon: {
     marginRight: 8,
@@ -382,41 +400,47 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   eyeIcon: {
-    padding: 4,
+    padding: 6,
   },
   forgotPasswordBtn: {
     alignSelf: 'flex-end',
-    marginBottom: 12,
+    marginBottom: 14,
     marginTop: -4,
-    paddingVertical: 2,
+    paddingVertical: 4,
     paddingHorizontal: 4,
   },
   forgotPasswordText: {
     fontSize: 12,
     color: THEME.colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   loginButton: {
     backgroundColor: THEME.colors.primary,
-    height: 44,
-    borderRadius: 8,
+    height: 48,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+    elevation: 3,
+    shadowColor: '#D97706',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
+    letterSpacing: 0.3,
   },
   registerPrompt: {
-    marginTop: 14,
+    marginTop: 18,
     alignItems: 'center',
   },
   registerPromptText: {
     fontSize: 12,
     color: THEME.colors.textMuted,
-    marginBottom: 3,
+    marginBottom: 4,
   },
   registerLinkText: {
     fontSize: 13,
