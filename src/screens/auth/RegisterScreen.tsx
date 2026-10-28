@@ -25,6 +25,7 @@ import {
 } from '../../utils/dateUtils';
 import { validateInvitationCode } from '../../services/invitationService';
 import { DateSelectorModal } from '../../components/DateSelectorModal';
+import { biometricService } from '../../services/biometricService';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -45,6 +46,10 @@ export const RegisterScreen = ({ navigation }: any) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [declaredRounds, setDeclaredRounds] = useState('16');
 
+  // Touch Sensor / Fingerprint enrollment
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [saveFingerprint, setSaveFingerprint] = useState(true);
+
   // Scrolling Date Picker States
   const [dateOfBirthDisplay, setDateOfBirthDisplay] = useState(''); // e.g. 10-May-1988
   const [dateOfBirthIso, setDateOfBirthIso] = useState(''); // e.g. 1988-05-10
@@ -59,6 +64,15 @@ export const RegisterScreen = ({ navigation }: any) => {
   // Keyboard avoidance and auto-scroll tracking
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const fieldPositions = useRef<{ [key: string]: number }>({});
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      const hasHw = await biometricService.isHardwareAvailable();
+      const enrolled = await biometricService.isEnrolled();
+      setIsBiometricSupported(hasHw && enrolled);
+    };
+    checkBiometrics();
+  }, []);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -163,6 +177,10 @@ export const RegisterScreen = ({ navigation }: any) => {
         iskconConnectDate: iskconConnectIso || undefined,
         declaredRounds: rounds,
       });
+
+      if (saveFingerprint) {
+        await biometricService.saveCredentials(cleanEmail, password);
+      }
 
       Alert.alert(
         'Registration Submitted',
@@ -483,6 +501,28 @@ export const RegisterScreen = ({ navigation }: any) => {
             )}
           </View>
 
+          {/* Touch Sensor / Fingerprint Enrollment Toggle */}
+          {isBiometricSupported && (
+            <TouchableOpacity
+              style={styles.biometricConsentRow}
+              onPress={() => setSaveFingerprint(!saveFingerprint)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkboxBox, saveFingerprint && styles.checkboxBoxActive]}>
+                {saveFingerprint && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="finger-print" size={18} color="#EA580C" />
+                  <Text style={styles.biometricConsentTitle}>Save Fingerprint / Touch Sensor</Text>
+                </View>
+                <Text style={styles.biometricConsentSubtitle}>
+                  Enable 1-touch fingerprint sensor to sign in quickly
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Submit Button */}
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
@@ -790,5 +830,40 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13.5,
     fontWeight: 'bold',
+  },
+  biometricConsentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxBoxActive: {
+    backgroundColor: '#EA580C',
+    borderColor: '#EA580C',
+  },
+  biometricConsentTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#7C2D12',
+  },
+  biometricConsentSubtitle: {
+    fontSize: 10.5,
+    color: '#9A3412',
+    marginTop: 1,
   },
 });

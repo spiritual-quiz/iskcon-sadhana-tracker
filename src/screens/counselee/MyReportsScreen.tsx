@@ -225,22 +225,50 @@ export const MyReportsScreen = () => {
                 </View>
                 <View style={styles.metricRow}>
                   <Text style={styles.metricLabel}>Monthly Satsanga:</Text>
-                  <Text
+                  <View
                     style={[
-                      styles.metricValue,
+                      styles.satsangBadge,
                       monthlyReport.satsangaStatus === 'attended'
-                        ? { color: '#15803D', fontWeight: 'bold' }
+                        ? styles.satsangBadgePresent
                         : monthlyReport.satsangaStatus === 'not_conducted'
-                        ? { color: '#D97706', fontWeight: 'bold' }
-                        : { color: '#DC2626', fontWeight: 'bold' },
+                        ? styles.satsangBadgeNotConducted
+                        : styles.satsangBadgeAbsent,
                     ]}
                   >
-                    {monthlyReport.satsangaStatus === 'attended'
-                      ? 'Attended (50 marks)'
-                      : monthlyReport.satsangaStatus === 'not_conducted'
-                      ? 'Not Conducted This Month (Dynamic / No Penalty)'
-                      : 'Not Attended (0 marks)'}
-                  </Text>
+                    <Ionicons
+                      name={
+                        monthlyReport.satsangaStatus === 'attended'
+                          ? 'checkmark-circle'
+                          : monthlyReport.satsangaStatus === 'not_conducted'
+                          ? 'pause-circle-outline'
+                          : 'close-circle'
+                      }
+                      size={13}
+                      color={
+                        monthlyReport.satsangaStatus === 'attended'
+                          ? '#15803D'
+                          : monthlyReport.satsangaStatus === 'not_conducted'
+                          ? '#B45309'
+                          : '#DC2626'
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.satsangBadgeText,
+                        monthlyReport.satsangaStatus === 'attended'
+                          ? styles.satsangBadgeTextPresent
+                          : monthlyReport.satsangaStatus === 'not_conducted'
+                          ? styles.satsangBadgeTextNotConducted
+                          : styles.satsangBadgeTextAbsent,
+                      ]}
+                    >
+                      {monthlyReport.satsangaStatus === 'attended'
+                        ? 'Present'
+                        : monthlyReport.satsangaStatus === 'not_conducted'
+                        ? 'Not Conducted'
+                        : 'Absent'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -338,40 +366,40 @@ const styles = StyleSheet.create({
     color: THEME.colors.textMuted,
   },
   scrollContent: {
-    padding: THEME.spacing.base,
-    paddingBottom: THEME.spacing.xxl,
+    padding: 10,
+    paddingBottom: 24,
   },
   summaryCard: {
     backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.base,
+    borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
     borderColor: THEME.colors.border,
-    marginBottom: THEME.spacing.base,
+    marginBottom: 10,
     ...THEME.shadows.soft,
   },
   cardHeaderTitle: {
-    fontSize: THEME.typography.sizes.base,
+    fontSize: 13.5,
     fontWeight: 'bold',
     color: THEME.colors.primaryDark,
-    marginBottom: THEME.spacing.sm,
+    marginBottom: 6,
   },
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderBottomWidth: 1,
-    borderBottomColor: THEME.colors.surfaceVariant,
-    gap: 8,
+    borderBottomColor: '#F3F4F6',
+    gap: 6,
   },
   metricLabel: {
-    fontSize: THEME.typography.sizes.sm,
+    fontSize: 12,
     color: THEME.colors.textMuted,
     flexShrink: 1,
   },
   metricValue: {
-    fontSize: THEME.typography.sizes.sm,
+    fontSize: 12,
     fontWeight: 'bold',
     color: THEME.colors.text,
     textAlign: 'right',
@@ -382,6 +410,42 @@ const styles = StyleSheet.create({
   },
   highlightText: {
     color: THEME.colors.primary,
+  },
+  satsangBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  satsangBadgePresent: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  satsangBadgeNotConducted: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  satsangBadgeAbsent: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  satsangBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  satsangBadgeTextPresent: {
+    color: '#15803D',
+  },
+  satsangBadgeTextNotConducted: {
+    color: '#B45309',
+  },
+  satsangBadgeTextAbsent: {
+    color: '#DC2626',
   },
   dailyItemCard: {
     backgroundColor: THEME.colors.surface,

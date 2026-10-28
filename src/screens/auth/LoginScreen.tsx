@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
+import { biometricService } from '../../services/biometricService';
 
 export const LoginScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,11 @@ export const LoginScreen = ({ navigation }: any) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Biometric / Fingerprint Touch Sensor state
+  const [isBiometricSupported, setIsBiometricSupported] = useState<boolean>(false);
+  const [isBiometricConfigured, setIsBiometricConfigured] = useState<boolean>(false);
+  const [isBiometricAuthenticating, setIsBiometricAuthenticating] = useState<boolean>(false);
+
   // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
   const [resetEmail, setResetEmail] = useState<string>('');
@@ -36,6 +42,25 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      const hasHw = await biometricService.isHardwareAvailable();
+      const enrolled = await biometricService.isEnrolled();
+      setIsBiometricSupported(hasHw && enrolled);
+      const configured = await biometricService.isBiometricLoginConfigured();
+      setIsBiometricConfigured(configured);
+
+      // Pre-fill email if previously saved for fingerprint
+      if (configured) {
+        const savedEmail = await biometricService.getSavedDevoteeEmail();
+        if (savedEmail) {
+          setEmail(savedEmail);
+        }
+      }
+    };
+    checkBiometrics();
+  }, []);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -61,10 +86,30 @@ export const LoginScreen = ({ navigation }: any) => {
     setIsSubmitting(true);
     try {
       await signIn(email.trim(), password);
+      // Auto-save credentials for touch sensor if hardware is available
+      if (isBiometricSupported) {
+        await biometricService.saveCredentials(email.trim(), password);
+      }
     } catch (err: any) {
       Alert.alert('Login Failed', err.message || 'Could not verify credentials.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setIsBiometricAuthenticating(true);
+    try {
+      const creds = await biometricService.authenticateWithFingerprint();
+      if (creds && creds.email && creds.password) {
+        setEmail(creds.email);
+        setPassword(creds.password);
+        await signIn(creds.email, creds.password);
+      }
+    } catch (err: any) {
+      Alert.alert('Touch Sensor / Fingerprint', err.message || 'Could not authenticate with fingerprint.');
+    } finally {
+      setIsBiometricAuthenticating(false);
     }
   };
 
@@ -192,7 +237,7 @@ export const LoginScreen = ({ navigation }: any) => {
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isBiometricAuthenticating}
             activeOpacity={0.8}
           >
             {isSubmitting ? (
@@ -201,6 +246,25 @@ export const LoginScreen = ({ navigation }: any) => {
               <Text style={styles.loginButtonText}>Sign In</Text>
             )}
           </TouchableOpacity>
+
+          {/* Touch Sensor / Fingerprint Sign In */}
+          {isBiometricSupported && (
+            <TouchableOpacity
+              style={styles.biometricButton}
+              onPress={handleBiometricLogin}
+              disabled={isSubmitting || isBiometricAuthenticating}
+              activeOpacity={0.8}
+            >
+              {isBiometricAuthenticating ? (
+                <ActivityIndicator color="#EA580C" size="small" />
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="finger-print" size={22} color="#EA580C" />
+                  <Text style={styles.biometricButtonText}>Touch Sensor / Fingerprint Sign In</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Register Prompt */}
           <View style={styles.registerPrompt}>
@@ -432,6 +496,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     letterSpacing: 0.3,
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1.5,
+    borderColor: '#EA580C',
+    marginTop: 10,
+  },
+  biometricButtonText: {
+    color: '#EA580C',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   registerPrompt: {
     marginTop: 18,

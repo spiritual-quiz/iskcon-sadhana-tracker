@@ -209,10 +209,10 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                   />
                   <Text style={styles.satsangaBtnTextActive} numberOfLines={1}>
                     {rep.satsangaStatus === 'attended'
-                      ? 'Satsang: Attended (+50 M)'
+                      ? 'Monthly Satsang: Present'
                       : rep.satsangaStatus === 'not_conducted'
-                      ? 'Satsang: Not Held (0 Penalty)'
-                      : 'Satsang: Absent (0/50 M)'}
+                      ? 'Monthly Satsang: Not Conducted'
+                      : 'Monthly Satsang: Absent'}
                   </Text>
                 </TouchableOpacity>
               </View>

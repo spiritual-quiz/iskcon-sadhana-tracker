@@ -580,7 +580,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 90 : Math.max(insets.bottom, 24) + 90 },
+            { paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : Math.max(insets.bottom, 12) + 12 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -1738,7 +1738,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 10,
     paddingTop: 8,
-    paddingBottom: 30,
+    paddingBottom: 4,
   },
   summaryCard: {
     backgroundColor: '#FFFFFF',
