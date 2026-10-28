@@ -23,7 +23,7 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer theme={appNavTheme}>
         <AuthProvider>
-          <StatusBar style="dark" backgroundColor="#FFA600" translucent={false} />
+          <StatusBar style="dark" />
           <RootNavigator />
         </AuthProvider>
       </NavigationContainer>

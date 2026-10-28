@@ -1107,6 +1107,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 1,
   },
+  cardScoreAlert: {
+    color: '#DC2626',
+    fontWeight: 'bold',
+  },
   detailsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

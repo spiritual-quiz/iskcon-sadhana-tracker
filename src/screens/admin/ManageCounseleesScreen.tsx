@@ -482,8 +482,9 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                 </View>
               );
             })
-          ) : (
-            // By Invitation Tab View
+          )
+        ) : (
+          // By Invitation Tab View
             Object.keys(groupedByInvitation).length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No counselees registered under any invitation yet.</Text>
