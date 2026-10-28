@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 import { HomeScreen } from '../screens/counselee/HomeScreen';
 import { DailySadhanaScreen } from '../screens/counselee/DailySadhanaScreen';
@@ -31,6 +32,7 @@ function HomeStack() {
 
 export const CounseleeTabs = () => {
   const insets = useSafeAreaInsets();
+  const { theme, currentThemeId } = useTheme();
   const bottomInset = insets.bottom;
   const tabHeight = 56 + Math.max(bottomInset, 8);
   const paddingBottom = Math.max(bottomInset, 8);
@@ -40,20 +42,20 @@ export const CounseleeTabs = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarActiveTintColor: '#261200',
-        tabBarInactiveTintColor: '#78350F',
+        tabBarActiveTintColor: theme.thickColor,
+        tabBarInactiveTintColor: currentThemeId === 'black' ? '#94A3B8' : '#6B7280',
         tabBarStyle: {
-          backgroundColor: '#FFA600',
-          borderTopColor: '#E08500',
+          backgroundColor: theme.colors.card,
+          borderTopColor: theme.colors.border,
           borderTopWidth: 1.5,
           height: tabHeight,
           paddingBottom: paddingBottom,
           paddingTop: 5,
-          elevation: 8,
+          elevation: 10,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.12,
+          shadowRadius: 5,
         },
         tabBarLabelStyle: {
           fontSize: 10,

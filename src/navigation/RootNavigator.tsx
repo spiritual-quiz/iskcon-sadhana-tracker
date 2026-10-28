@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -15,20 +16,21 @@ const Stack = createNativeStackNavigator();
 
 export const RootNavigator = () => {
   const { user, isLoading, isAdmin, isApproved, isPending, isRejectedOrDisabled } = useAuth();
+  const { theme } = useTheme();
 
   if (isLoading) {
     return (
-      <View style={styles.splashContainer}>
-        <View style={styles.logoCircle}>
+      <View style={[styles.splashContainer, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.logoCircle, { borderColor: theme.thickColor }]}>
           <Image
             source={require('../../assets/logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
         </View>
-        <Text style={styles.splashTitle}>Bhakti Unnati</Text>
-        <Text style={styles.splashSubtitle}>Advancement in Devotion</Text>
-        <ActivityIndicator size="large" color={THEME.colors.gold} style={styles.loader} />
+        <Text style={[styles.splashTitle, { color: theme.colors.text }]}>Bhakti Unnati</Text>
+        <Text style={[styles.splashSubtitle, { color: theme.colors.textMuted }]}>Advancement in Devotion</Text>
+        <ActivityIndicator size="large" color={theme.thickColor} style={styles.loader} />
       </View>
     );
   }
@@ -61,7 +63,6 @@ export const RootNavigator = () => {
 const styles = StyleSheet.create({
   splashContainer: {
     flex: 1,
-    backgroundColor: '#FFA600',
     alignItems: 'center',
     justifyContent: 'center',
     padding: THEME.spacing.xl,

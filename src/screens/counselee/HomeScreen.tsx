@@ -22,10 +22,12 @@ import { SadhanaEntry } from '../../types/sadhana';
 import { WeeklyReport, MonthlyReport } from '../../types/report';
 import { reminderService } from '../../services/reminderService';
 import { notificationService } from '../../services/notificationService';
+import { biometricService } from '../../services/biometricService';
+import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
-  const { theme, openThemePicker } = useTheme();
+  const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
 
   const [todayEntry, setTodayEntry] = useState<SadhanaEntry | null>(null);
@@ -33,6 +35,24 @@ export const HomeScreen = ({ navigation }: any) => {
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkPostLoginBio = async () => {
+      if (user?.email) {
+        const isEnrolled = await biometricService.isUserEnrolled(user.email);
+        if (!isEnrolled) {
+          const hw = await biometricService.isHardwareAvailable();
+          if (hw) {
+            setTimeout(() => {
+              setShowAutoBioPrompt(true);
+            }, 800);
+          }
+        }
+      }
+    };
+    checkPostLoginBio();
+  }, [user?.email]);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,8 +112,6 @@ export const HomeScreen = ({ navigation }: any) => {
     loadHomeData();
   };
 
-  const remindersInfo = reminderService.getDailyReminders(user, todayEntry);
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
@@ -115,84 +133,6 @@ export const HomeScreen = ({ navigation }: any) => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
-          {/* Quick Theme Customization Card */}
-          <TouchableOpacity
-            style={[
-              styles.themeCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}
-            onPress={openThemePicker}
-            activeOpacity={0.8}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={[styles.themeIconCircle, { backgroundColor: theme.thickColor }]}>
-                <Ionicons name="color-palette" size={18} color="#FFFFFF" />
-              </View>
-              <View>
-                <Text style={[styles.themeTitle, { color: theme.colors.text }]}>
-                  Color Theme: <Text style={{ color: theme.thickColor, fontWeight: 'bold' }}>{theme.name}</Text>
-                </Text>
-                <Text style={[styles.themeSubtitle, { color: theme.colors.textMuted }]}>
-                  Change background & header color
-                </Text>
-              </View>
-            </View>
-            <View style={[styles.themePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
-              <Text style={[styles.themePillText, { color: theme.thickColor }]}>Change</Text>
-              <Ionicons name="chevron-forward" size={14} color={theme.thickColor} />
-            </View>
-          </TouchableOpacity>
-          {/* Active Mandatory Sadhana Reminder (6 PM & 9 PM) */}
-          {remindersInfo.pendingReminders.length > 0 && (
-            <View
-              style={[
-                styles.reminderBanner,
-                remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].isUrgent
-                  ? styles.reminderBannerUrgent
-                  : styles.reminderBannerRegular,
-              ]}
-            >
-              <View style={styles.reminderIconCircle}>
-                <Ionicons
-                  name={
-                    remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].isUrgent
-                      ? 'alert-circle'
-                      : 'alarm-outline'
-                  }
-                  size={24}
-                  color={
-                    remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].isUrgent
-                      ? '#DC2626'
-                      : '#D97706'
-                  }
-                />
-              </View>
-              <View style={styles.reminderTextContainer}>
-                <View style={styles.reminderBadgeRow}>
-                  <Text style={styles.reminderBadgeText}>
-                    {remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].timeLabel}
-                  </Text>
-                  <Text style={styles.mandatoryBadgeText}>Mandatory Reminder</Text>
-                </View>
-                <Text style={styles.reminderTitle}>
-                  {remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].title}
-                </Text>
-                <Text style={styles.reminderSubtitle}>
-                  {remindersInfo.pendingReminders[remindersInfo.pendingReminders.length - 1].message}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.reminderFillBtn}
-                onPress={() => navigation.navigate('DailySadhana')}
-              >
-                <Text style={styles.reminderFillBtnText}>Fill Card</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Today's Status Banner */}
           <View style={[styles.todayBanner, todayEntry ? styles.bannerDone : styles.bannerPending]}>
             <View style={styles.bannerIconCircle}>
@@ -331,6 +271,13 @@ export const HomeScreen = ({ navigation }: any) => {
           </View>
         </ScrollView>
       )}
+
+      {/* Automatic Banking Post-Login Touch Sensor Prompt */}
+      <BiometricEnrollModal
+        visible={showAutoBioPrompt}
+        user={user}
+        onClose={() => setShowAutoBioPrompt(false)}
+      />
     </View>
   );
 };

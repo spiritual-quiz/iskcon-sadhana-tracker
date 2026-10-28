@@ -21,6 +21,7 @@ import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils
 import { authService } from '../../services/authService';
 import { validateInvitationCode } from '../../services/invitationService';
 import { biometricService } from '../../services/biometricService';
+import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 
 export const ProfileScreen = () => {
   const { user, reloadUser, signOut } = useAuth();
@@ -33,19 +34,53 @@ export const ProfileScreen = () => {
   const [invitationName, setInvitationName] = useState<string>(user?.invitationName || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isBiometricEnrolled, setIsBiometricEnrolled] = useState<boolean>(false);
-  const [hasBiometricHw, setHasBiometricHw] = useState<boolean>(false);
+  const [hasBiometricHw, setHasBiometricHw] = useState<boolean>(true);
+  const [showBioEnrollModal, setShowBioEnrollModal] = useState<boolean>(false);
 
   useEffect(() => {
     const checkBio = async () => {
       if (user?.email) {
-        const hw = await biometricService.isHardwareAvailable();
         const enrolled = await biometricService.isUserEnrolled(user.email);
-        setHasBiometricHw(hw);
         setIsBiometricEnrolled(enrolled);
       }
     };
     checkBio();
   }, [user?.email]);
+
+  const handleTestSensor = async () => {
+    if (!user?.email) return;
+    try {
+      const acc = await biometricService.authenticateWithFingerprint(user.email);
+      if (acc) {
+        Alert.alert(
+          'Touch Sensor Verified',
+          `Hare Krishna! Touch sensor authenticated successfully for ${user.displayName || user.email}.`
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Touch Sensor Test', e.message || 'Sensor test was cancelled.');
+    }
+  };
+
+  const handleRemoveBiometric = async () => {
+    if (!user?.email) return;
+    Alert.alert(
+      'Disable Fingerprint',
+      `Are you sure you want to disable fingerprint sign-in for ${user.displayName || user.email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disable',
+          style: 'destructive',
+          onPress: async () => {
+            await biometricService.removeUserBiometric(user.email);
+            setIsBiometricEnrolled(false);
+            Alert.alert('Fingerprint Disabled', 'Fingerprint sign-in has been disabled for this account.');
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     if (user) {
@@ -292,44 +327,89 @@ export const ProfileScreen = () => {
         </View>
 
         {/* Biometric Touch Sensor Setting */}
-        {hasBiometricHw && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Touch Sensor / Fingerprint Sign-In</Text>
-            <View style={styles.biometricRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                <Ionicons
-                  name="finger-print"
-                  size={28}
-                  color={isBiometricEnrolled ? '#16A34A' : THEME.colors.textMuted}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.biometricStatusTitle}>
-                    {isBiometricEnrolled ? 'Fingerprint Sign-In Enabled' : 'Fingerprint Not Linked'}
-                  </Text>
-                  <Text style={styles.biometricStatusDesc}>
-                    {isBiometricEnrolled
-                      ? 'You can sign into this devotee account using your fingerprint.'
-                      : 'Sign in with your password to enroll your fingerprint on this phone.'}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Touch Sensor / Fingerprint Sign-In</Text>
+          <View style={styles.biometricRow}>
+            <View
+              style={[
+                styles.bioIconBox,
+                { backgroundColor: isBiometricEnrolled ? '#DCFCE7' : theme.liteColor },
+              ]}
+            >
+              <Ionicons
+                name="finger-print"
+                size={28}
+                color={isBiometricEnrolled ? '#16A34A' : theme.thickColor}
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.biometricStatusTitle}>
+                  {isBiometricEnrolled ? 'Fingerprint Active' : 'Not Linked Yet'}
+                </Text>
+                <View
+                  style={[
+                    styles.bioStatusPill,
+                    { backgroundColor: isBiometricEnrolled ? '#DCFCE7' : '#F3F4F6' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.bioStatusPillText,
+                      { color: isBiometricEnrolled ? '#15803D' : '#6B7280' },
+                    ]}
+                  >
+                    {isBiometricEnrolled ? 'Enabled' : 'Disabled'}
                   </Text>
                 </View>
               </View>
-              {isBiometricEnrolled && (
-                <TouchableOpacity
-                  style={styles.removeBioBtn}
-                  onPress={async () => {
-                    if (user?.email) {
-                      await biometricService.removeUserBiometric(user.email);
-                      setIsBiometricEnrolled(false);
-                      Alert.alert('Fingerprint Removed', 'Fingerprint login has been disabled for this account.');
-                    }
-                  }}
-                >
-                  <Text style={styles.removeBioText}>Disable</Text>
-                </TouchableOpacity>
-              )}
+              <Text style={styles.biometricStatusDesc}>
+                {isBiometricEnrolled
+                  ? `Fingerprint login linked for ${user?.displayName || 'this account'}`
+                  : 'Link your phone touch sensor to sign in instantly next time without password'}
+              </Text>
             </View>
           </View>
-        )}
+
+          {isBiometricEnrolled ? (
+            <View style={styles.bioActionRow}>
+              <TouchableOpacity
+                style={[styles.bioTestBtn, { borderColor: theme.thickColor }]}
+                onPress={handleTestSensor}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="finger-print" size={16} color={theme.thickColor} />
+                <Text style={[styles.bioTestBtnText, { color: theme.thickColor }]}>Test Sensor</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.removeBioBtn}
+                onPress={handleRemoveBiometric}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                <Text style={styles.removeBioText}>Disable</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.enableBioBtn, { backgroundColor: theme.thickColor }]}
+              onPress={() => setShowBioEnrollModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="finger-print" size={18} color="#FFFFFF" />
+              <Text style={styles.enableBioBtnText}>Register Fingerprint for this Account</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Global Modal for Fingerprint Registration */}
+        <BiometricEnrollModal
+          visible={showBioEnrollModal}
+          user={user}
+          onClose={() => setShowBioEnrollModal(false)}
+          onSuccess={() => setIsBiometricEnrolled(true)}
+        />
 
         {/* Sign Out - Thick Orange Colour */}
         <TouchableOpacity style={styles.signOutBtn} onPress={signOut} activeOpacity={0.85}>
@@ -638,5 +718,60 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontWeight: '700',
     fontSize: 12,
+  },
+  bioIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bioStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  bioStatusPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  bioActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  bioTestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  bioTestBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  enableBioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 10,
+    marginTop: 12,
+    elevation: 2,
+  },
+  enableBioBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 });

@@ -1,5 +1,6 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { localStorageService } from './localStorageService';
 
 const BIOMETRIC_ACCOUNTS_KEY = 'bhakti_biometric_accounts_map';
 const ACTIVE_BIOMETRIC_USER_KEY = 'bhakti_active_biometric_user_email';
@@ -167,6 +168,35 @@ export const biometricService = {
       return true;
     } catch (e: any) {
       throw e;
+    }
+  },
+
+  /**
+   * Enroll currently logged-in devotee using stored password from local cache if available,
+   * or explicit password. Prompts OS touch sensor.
+   */
+  enrollWithStoredPassword: async (
+    user: { uid: string; email: string; displayName: string; photoURL?: string },
+    explicitPassword?: string
+  ): Promise<{ success: boolean; requiresPasswordPrompt?: boolean; message?: string }> => {
+    try {
+      let pwd = explicitPassword;
+      if (!pwd) {
+        const local = await localStorageService.getUser(user.uid);
+        pwd = local?.password;
+      }
+
+      if (!pwd) {
+        return { success: false, requiresPasswordPrompt: true, message: 'Password required' };
+      }
+
+      const enrolled = await biometricService.enrollDevoteeWithFingerprint(user, pwd);
+      if (enrolled) {
+        return { success: true, message: 'Fingerprint enabled successfully!' };
+      }
+      return { success: false, message: 'Fingerprint enrollment cancelled.' };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Could not verify touch sensor.' };
     }
   },
 

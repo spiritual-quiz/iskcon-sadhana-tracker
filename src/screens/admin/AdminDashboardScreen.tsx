@@ -25,6 +25,8 @@ import { sadhanaService } from '../../services/sadhanaService';
 import { reportService } from '../../services/reportService';
 import { localStorageService } from '../../services/localStorageService';
 import { notificationService } from '../../services/notificationService';
+import { biometricService } from '../../services/biometricService';
+import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -45,9 +47,24 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [monthlyLowScoreCount, setMonthlyLowScoreCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
 
   useEffect(() => {
     loadDashboardMetrics();
+    const checkPostLoginBio = async () => {
+      if (user?.email) {
+        const isEnrolled = await biometricService.isUserEnrolled(user.email);
+        if (!isEnrolled) {
+          const hw = await biometricService.isHardwareAvailable();
+          if (hw) {
+            setTimeout(() => {
+              setShowAutoBioPrompt(true);
+            }, 800);
+          }
+        }
+      }
+    };
+    checkPostLoginBio();
   }, []);
 
   const loadDashboardMetrics = async () => {
@@ -341,6 +358,13 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           </View>
         </ScrollView>
       )}
+
+      {/* Automatic Banking Post-Login Touch Sensor Prompt */}
+      <BiometricEnrollModal
+        visible={showAutoBioPrompt}
+        user={user}
+        onClose={() => setShowAutoBioPrompt(false)}
+      />
     </View>
   );
 };
