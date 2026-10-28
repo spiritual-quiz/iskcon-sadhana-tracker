@@ -14,6 +14,7 @@ import { evaluateDailySadhana, SadhanaInput } from '../utils/scoringEngine';
 import { getTodayDateStringIST } from '../utils/dateUtils';
 import { monitoringService } from './monitoringService';
 import { localStorageService } from './localStorageService';
+import { fastCache } from './fastCacheService';
 
 export const sadhanaService = {
   /**
@@ -113,6 +114,13 @@ export const sadhanaService = {
     // 4. Save to local persistent storage (always succeeds)
     await localStorageService.saveSadhanaEntry(entry);
 
+    // Invalidate fast cache keys so user immediately sees fresh score everywhere
+    fastCache.invalidate(`daily_entry_${params.userId}_${dateStr}`);
+    fastCache.invalidate(`daily_entries_${dateStr}`);
+    fastCache.invalidate(`user_range_${params.userId}`);
+    fastCache.invalidate(`weekly_report_${params.userId}`);
+    fastCache.invalidate(`monthly_report_${params.userId}`);
+
     // 5. Attempt Cloud Firestore sync (if permissions/network allow)
     try {
       await setDoc(entryRef, entry);
@@ -134,9 +142,14 @@ export const sadhanaService = {
    * Get daily sadhana entry for a specific user and date
    */
   getDailyEntry: async (userId: string, dateStr: string): Promise<SadhanaEntry | null> => {
+    const cacheKey = `daily_entry_${userId}_${dateStr}`;
+    const cached = await fastCache.get<SadhanaEntry>(cacheKey);
+    if (cached) return cached;
+
     // 1. Instant check from local persistent storage (0ms latency)
     const local = await localStorageService.getSadhanaEntry(userId, dateStr);
     if (local) {
+      await fastCache.set(cacheKey, local, 60);
       return local;
     }
 
@@ -145,11 +158,12 @@ export const sadhanaService = {
     try {
       const snap = await Promise.race([
         getDoc(doc(db, 'sadhana_entries', entryId)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       if (snap.exists()) {
         const data = snap.data() as SadhanaEntry;
         await localStorageService.saveSadhanaEntry(data);
+        await fastCache.set(cacheKey, data, 60);
         return data;
       }
     } catch (e) {
@@ -167,9 +181,14 @@ export const sadhanaService = {
     startDate: string,
     endDate: string
   ): Promise<SadhanaEntry[]> => {
+    const cacheKey = `user_range_${userId}_${startDate}_${endDate}`;
+    const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
+    if (cached) return cached;
+
     // 1. Check local persistent storage first (instant)
     const localEntries = await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
     if (localEntries && localEntries.length > 0) {
+      await fastCache.set(cacheKey, localEntries, 60);
       return localEntries;
     }
 
@@ -183,10 +202,12 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       if (!snap.empty) {
-        return snap.docs.map((d) => d.data() as SadhanaEntry);
+        const results = snap.docs.map((d) => d.data() as SadhanaEntry);
+        await fastCache.set(cacheKey, results, 60);
+        return results;
       }
     } catch (e) {
       // Permission denied or offline fallback
@@ -199,8 +220,13 @@ export const sadhanaService = {
    * Admin: Get all counselees' entries for a specific date
    */
   getAllEntriesForDate: async (dateStr: string): Promise<SadhanaEntry[]> => {
+    const cacheKey = `daily_entries_${dateStr}`;
+    const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
+    if (cached) return cached;
+
     const localEntries = await localStorageService.getAllEntriesForDate(dateStr);
     if (localEntries && localEntries.length > 0) {
+      await fastCache.set(cacheKey, localEntries, 60);
       return localEntries;
     }
 
@@ -208,10 +234,12 @@ export const sadhanaService = {
       const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       if (!snap.empty) {
-        return snap.docs.map((d) => d.data() as SadhanaEntry);
+        const results = snap.docs.map((d) => d.data() as SadhanaEntry);
+        await fastCache.set(cacheKey, results, 60);
+        return results;
       }
     } catch (e) {
       // Permission denied or offline fallback
@@ -224,8 +252,13 @@ export const sadhanaService = {
    * Admin: Get all counselees' entries within a date range (e.g. past 1 week)
    */
   getAllEntriesForDateRange: async (startDate: string, endDate: string): Promise<SadhanaEntry[]> => {
+    const cacheKey = `range_entries_${startDate}_${endDate}`;
+    const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
+    if (cached) return cached;
+
     const localEntries = await localStorageService.getAllEntriesForDateRange(startDate, endDate);
     if (localEntries && localEntries.length > 0) {
+      await fastCache.set(cacheKey, localEntries, 60);
       return localEntries;
     }
 
@@ -237,10 +270,12 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       if (!snap.empty) {
-        return snap.docs.map((d) => d.data() as SadhanaEntry);
+        const results = snap.docs.map((d) => d.data() as SadhanaEntry);
+        await fastCache.set(cacheKey, results, 60);
+        return results;
       }
     } catch (e) {
       // Permission denied or offline fallback

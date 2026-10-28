@@ -13,15 +13,18 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
 import { authService } from '../../services/authService';
 import { validateInvitationCode } from '../../services/invitationService';
+import { biometricService } from '../../services/biometricService';
 
 export const ProfileScreen = () => {
   const { user, reloadUser, signOut } = useAuth();
+  const { theme, openThemePicker } = useTheme();
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
@@ -29,6 +32,20 @@ export const ProfileScreen = () => {
   const [photoUrl, setPhotoUrl] = useState<string | null>(user?.photoURL || null);
   const [invitationName, setInvitationName] = useState<string>(user?.invitationName || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState<boolean>(false);
+  const [hasBiometricHw, setHasBiometricHw] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkBio = async () => {
+      if (user?.email) {
+        const hw = await biometricService.isHardwareAvailable();
+        const enrolled = await biometricService.isUserEnrolled(user.email);
+        setHasBiometricHw(hw);
+        setIsBiometricEnrolled(enrolled);
+      }
+    };
+    checkBio();
+  }, [user?.email]);
 
   useEffect(() => {
     if (user) {
@@ -124,7 +141,7 @@ export const ProfileScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="Devotee Profile" subtitle="Account & Spiritual Practice Profile" />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -254,6 +271,65 @@ export const ProfileScreen = () => {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Theme & Customization */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Appearance & Theme</Text>
+          <TouchableOpacity
+            style={[styles.themeRow, { borderColor: theme.colors.border }]}
+            onPress={openThemePicker}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[styles.themeCircle, { backgroundColor: theme.thickColor }]} />
+              <View>
+                <Text style={styles.themeNameText}>{theme.name}</Text>
+                <Text style={styles.themeSubText}>Tap to choose a different background palette</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Biometric Touch Sensor Setting */}
+        {hasBiometricHw && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Touch Sensor / Fingerprint Sign-In</Text>
+            <View style={styles.biometricRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                <Ionicons
+                  name="finger-print"
+                  size={28}
+                  color={isBiometricEnrolled ? '#16A34A' : THEME.colors.textMuted}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.biometricStatusTitle}>
+                    {isBiometricEnrolled ? 'Fingerprint Sign-In Enabled' : 'Fingerprint Not Linked'}
+                  </Text>
+                  <Text style={styles.biometricStatusDesc}>
+                    {isBiometricEnrolled
+                      ? 'You can sign into this devotee account using your fingerprint.'
+                      : 'Sign in with your password to enroll your fingerprint on this phone.'}
+                  </Text>
+                </View>
+              </View>
+              {isBiometricEnrolled && (
+                <TouchableOpacity
+                  style={styles.removeBioBtn}
+                  onPress={async () => {
+                    if (user?.email) {
+                      await biometricService.removeUserBiometric(user.email);
+                      setIsBiometricEnrolled(false);
+                      Alert.alert('Fingerprint Removed', 'Fingerprint login has been disabled for this account.');
+                    }
+                  }}
+                >
+                  <Text style={styles.removeBioText}>Disable</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Sign Out - Thick Orange Colour */}
         <TouchableOpacity style={styles.signOutBtn} onPress={signOut} activeOpacity={0.85}>
@@ -506,5 +582,61 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#92400E',
     fontWeight: '600',
+  },
+  themeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  themeCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  themeNameText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  themeSubText: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  biometricStatusTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  biometricStatusDesc: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  removeBioBtn: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  removeBioText: {
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

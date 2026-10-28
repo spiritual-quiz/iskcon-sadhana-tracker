@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -25,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
@@ -95,7 +97,7 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
   const displayedReports = filterMode === 'lowScore' ? monthlyReports.filter((r) => (r.percentage ?? 0) < 50) : monthlyReports;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Monthly Reports"
         subtitle={`Period: ${selectedYear}-${String(selectedMonth).padStart(2, '0')}`}

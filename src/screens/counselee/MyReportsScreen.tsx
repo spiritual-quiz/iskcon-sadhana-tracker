@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { ScoreCard } from '../../components/ScoreCard';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -26,6 +27,7 @@ import { SadhanaEntry } from '../../types/sadhana';
 
 export const MyReportsScreen = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
 
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
@@ -80,7 +82,7 @@ export const MyReportsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="My Sadhana Reports" subtitle="Detailed Personal Practice Records" />
 
       {/* Tabs */}

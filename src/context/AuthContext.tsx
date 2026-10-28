@@ -4,7 +4,7 @@ import { authService, RegisterParams } from '../services/authService';
 import { UserProfile, AuthState } from '../types/auth';
 
 interface AuthContextType extends AuthState {
-  signIn: (email: string, pass: string) => Promise<void>;
+  signIn: (email: string, pass: string) => Promise<UserProfile>;
   register: (params: RegisterParams) => Promise<void>;
   signOut: () => Promise<void>;
   reloadUser: () => Promise<void>;
@@ -30,11 +30,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  const signIn = async (email: string, pass: string) => {
+  const signIn = async (email: string, pass: string): Promise<UserProfile> => {
     setIsLoading(true);
     try {
       const profile = await authService.signIn(email, pass);
       setUser(profile);
+      return profile;
     } finally {
       setIsLoading(false);
     }

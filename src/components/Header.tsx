@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { THEME } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface HeaderProps {
   title?: string;
@@ -23,18 +23,28 @@ export const Header: React.FC<HeaderProps> = ({
   rightAction,
 }) => {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   const topInset = Math.max(insets.top, 8);
 
   return (
-    <View style={[styles.container, { paddingTop: topInset + 4 }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: topInset + 4,
+          backgroundColor: theme.colors.header,
+          borderBottomColor: theme.colors.headerBorder,
+        },
+      ]}
+    >
       <View style={styles.topRow}>
         {showBack ? (
           <TouchableOpacity
             onPress={onBackPress}
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="arrow-back" size={22} color="#261200" />
+            <Ionicons name="arrow-back" size={22} color={theme.colors.headerText} />
           </TouchableOpacity>
         ) : (
           <View style={styles.logoContainer}>
@@ -47,11 +57,11 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         <View style={styles.titleContainer}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, { color: theme.colors.headerText }]} numberOfLines={1}>
             {title}
           </Text>
           {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={1}>
+            <Text style={[styles.subtitle, { color: theme.colors.headerSubtitle }]} numberOfLines={1}>
               {subtitle}
             </Text>
           ) : null}
@@ -60,10 +70,10 @@ export const Header: React.FC<HeaderProps> = ({
         {rightAction ? (
           <TouchableOpacity
             onPress={rightAction.onPress}
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name={rightAction.iconName} size={20} color="#261200" />
+            <Ionicons name={rightAction.iconName} size={20} color={theme.colors.headerText} />
           </TouchableOpacity>
         ) : (
           <View style={styles.rightPlaceholder} />
@@ -75,11 +85,9 @@ export const Header: React.FC<HeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFA600',
     paddingHorizontal: 12,
     paddingBottom: 8,
     borderBottomWidth: 1.5,
-    borderBottomColor: '#E08500',
   },
   topRow: {
     flexDirection: 'row',
@@ -107,13 +115,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   title: {
-    color: '#261200',
     fontSize: 15,
     fontWeight: 'bold',
     letterSpacing: 0.3,
   },
   subtitle: {
-    color: '#5C2D00',
     fontSize: 10,
     marginTop: 1,
     fontWeight: '600',
@@ -123,7 +129,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },

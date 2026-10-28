@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 import { sadhanaService } from '../../services/sadhanaService';
@@ -36,6 +37,7 @@ import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 export const DailySadhanaScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
   const { user, updateDeclaredRounds, requestDeclaredRoundsChange, cancelDeclaredRoundsRequest } = useAuth();
+  const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
 
   // Date selection states
@@ -462,7 +464,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const totalWeekReadingMarks = attendedCount * 10;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Bhakti Unnati"
         subtitle={`Daily Sadhana: ${selectedDate}`}

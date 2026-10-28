@@ -11,6 +11,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { ScoreCard } from '../../components/ScoreCard';
 import { useAuth } from '../../context/AuthContext';
@@ -24,6 +25,7 @@ import { notificationService } from '../../services/notificationService';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { theme, openThemePicker } = useTheme();
   const todayStr = getTodayDateStringIST();
 
   const [todayEntry, setTodayEntry] = useState<SadhanaEntry | null>(null);
@@ -93,7 +95,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const remindersInfo = reminderService.getDailyReminders(user, todayEntry);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Bhakti Unnati"
         subtitle={`Hare Krishna, ${user?.displayName || 'Devotee'}`}
@@ -105,14 +107,44 @@ export const HomeScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading devotional dashboard...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading devotional dashboard...</Text>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
+          {/* Quick Theme Customization Card */}
+          <TouchableOpacity
+            style={[
+              styles.themeCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={openThemePicker}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.themeIconCircle, { backgroundColor: theme.thickColor }]}>
+                <Ionicons name="color-palette" size={18} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={[styles.themeTitle, { color: theme.colors.text }]}>
+                  Color Theme: <Text style={{ color: theme.thickColor, fontWeight: 'bold' }}>{theme.name}</Text>
+                </Text>
+                <Text style={[styles.themeSubtitle, { color: theme.colors.textMuted }]}>
+                  Change background & header color
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.themePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+              <Text style={[styles.themePillText, { color: theme.thickColor }]}>Change</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.thickColor} />
+            </View>
+          </TouchableOpacity>
           {/* Active Mandatory Sadhana Reminder (6 PM & 9 PM) */}
           {remindersInfo.pendingReminders.length > 0 && (
             <View
@@ -320,6 +352,48 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: THEME.spacing.base,
     paddingBottom: THEME.spacing.xxl,
+  },
+  themeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  themeIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  themeSubtitle: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  themePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 2,
+  },
+  themePillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   reminderBanner: {
     flexDirection: 'row',

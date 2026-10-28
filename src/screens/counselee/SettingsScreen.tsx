@@ -2,17 +2,41 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 
 export const SettingsScreen = () => {
   const { user, signOut } = useAuth();
+  const { theme, openThemePicker } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header title="Settings" subtitle="App & System Preferences" />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Appearance & Color Palette */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Appearance & Theme</Text>
+          <TouchableOpacity
+            style={styles.themeSelectorRow}
+            onPress={openThemePicker}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[styles.themeCircle, { backgroundColor: theme.thickColor }]} />
+              <View>
+                <Text style={styles.themeName}>{theme.name}</Text>
+                <Text style={styles.themeDesc}>Tap to choose a new color scheme</Text>
+              </View>
+            </View>
+            <View style={[styles.themePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+              <Text style={[styles.themePillText, { color: theme.thickColor }]}>Change</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.thickColor} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Account Info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account</Text>
@@ -123,6 +147,45 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: THEME.spacing.base,
     paddingBottom: THEME.spacing.xxl,
+  },
+  themeSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  themeCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  themeName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  themeDesc: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  themePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 2,
+  },
+  themePillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   card: {
     backgroundColor: THEME.colors.surface,

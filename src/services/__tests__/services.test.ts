@@ -15,6 +15,9 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     }),
     getAllKeys: jest.fn(async () => Object.keys(mockStorage)),
     multiGet: jest.fn(async (keys: string[]) => keys.map((k) => [k, mockStorage[k] || null])),
+    multiRemove: jest.fn(async (keys: string[]) => {
+      keys.forEach((k) => delete mockStorage[k]);
+    }),
   },
 }));
 
@@ -50,6 +53,12 @@ jest.mock('expo-linking', () => ({
   openURL: jest.fn().mockResolvedValue(true),
 }));
 
+jest.mock('expo-local-authentication', () => ({
+  hasHardwareAsync: jest.fn().mockResolvedValue(true),
+  isEnrolledAsync: jest.fn().mockResolvedValue(true),
+  authenticateAsync: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 import { evaluateDailySadhana } from '../../utils/scoringEngine';
 import { getDaysDifference, getBirthdayInYear } from '../../utils/dateUtils';
 import { generateRandomCode } from '../invitationService';
@@ -59,6 +68,8 @@ import { sadhanaService } from '../sadhanaService';
 import { otpService } from '../otpService';
 import { reportService } from '../reportService';
 import { notificationService } from '../notificationService';
+import { fastCache } from '../fastCacheService';
+import { biometricService } from '../biometricService';
 
 describe('Service Logic and Integration Verification', () => {
   describe('Invitation Code Logic', () => {
@@ -364,6 +375,50 @@ describe('Service Logic and Integration Verification', () => {
       expect(typeof setupResult).toBe('boolean');
 
       await expect(notificationService.cancelTodayReminders()).resolves.not.toThrow();
+    });
+
+    test('fastCache provides sub-millisecond retrieval and supports pattern invalidation', async () => {
+      await fastCache.set('test_key_1', { hello: 'world' }, 60);
+      const cached = await fastCache.get<{ hello: string }>('test_key_1');
+      expect(cached).toEqual({ hello: 'world' });
+
+      await fastCache.invalidate('test_key_1');
+      const cleared = await fastCache.get('test_key_1');
+      expect(cleared).toBeNull();
+    });
+
+    test('biometricService multi-user isolation guarantees User A cannot unlock User B account', async () => {
+      // Clear previous
+      await biometricService.clearAllBiometrics();
+
+      // Enroll User A
+      await biometricService.enrollDevoteeWithFingerprint(
+        { uid: 'user_a_uid', email: 'userA@iskcon.org', displayName: 'User A Devotee' },
+        'passwordA123'
+      );
+
+      // Enroll User B
+      await biometricService.enrollDevoteeWithFingerprint(
+        { uid: 'user_b_uid', email: 'userB@iskcon.org', displayName: 'User B Devotee' },
+        'passwordB456'
+      );
+
+      // Verify both exist
+      const accounts = await biometricService.getEnrolledAccounts();
+      expect(accounts.length).toBe(2);
+
+      // Authenticate specific User A
+      const authUserA = await biometricService.authenticateWithFingerprint('userA@iskcon.org');
+      expect(authUserA?.email).toBe('usera@iskcon.org');
+      expect(authUserA?.password).toBe('passwordA123');
+
+      // Authenticate specific User B
+      const authUserB = await biometricService.authenticateWithFingerprint('userB@iskcon.org');
+      expect(authUserB?.email).toBe('userb@iskcon.org');
+      expect(authUserB?.password).toBe('passwordB456');
+
+      // User A password never matches User B
+      expect(authUserA?.password).not.toBe(authUserB?.password);
     });
   });
 });

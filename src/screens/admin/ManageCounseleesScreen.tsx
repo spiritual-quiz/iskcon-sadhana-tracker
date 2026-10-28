@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { FollowUpModal } from '../../components/FollowUpModal';
@@ -26,6 +27,7 @@ import { getAllInvitations } from '../../services/invitationService';
 import { InvitationCode } from '../../types/monitoring';
 
 export const ManageCounseleesScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'all' | 'byInvitation'>('all');
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
   const [invitations, setInvitations] = useState<InvitationCode[]>([]);
@@ -229,7 +231,7 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
   }, [counselees, invitations]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Manage Counselees"
         subtitle="Devotee Profiles & Spiritual Records"

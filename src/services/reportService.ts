@@ -16,6 +16,7 @@ import { attendanceService } from './attendanceService';
 import { calculateWeeklyScoreAndGrade, calculateMonthlyScoreAndGrade } from '../utils/scoringEngine';
 import { getWeekDetails, getMonthDetails } from '../utils/dateUtils';
 import { localStorageService } from './localStorageService';
+import { fastCache } from './fastCacheService';
 
 export const reportService = {
   /**
@@ -29,6 +30,9 @@ export const reportService = {
     publicConsent?: boolean;
   }): Promise<WeeklyReport> => {
     const { weekId, startDate, endDate, dates } = getWeekDetails(params.weekDateString);
+    const cacheKey = `weekly_report_${params.userId}_${weekId}`;
+    const cached = await fastCache.get<WeeklyReport>(cacheKey);
+    if (cached) return cached;
 
     // Fetch daily entries for all 7 days of the week
     const entries = await sadhanaService.getEntriesForDateRange(params.userId, startDate, endDate);
@@ -130,14 +134,10 @@ export const reportService = {
       };
 
       await localStorageService.saveSharedWeeklySummary(sharedSummary);
-
-      try {
-        await setDoc(doc(db, 'shared_weekly_summaries', summaryId), sharedSummary);
-      } catch (e: any) {
-        // Gracefully saved in local storage
-      }
+      setDoc(doc(db, 'shared_weekly_summaries', summaryId), sharedSummary).catch(() => {});
     }
 
+    await fastCache.set(cacheKey, report, 60);
     return report;
   },
 
@@ -152,6 +152,10 @@ export const reportService = {
     publicConsent?: boolean;
   }): Promise<MonthlyReport> => {
     const { monthId, monthName, dates } = getMonthDetails(params.year, params.month);
+    const cacheKey = `monthly_report_${params.userId}_${monthId}`;
+    const cached = await fastCache.get<MonthlyReport>(cacheKey);
+    if (cached) return cached;
+
     const startDate = dates[0];
     const endDate = dates[dates.length - 1];
 
@@ -280,13 +284,9 @@ export const reportService = {
     };
 
     await localStorageService.saveSharedMonthlySummary(sharedSummary);
+    setDoc(doc(db, 'shared_monthly_summaries', summaryId), sharedSummary).catch(() => {});
 
-    try {
-      await setDoc(doc(db, 'shared_monthly_summaries', summaryId), sharedSummary);
-    } catch (e: any) {
-      // Gracefully saved in local storage
-    }
-
+    await fastCache.set(cacheKey, report, 90);
     return report;
   },
 

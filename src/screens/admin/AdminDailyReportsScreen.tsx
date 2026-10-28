@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { sadhanaService } from '../../services/sadhanaService';
@@ -27,6 +28,7 @@ interface DevoteeWeekSummary {
 }
 
 export const AdminDailyReportsScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [viewMode, setViewMode] = useState<'week' | 'single'>('week');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateStringIST());
   
@@ -168,7 +170,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
     : weekEntries;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Daily Sadhana Reports"
         subtitle={

@@ -22,6 +22,7 @@ import { auth, db } from '../config/firebase';
 import { UserProfile, UserRole, UserStatus } from '../types/auth';
 import { validateInvitationCode, redeemInvitationCode } from './invitationService';
 import { localStorageService, LocalStoredUser } from './localStorageService';
+import { fastCache } from './fastCacheService';
 
 export interface RegisterParams {
   email: string;
@@ -449,6 +450,9 @@ export const authService = {
       // Gracefully fall back to local storage in offline/hybrid mode
     }
     await localStorageService.updateUserStatus(uid, status);
+    fastCache.invalidate('all_users');
+    fastCache.invalidate('all_counselees');
+    fastCache.invalidate('pending_counselees');
   },
 
   /**
@@ -465,12 +469,21 @@ export const authService = {
 
     // 2. Permanently purge from local storage (including records & tombstones)
     await localStorageService.deleteUser(uid);
+    fastCache.invalidate('all_users');
+    fastCache.invalidate('all_counselees');
+    fastCache.invalidate('pending_counselees');
   },
 
   /**
    * Get all counselees with status === 'pending' awaiting approval
    */
   getPendingCounselees: async (): Promise<UserProfile[]> => {
+    // 0. Check in-memory fast cache (0ms instant response)
+    const cached = await fastCache.get<UserProfile[]>('pending_counselees');
+    if (cached) {
+      return cached;
+    }
+
     const map = new Map<string, UserProfile>();
 
     // 1. Load from local persistent storage first
@@ -481,7 +494,7 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge with quick 1.5s timeout
+    // 2. Load from Firestore and merge with fast 1.0s timeout
     try {
       const q = query(
         collection(db, 'users'),
@@ -490,7 +503,7 @@ export const authService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       snap.docs.forEach((d) => {
         const u = d.data() as UserProfile;
@@ -500,15 +513,23 @@ export const authService = {
       // Gracefully fall back to local storage
     }
 
-    return Array.from(map.values()).sort(
+    const result = Array.from(map.values()).sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
+    await fastCache.set('pending_counselees', result, 60);
+    return result;
   },
 
   /**
    * Get all counselees (approved, pending, and disabled)
    */
   getAllCounselees: async (): Promise<UserProfile[]> => {
+    // 0. Instant memory cache check (0ms response)
+    const cached = await fastCache.get<UserProfile[]>('all_counselees');
+    if (cached) {
+      return cached;
+    }
+
     const map = new Map<string, UserProfile>();
 
     // 1. Load from local persistent storage
@@ -519,12 +540,12 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge with quick 1.5s timeout
+    // 2. Load from Firestore and merge with fast 1.0s timeout
     try {
       const q = query(collection(db, 'users'), where('role', '==', 'counselee'));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       snap.docs.forEach((d) => {
         const u = d.data() as UserProfile;
@@ -534,13 +555,21 @@ export const authService = {
       // Gracefully fall back to local storage
     }
 
-    return Array.from(map.values());
+    const result = Array.from(map.values());
+    await fastCache.set('all_counselees', result, 90);
+    return result;
   },
 
   /**
    * Get all registered users
    */
   getAllUsers: async (): Promise<UserProfile[]> => {
+    // 0. Instant memory cache check (0ms response)
+    const cached = await fastCache.get<UserProfile[]>('all_users');
+    if (cached) {
+      return cached;
+    }
+
     const map = new Map<string, UserProfile>();
 
     const localUsers = await localStorageService.getAllUsers();
@@ -551,7 +580,7 @@ export const authService = {
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
       ]);
       snap.docs.forEach((d) => {
         const u = d.data() as UserProfile;
@@ -561,7 +590,9 @@ export const authService = {
       // Gracefully fall back to local storage
     }
 
-    return Array.from(map.values());
+    const result = Array.from(map.values());
+    await fastCache.set('all_users', result, 90);
+    return result;
   },
 
   /**

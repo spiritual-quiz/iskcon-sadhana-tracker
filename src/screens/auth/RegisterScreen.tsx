@@ -179,7 +179,7 @@ export const RegisterScreen = ({ navigation }: any) => {
       });
 
       if (saveFingerprint) {
-        await biometricService.saveCredentials(cleanEmail, password);
+        await biometricService.saveCredentials(cleanEmail, password, displayName.trim());
       }
 
       Alert.alert(

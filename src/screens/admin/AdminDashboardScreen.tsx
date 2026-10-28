@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -28,6 +29,7 @@ import { notificationService } from '../../services/notificationService';
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
+  const { theme, openThemePicker } = useTheme();
   const todayStr = getTodayDateStringIST();
 
   const [approvedCount, setApprovedCount] = useState<number>(0);
@@ -50,8 +52,17 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
   const loadDashboardMetrics = async () => {
     try {
-      // 1. Fetch Users
-      const allUsers = await authService.getAllUsers();
+      const now = new Date();
+      const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      // Parallelized instant fetch across all metrics
+      const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly] = await Promise.all([
+        authService.getAllUsers(),
+        sadhanaService.getAllEntriesForDate(todayStr),
+        monitoringService.getOpenAlerts(),
+        localStorageService.getSharedWeeklySummaries(todayStr).catch(() => []),
+        localStorageService.getSharedMonthlySummaries(monthId).catch(() => []),
+      ]);
 
       const approved = allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved');
       const pending = allUsers.filter((u) => u.role === 'counselee' && u.status === 'pending');
@@ -62,37 +73,21 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       setReminderRequestsCount(reminderReqs.length);
       setTargetRequestsCount(targetReqs.length);
 
-      // 2. Today's submissions & low score count (<50%)
-      const todayEntries = await sadhanaService.getAllEntriesForDate(todayStr);
       setTodaySubmissionsCount(todayEntries.length);
       const dailyLow = todayEntries.filter((e) => (e.percentage ?? 0) < 50).length;
       setDailyLowScoreCount(dailyLow);
 
-      // 3. Open monitoring alerts
-      const alerts = await monitoringService.getOpenAlerts();
       const missing = alerts.filter((a) => a.alertType === 'missing_card');
       const low = alerts.filter((a) => a.alertType === 'low_score');
       setMissingAlertsCount(missing.length);
       setLowScoreCount(low.length);
 
-      // 4. Weekly & Monthly <50% counts (read directly from cached summaries for instant speed)
-      try {
-        const sharedWeekly = await localStorageService.getSharedWeeklySummaries(todayStr);
-        setWeeklyLowScoreCount(sharedWeekly.filter((r) => (r.percentage ?? 0) < 50).length);
+      setWeeklyLowScoreCount(sharedWeekly.filter((r) => (r.percentage ?? 0) < 50).length);
+      setMonthlyLowScoreCount(sharedMonthly.filter((r) => (r.percentage ?? 0) < 50).length);
 
-        const now = new Date();
-        const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const sharedMonthly = await localStorageService.getSharedMonthlySummaries(monthId);
-        setMonthlyLowScoreCount(sharedMonthly.filter((r) => (r.percentage ?? 0) < 50).length);
-      } catch (repErr) {
-        // Safe fallback
-      }
-
-      // 5. Upcoming birthdays
       const bdays = birthdayService.getUpcomingBirthdays(approved, 30);
       setUpcomingBirthdaysCount(bdays.length);
 
-      // 6. Check and dispatch high-priority notifications with tone for counsellor
       await notificationService.checkAndDispatchAdminAlerts(user);
     } catch (e) {
       console.warn('Error loading admin dashboard metrics:', e);
@@ -206,7 +201,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Counsellor Dashboard"
         subtitle={`Hare Krishna, ${user?.displayName || 'Madhav Charan Das'}`}
@@ -218,8 +213,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading counsellor console...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading counsellor console...</Text>
         </View>
       ) : (
         <ScrollView
@@ -229,8 +224,39 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           ]}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
+          {/* Quick Theme Customization Card */}
+          <TouchableOpacity
+            style={[
+              styles.themeCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={openThemePicker}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={[styles.themeIconCircle, { backgroundColor: theme.thickColor }]}>
+                <Ionicons name="color-palette" size={18} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={[styles.themeTitle, { color: theme.colors.text }]}>
+                  Color Theme: <Text style={{ color: theme.thickColor, fontWeight: 'bold' }}>{theme.name}</Text>
+                </Text>
+                <Text style={[styles.themeSubtitle, { color: theme.colors.textMuted }]}>
+                  Customize background & dashboard colors
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.themePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+              <Text style={[styles.themePillText, { color: theme.thickColor }]}>Change</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.thickColor} />
+            </View>
+          </TouchableOpacity>
+
           {/* Executive Metrics Overview Strip */}
-          <View style={styles.metricsStrip}>
+          <View style={[styles.metricsStrip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <View style={styles.metricBox}>
               <Text style={styles.metricValue}>{approvedCount}</Text>
               <Text style={styles.metricLabel}>Counselees</Text>
@@ -335,6 +361,48 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 12,
+  },
+  themeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  themeIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  themeSubtitle: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  themePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 2,
+  },
+  themePillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   metricsStrip: {
     flexDirection: 'row',
