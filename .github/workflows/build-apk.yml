@@ -41,15 +41,21 @@ jobs:
       - name: Run Expo Prebuild (Generate native Android folder)
         run: npx expo prebuild --platform android --clean --no-install
 
+      - name: Optimize Gradle Configuration for CI
+        run: |
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC" >> android/gradle.properties
+          echo "org.gradle.parallel=false" >> android/gradle.properties
+          echo "org.gradle.daemon=false" >> android/gradle.properties
+          echo "kotlin.compiler.execution.strategy=in-process" >> android/gradle.properties
+          echo "reactNativeArchitectures=arm64-v8a,armeabi-v7a" >> android/gradle.properties
+
       - name: Grant Execute Permission to Gradlew
         run: chmod +x android/gradlew
 
       - name: Build Android Release APK
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=512m"
         run: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon --console=plain --max-workers=2
 
       - name: Prepare APK Output
         run: |
