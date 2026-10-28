@@ -6,17 +6,19 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Switch,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { THEME } from '../../constants/theme';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
 import { authService } from '../../services/authService';
+import { validateInvitationCode } from '../../services/invitationService';
 
 export const ProfileScreen = () => {
   const { user, reloadUser, signOut } = useAuth();
@@ -24,7 +26,8 @@ export const ProfileScreen = () => {
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
   const [declaredRounds, setDeclaredRounds] = useState(String(user?.declaredRounds || 16));
-  const [consent, setConsent] = useState(user?.publicAppreciationConsent ?? true);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(user?.photoURL || null);
+  const [invitationName, setInvitationName] = useState<string>(user?.invitationName || '');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -32,13 +35,62 @@ export const ProfileScreen = () => {
       setDisplayName(user.displayName || '');
       setPhoneNumber(user.phoneNumber || '');
       setDeclaredRounds(String(user.declaredRounds || 16));
-      setConsent(user.publicAppreciationConsent ?? true);
+      setPhotoUrl(user.photoURL || null);
+
+      if (user.invitationName) {
+        setInvitationName(user.invitationName);
+      } else if (user.invitationCode) {
+        validateInvitationCode(user.invitationCode).then((res) => {
+          if (res.invitation?.notes) {
+            setInvitationName(res.invitation.notes);
+          } else if (user.invitationCode === 'KRISHNA7') {
+            setInvitationName('General Devotee Registration');
+          } else if (user.invitationCode === 'SADHANA16') {
+            setInvitationName('16 Rounds Devotee Group');
+          } else {
+            setInvitationName(user.invitationCode || 'General Devotee Registration');
+          }
+        });
+      } else {
+        setInvitationName('General Devotee Registration');
+      }
     }
   }, [user]);
 
   // Dynamic calculations
   const dynamicAge = calculateAge(user?.dateOfBirth);
   const dynamicConnection = calculateConnectionDuration(user?.iskconConnectDate);
+
+  const handlePickImage = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Needed', 'Please allow gallery access to select your devotee profile photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedUri = result.assets[0].uri;
+        setPhotoUrl(selectedUri);
+        if (user?.uid) {
+          await authService.updatePermittedProfile(user.uid, {
+            photoURL: selectedUri,
+          });
+          await reloadUser();
+          Alert.alert('Photo Updated', 'Your profile photo has been updated successfully!');
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Photo Error', e.message || 'Could not select photo.');
+    }
+  };
 
   const handleSavePermitted = async () => {
     if (!user?.uid) return;
@@ -50,7 +102,7 @@ export const ProfileScreen = () => {
       await authService.updatePermittedProfile(user.uid, {
         displayName: displayName.trim(),
         phoneNumber: phoneNumber.trim(),
-        publicAppreciationConsent: consent,
+        photoURL: photoUrl || undefined,
       });
 
       if (targetChanged) {
@@ -78,9 +130,22 @@ export const ProfileScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card */}
         <View style={styles.profileHeaderCard}>
-          <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={40} color={THEME.colors.gold} />
-          </View>
+          <TouchableOpacity style={styles.avatarTouchable} onPress={handlePickImage} activeOpacity={0.8}>
+            {photoUrl ? (
+              <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Ionicons name="person" size={40} color={THEME.colors.gold} />
+              </View>
+            )}
+            <View style={styles.cameraIconBadge}>
+              <Ionicons name="camera" size={13} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePickImage} style={styles.addPhotoLink}>
+            <Text style={styles.addPhotoText}>{photoUrl ? 'Change Photo' : 'Add Photo'}</Text>
+          </TouchableOpacity>
+
           <Text style={styles.profileName}>{user?.displayName}</Text>
           <Text style={styles.profileEmail}>{user?.email}</Text>
           <View style={styles.badgeRow}>
@@ -123,8 +188,8 @@ export const ProfileScreen = () => {
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Invitation Code Used:</Text>
-            <Text style={styles.infoValue}>{user?.invitationCode || 'N/A'}</Text>
+            <Text style={styles.infoLabel}>Invitation Name:</Text>
+            <Text style={styles.infoValueGold}>{invitationName || 'General Devotee Registration'}</Text>
           </View>
 
           <Text style={styles.protectedNotice}>
@@ -177,21 +242,6 @@ export const ProfileScreen = () => {
             )}
           </View>
 
-          <View style={styles.switchRow}>
-            <View style={styles.switchTextContainer}>
-              <Text style={styles.switchLabel}>Community Appreciation Consent</Text>
-              <Text style={styles.switchSubLabel}>
-                Allow counsellor to feature your steady milestones in the community appreciation sanga.
-              </Text>
-            </View>
-            <Switch
-              value={consent}
-              onValueChange={setConsent}
-              trackColor={{ false: THEME.colors.border, true: THEME.colors.primary }}
-              thumbColor={THEME.colors.gold}
-            />
-          </View>
-
           <TouchableOpacity
             style={styles.saveBtn}
             onPress={handleSavePermitted}
@@ -205,7 +255,7 @@ export const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Sign Out */}
+        {/* Sign Out - Thick Orange Colour */}
         <TouchableOpacity style={styles.signOutBtn} onPress={signOut} activeOpacity={0.85}>
           <Ionicons name="log-out" size={20} color="#FFFFFF" />
           <Text style={styles.signOutBtnText}>Sign Out</Text>
@@ -234,16 +284,55 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.border,
     ...THEME.shadows.soft,
   },
+  avatarTouchable: {
+    position: 'relative',
+    marginBottom: 4,
+  },
   avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     backgroundColor: THEME.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: THEME.colors.gold,
+  },
+  avatarImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 3,
+    borderColor: THEME.colors.gold,
+    backgroundColor: THEME.colors.surfaceVariant,
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#EA580C',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  addPhotoLink: {
     marginBottom: THEME.spacing.sm,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  addPhotoText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EA580C',
   },
   profileName: {
     fontSize: THEME.typography.sizes.xl,
@@ -378,14 +467,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 15,
     borderRadius: THEME.borderRadius.md,
-    backgroundColor: '#DC2626',
+    backgroundColor: '#EA580C', // Thick rich orange
     elevation: 3,
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
     marginTop: THEME.spacing.md,
   },
   signOutBtnText: {

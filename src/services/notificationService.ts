@@ -1,6 +1,9 @@
 import { UserProfile } from '../types/auth';
 import { sadhanaService } from './sadhanaService';
-import { getTodayDateStringIST, getNowInIST } from '../utils/dateUtils';
+import { getTodayDateStringIST, getNowInIST, getDaysDifference } from '../utils/dateUtils';
+import { authService } from './authService';
+import { monitoringService } from './monitoringService';
+import { birthdayService } from './birthdayService';
 
 // Safely require Platform and expo-notifications for cross-platform and jest test environments
 let Platform: any = { OS: 'android' };
@@ -19,25 +22,19 @@ try {
 
 export const NOTIFICATION_CHANNELS = {
   SADHANA_REMINDER: 'sadhana_reminder_channel',
+  ADMIN_ALERTS: 'admin_alerts_channel',
 };
+
+// Track dispatched notification keys in the current session to prevent duplicate sounds
+const dispatchedAlertKeys = new Set<string>();
 
 // Set foreground notification presentation handler with sound enabled
 if (Notifications?.setNotificationHandler) {
   Notifications.setNotificationHandler({
     handleNotification: async (notification: any) => {
-      // Check if this is a sadhana reminder
-      const identifier = notification?.request?.identifier || '';
-      if (identifier.startsWith('sadhana_reminder')) {
-        // If today's card is already filled, do NOT present or play sound
-        return {
-          shouldShowAlert: true,
-          shouldPlaySound: true, // Plays default short notification chime ('ting')
-          shouldSetBadge: false,
-        };
-      }
       return {
         shouldShowAlert: true,
-        shouldPlaySound: true,
+        shouldPlaySound: true, // Plays default short notification chime ('ting' tone)
         shouldSetBadge: false,
       };
     },
@@ -46,7 +43,7 @@ if (Notifications?.setNotificationHandler) {
 
 export const notificationService = {
   /**
-   * Initialize notification channels and permissions
+   * Initialize notification channels and permissions with WhatsApp/PhonePe heads-up banner & tone
    */
   setupNotifications: async (): Promise<boolean> => {
     if (!Notifications) return false;
@@ -65,17 +62,32 @@ export const notificationService = {
         }
       }
 
-      // 2. Configure Android Notification Channel with sound ('ting' chime) & vibration
+      // 2. Configure Android Notification Channels with WhatsApp / PhonePe style heads-up display & tone
       if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
+        // Daily Sadhana Reminders Channel (compulsory for counselees, 6pm & 9pm)
         await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.SADHANA_REMINDER, {
           name: 'Sadhana Reminders',
           description: 'Daily devotional sadhana completion reminders with short chime',
-          importance: Notifications.AndroidImportance.HIGH,
-          sound: 'default', // Standard crisp notification chime ('ting')
+          importance: Notifications.AndroidImportance.MAX, // Heads-up banner with tone
+          sound: 'default', // Standard notification chime ('ting')
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#FFA600',
           enableVibrate: true,
           showBadge: true,
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
+        });
+
+        // Admin Alerts Channel (for new devotees, reminder off requests, rounds change, birthdays, 3+ day missing)
+        await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.ADMIN_ALERTS, {
+          name: 'Counsellor Alerts',
+          description: 'High-priority notifications for counselee requests, birthdays, and sadhana monitoring',
+          importance: Notifications.AndroidImportance.MAX, // Heads-up banner with tone
+          sound: 'default', // Standard notification chime
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#EA580C',
+          enableVibrate: true,
+          showBadge: true,
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
         });
       }
 
@@ -130,7 +142,7 @@ export const notificationService = {
             body,
             sound: 'default', // Mobile notification sound / short 'ting'
             vibrate: [0, 250, 250, 250],
-            priority: Notifications.AndroidNotificationPriority.HIGH,
+            priority: Notifications.AndroidNotificationPriority.MAX,
             channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
             data: { screen: 'DailySadhana', date: todayStr },
           },
@@ -171,7 +183,7 @@ export const notificationService = {
           body: 'Hare Krishna! Please remember to fill your daily sadhana card for today.',
           sound: 'default',
           vibrate: [0, 250, 250, 250],
-          priority: Notifications.AndroidNotificationPriority.HIGH,
+          priority: Notifications.AndroidNotificationPriority.MAX,
           channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
           data: { screen: 'DailySadhana' },
         },
@@ -190,7 +202,7 @@ export const notificationService = {
           body: 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is pending. Please fill it before taking rest.',
           sound: 'default',
           vibrate: [0, 250, 250, 250],
-          priority: Notifications.AndroidNotificationPriority.HIGH,
+          priority: Notifications.AndroidNotificationPriority.MAX,
           channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
           data: { screen: 'DailySadhana' },
         },
@@ -223,6 +235,141 @@ export const notificationService = {
       }
     } catch (e) {
       console.warn('Error cancelling today reminder:', e);
+    }
+  },
+
+  /**
+   * High-priority admin/counsellor heads-up alerts with tone (like WhatsApp/PhonePe):
+   * 1. New counselee joined (pending registration)
+   * 2. Reminder switch-off requests
+   * 3. Chanting rounds change requests
+   * 4. Devotees who haven't filled sadhana for 3+ consecutive days
+   * 5. Devotee birthday today
+   */
+  checkAndDispatchAdminAlerts: async (adminUser: UserProfile | null): Promise<void> => {
+    if (!adminUser || adminUser.role !== 'counsellor' || !Notifications) return;
+    if (!Notifications.scheduleNotificationAsync) return;
+
+    try {
+      const todayStr = getTodayDateStringIST();
+      const allUsers = await authService.getAllUsers();
+      const counselees = allUsers.filter((u) => u.role === 'counselee');
+
+      // 1. New Counselees joined / pending approval
+      const pendingUsers = counselees.filter((u) => u.status === 'pending');
+      if (pendingUsers.length > 0) {
+        const key = `admin_pending_${todayStr}_${pendingUsers.length}`;
+        if (!dispatchedAlertKeys.has(key)) {
+          dispatchedAlertKeys.add(key);
+          await Notifications.scheduleNotificationAsync({
+            identifier: key,
+            content: {
+              title: 'New Counselee Registration',
+              body: `${pendingUsers.length} devotee(s) registered (${pendingUsers[0].displayName}${pendingUsers.length > 1 ? ' +' + (pendingUsers.length - 1) + ' more' : ''}) and await your approval.`,
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+              data: { screen: 'CounseleeApproval' },
+            },
+            trigger: null,
+          });
+        }
+      }
+
+      // 2. Reminder Switch-Off Requests
+      const reminderReqs = counselees.filter((u) => u.reminderOptOutRequested === true);
+      if (reminderReqs.length > 0) {
+        const key = `admin_reminder_optout_${todayStr}_${reminderReqs.length}`;
+        if (!dispatchedAlertKeys.has(key)) {
+          dispatchedAlertKeys.add(key);
+          await Notifications.scheduleNotificationAsync({
+            identifier: key,
+            content: {
+              title: 'Reminder Switch-Off Request',
+              body: `${reminderReqs[0].displayName}${reminderReqs.length > 1 ? ' and others' : ''} requested to turn off daily sadhana reminders.`,
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+              data: { screen: 'ManageCounselees' },
+            },
+            trigger: null,
+          });
+        }
+      }
+
+      // 3. Target Rounds Change Requests
+      const targetReqs = counselees.filter(
+        (u) => u.targetRoundsRequested && u.targetRoundsRequested > 0
+      );
+      if (targetReqs.length > 0) {
+        const key = `admin_rounds_req_${todayStr}_${targetReqs.length}`;
+        if (!dispatchedAlertKeys.has(key)) {
+          dispatchedAlertKeys.add(key);
+          await Notifications.scheduleNotificationAsync({
+            identifier: key,
+            content: {
+              title: 'Chanting Target Request',
+              body: `${targetReqs[0].displayName} requested to update chanting target to ${targetReqs[0].targetRoundsRequested} rounds.`,
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+              data: { screen: 'ManageCounselees' },
+            },
+            trigger: null,
+          });
+        }
+      }
+
+      // 4. Devotees Missing Sadhana for 3+ Days
+      const openAlerts = await monitoringService.getOpenAlerts();
+      const missingAlerts = openAlerts.filter((a) => a.alertType === 'missing_card');
+      if (missingAlerts.length > 0) {
+        const key = `admin_missing_sadhana_${todayStr}_${missingAlerts.length}`;
+        if (!dispatchedAlertKeys.has(key)) {
+          dispatchedAlertKeys.add(key);
+          await Notifications.scheduleNotificationAsync({
+            identifier: key,
+            content: {
+              title: 'Sadhana Pending (3+ Days)',
+              body: `${missingAlerts[0].counseleeName} has not submitted sadhana for 3+ consecutive days.`,
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+              data: { screen: 'MonitoringAlerts' },
+            },
+            trigger: null,
+          });
+        }
+      }
+
+      // 5. Devotee Birthdays Today
+      const upcomingBdays = birthdayService.getUpcomingBirthdays(counselees, 1);
+      const todayBdays = upcomingBdays.filter((b) => b.reminderDate === todayStr);
+      if (todayBdays.length > 0) {
+        const key = `admin_birthday_${todayStr}_${todayBdays.length}`;
+        if (!dispatchedAlertKeys.has(key)) {
+          dispatchedAlertKeys.add(key);
+          await Notifications.scheduleNotificationAsync({
+            identifier: key,
+            content: {
+              title: 'Devotee Birthday Today! 🎉',
+              body: `Hare Krishna! Today is ${todayBdays[0].counseleeName}'s birthday! Wish them devotional blessings.`,
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+              data: { screen: 'BirthdayReminders' },
+            },
+            trigger: null,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Error checking admin alerts:', e);
     }
   },
 };

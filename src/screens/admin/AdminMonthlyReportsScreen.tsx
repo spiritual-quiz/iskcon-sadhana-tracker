@@ -207,12 +207,12 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                     size={18}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.satsangaBtnTextActive}>
+                  <Text style={styles.satsangaBtnTextActive} numberOfLines={1}>
                     {rep.satsangaStatus === 'attended'
-                      ? 'Monthly Satsang: Attended (50/50 M)'
+                      ? 'Satsang: Attended (+50 M)'
                       : rep.satsangaStatus === 'not_conducted'
-                      ? 'Monthly Satsang: No Class Held (Dynamic / 0 Penalty)'
-                      : 'Monthly Satsang: Absent (0/50 M)'}
+                      ? 'Satsang: Not Held (0 Penalty)'
+                      : 'Satsang: Absent (0/50 M)'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -375,10 +375,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     borderRadius: THEME.borderRadius.md,
     marginTop: 6,
     borderWidth: 1,
+    maxWidth: '100%',
   },
   satsangaBtnActive: {
     backgroundColor: '#15803D',
@@ -404,6 +406,10 @@ const styles = StyleSheet.create({
   },
   satsangaBtnTextActive: {
     color: THEME.colors.textInverse,
+    fontSize: THEME.typography.sizes.xs,
+    fontWeight: 'bold',
+    marginLeft: 6,
+    flexShrink: 1,
   },
   emptyContainer: {
     alignItems: 'center',

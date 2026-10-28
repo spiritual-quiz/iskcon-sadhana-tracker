@@ -33,6 +33,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   // Invitation Code
   const [invitationCode, setInvitationCode] = useState('');
+  const [invitationGroupName, setInvitationGroupName] = useState('');
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [codeValidated, setCodeValidated] = useState(false);
 
@@ -100,7 +101,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   const handleVerifyInvitation = async () => {
     if (!invitationCode.trim()) {
-      Alert.alert('Missing Code', 'Please enter your invitation code.');
+      Alert.alert('Missing Code', 'Please enter your counsellor invitation code.');
       return;
     }
     setIsValidatingCode(true);
@@ -108,8 +109,12 @@ export const RegisterScreen = ({ navigation }: any) => {
       const res = await validateInvitationCode(invitationCode.trim());
       if (res.isValid) {
         setCodeValidated(true);
-        Alert.alert('Code Verified', 'Invitation code is valid! Please complete your devotee profile.');
+        const groupName = res.invitation?.notes || res.invitation?.code || 'Devotee Group';
+        setInvitationGroupName(groupName);
+        Alert.alert('Code Verified ✓', `Invitation code valid for: "${groupName}"! Please complete your devotee profile.`);
       } else {
+        setCodeValidated(false);
+        setInvitationGroupName('');
         Alert.alert('Invalid Code', res.errorMessage || 'Invitation code is not valid.');
       }
     } finally {
@@ -211,40 +216,79 @@ export const RegisterScreen = ({ navigation }: any) => {
           style={styles.card}
           onLayout={(e) => handleFieldLayout('invitationCard', e.nativeEvent.layout.y)}
         >
-          <Text style={styles.cardSectionTitle}>Step 1: Counsellor Invitation Code</Text>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.stepCircle}>
+              <Text style={styles.stepCircleText}>1</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardSectionTitle}>Counsellor Invitation Code</Text>
+              <Text style={styles.helperText}>Enter the code provided by your counsellor</Text>
+            </View>
+          </View>
 
           <View style={styles.invitationRow}>
-            <TextInput
-              style={[styles.textInput, styles.invitationInput]}
-              placeholder=""
-              value={invitationCode}
-              onChangeText={(val) => {
-                setInvitationCode(val.toUpperCase());
-                setCodeValidated(false);
-              }}
-              onFocus={() => handleFieldFocus('invitationCard')}
-              autoCapitalize="characters"
-              maxLength={12}
-            />
+            <View style={styles.inputBoxWithIcon}>
+              <Ionicons name="key-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <TextInput
+                style={[styles.boxTextInput, styles.invitationInput]}
+                placeholder="e.g. INVIT-XXXX"
+                placeholderTextColor="#9CA3AF"
+                value={invitationCode}
+                onChangeText={(val) => {
+                  setInvitationCode(val.toUpperCase());
+                  setCodeValidated(false);
+                  setInvitationGroupName('');
+                }}
+                onFocus={() => handleFieldFocus('invitationCard')}
+                autoCapitalize="characters"
+                maxLength={16}
+              />
+            </View>
             <TouchableOpacity
               style={[styles.verifyButton, codeValidated && styles.verifyButtonSuccess]}
               onPress={handleVerifyInvitation}
               disabled={isValidatingCode}
+              activeOpacity={0.8}
             >
               {isValidatingCode ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.verifyButtonText}>
-                  {codeValidated ? 'Verified ✓' : 'Verify'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons
+                    name={codeValidated ? 'checkmark-circle' : 'shield-checkmark-outline'}
+                    size={14}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.verifyButtonText}>
+                    {codeValidated ? 'Verified' : 'Verify'}
+                  </Text>
+                </View>
               )}
             </TouchableOpacity>
           </View>
+
+          {/* Verified Group Name Badge */}
+          {codeValidated && (
+            <View style={styles.verifiedGroupBadge}>
+              <Ionicons name="people" size={16} color="#15803D" />
+              <Text style={styles.verifiedGroupText}>
+                Joining Group: <Text style={{ fontWeight: 'bold' }}>{invitationGroupName}</Text>
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Step 2: Personal & Spiritual Profile */}
         <View style={styles.card}>
-          <Text style={styles.cardSectionTitle}>Step 2: Devotee Profile Details</Text>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.stepCircle}>
+              <Text style={styles.stepCircleText}>2</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardSectionTitle}>Devotee Profile Details</Text>
+              <Text style={styles.helperText}>Provide accurate information for your counsellor</Text>
+            </View>
+          </View>
 
           {/* Name */}
           <View
@@ -252,13 +296,17 @@ export const RegisterScreen = ({ navigation }: any) => {
             onLayout={(e) => handleFieldLayout('name', e.nativeEvent.layout.y)}
           >
             <Text style={styles.inputLabel}>Name / Initiated Name *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder=""
-              value={displayName}
-              onChangeText={setDisplayName}
-              onFocus={() => handleFieldFocus('name')}
-            />
+            <View style={styles.inputBoxWithIcon}>
+              <Ionicons name="person-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <TextInput
+                style={styles.boxTextInput}
+                placeholder="e.g. Radheshyam Das / Ramesh Kumar"
+                placeholderTextColor="#9CA3AF"
+                value={displayName}
+                onChangeText={setDisplayName}
+                onFocus={() => handleFieldFocus('name')}
+              />
+            </View>
           </View>
 
           {/* Email */}
@@ -267,15 +315,19 @@ export const RegisterScreen = ({ navigation }: any) => {
             onLayout={(e) => handleFieldLayout('email', e.nativeEvent.layout.y)}
           >
             <Text style={styles.inputLabel}>Email Address *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="devotee@example.com"
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => handleFieldFocus('email')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View style={styles.inputBoxWithIcon}>
+              <Ionicons name="mail-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <TextInput
+                style={styles.boxTextInput}
+                placeholder="devotee@example.com"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => handleFieldFocus('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
           </View>
 
           {/* Password */}
@@ -284,10 +336,12 @@ export const RegisterScreen = ({ navigation }: any) => {
             onLayout={(e) => handleFieldLayout('password', e.nativeEvent.layout.y)}
           >
             <Text style={styles.inputLabel}>Create Password *</Text>
-            <View style={styles.passwordWrapper}>
+            <View style={styles.inputBoxWithIcon}>
+              <Ionicons name="lock-closed-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
-                style={styles.passwordInput}
-                placeholder=""
+                style={[styles.boxTextInput, { flex: 1 }]}
+                placeholder="Minimum 6 characters"
+                placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
                 onFocus={() => handleFieldFocus('password')}
@@ -313,14 +367,19 @@ export const RegisterScreen = ({ navigation }: any) => {
             onLayout={(e) => handleFieldLayout('phone', e.nativeEvent.layout.y)}
           >
             <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="+91 9876543210"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              onFocus={() => handleFieldFocus('phone')}
-              keyboardType="phone-pad"
-            />
+            <View style={styles.inputBoxWithIcon}>
+              <Ionicons name="logo-whatsapp" size={18} color="#16A34A" style={styles.inputLeadingIcon} />
+              <TextInput
+                style={styles.boxTextInput}
+                placeholder="10-digit WhatsApp mobile number"
+                placeholderTextColor="#9CA3AF"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                onFocus={() => handleFieldFocus('phone')}
+                keyboardType="phone-pad"
+                maxLength={15}
+              />
+            </View>
           </View>
 
           {/* Daily Rounds */}
@@ -329,14 +388,19 @@ export const RegisterScreen = ({ navigation }: any) => {
             onLayout={(e) => handleFieldLayout('rounds', e.nativeEvent.layout.y)}
           >
             <Text style={styles.inputLabel}>Daily Japa Commitment (Rounds) *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder=""
-              value={declaredRounds}
-              onChangeText={setDeclaredRounds}
-              onFocus={() => handleFieldFocus('rounds')}
-              keyboardType="numeric"
-            />
+            <View style={styles.inputBoxWithIcon}>
+              <Ionicons name="disc-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <TextInput
+                style={styles.boxTextInput}
+                placeholder="e.g. 16"
+                placeholderTextColor="#9CA3AF"
+                value={declaredRounds}
+                onChangeText={setDeclaredRounds}
+                onFocus={() => handleFieldFocus('rounds')}
+                keyboardType="numeric"
+                maxLength={3}
+              />
+            </View>
           </View>
 
           {/* Date of Birth Scrolling Selector */}
@@ -354,14 +418,14 @@ export const RegisterScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.dateSelectorContent}>
-                <Ionicons name="calendar" size={18} color={THEME.colors.primary} />
+                <Ionicons name="calendar" size={18} color="#D97706" />
                 <Text
                   style={[
                     styles.dateSelectorText,
                     !dateOfBirthDisplay && styles.dateSelectorPlaceholder,
                   ]}
                 >
-                  {dateOfBirthDisplay ? dateOfBirthDisplay : 'Scroll & Select (e.g. 10-June-2000)'}
+                  {dateOfBirthDisplay ? dateOfBirthDisplay : 'Scroll & Select Date (e.g. 10-May-1995)'}
                 </Text>
               </View>
               <View style={styles.dateBadge}>
@@ -392,7 +456,7 @@ export const RegisterScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.dateSelectorContent}>
-                <Ionicons name="heart" size={18} color={THEME.colors.goldDark} />
+                <Ionicons name="heart" size={18} color="#EA580C" />
                 <Text
                   style={[
                     styles.dateSelectorText,
@@ -401,7 +465,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 >
                   {iskconConnectDisplay
                     ? iskconConnectDisplay
-                    : 'Scroll & Select (e.g. 10-June-2000)'}
+                    : 'Scroll & Select Date (e.g. 15-Jan-2018)'}
                 </Text>
               </View>
               <View style={styles.dateBadge}>
@@ -424,11 +488,15 @@ export const RegisterScreen = ({ navigation }: any) => {
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleRegister}
             disabled={isSubmitting}
+            activeOpacity={0.85}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.submitButtonText}>Submit for Counsellor Approval</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="checkmark-done-circle" size={19} color="#FFFFFF" />
+                <Text style={styles.submitButtonText}>Submit Devotee Registration</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -508,83 +576,140 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    marginBottom: 8,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    ...THEME.shadows.soft,
+    borderColor: '#E5E7EB',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
   },
-  cardSectionTitle: {
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#EA580C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepCircleText: {
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
-    marginBottom: 4,
+  },
+  cardSectionTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#7C2D12',
   },
   helperText: {
-    fontSize: 10,
-    color: THEME.colors.textMuted,
-    marginBottom: 6,
+    fontSize: 10.5,
+    color: '#6B7280',
+    marginTop: 1,
   },
   invitationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  inputBoxWithIcon: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputLeadingIcon: {
+    marginRight: 8,
+  },
+  boxTextInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 12.5,
+    color: '#1F2937',
   },
   invitationInput: {
-    flex: 1,
-    marginRight: 6,
     fontWeight: 'bold',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
   verifyButton: {
-    backgroundColor: THEME.colors.primary,
-    paddingHorizontal: 12,
-    height: 36,
-    borderRadius: 7,
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   verifyButtonSuccess: {
-    backgroundColor: THEME.colors.success,
+    backgroundColor: '#16A34A',
   },
   verifyButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
-    fontSize: 11,
+    fontSize: 12,
+  },
+  verifiedGroupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 8,
+    gap: 6,
+  },
+  verifiedGroupText: {
+    fontSize: 12,
+    color: '#166534',
   },
   inputGroup: {
-    marginBottom: 6,
+    marginBottom: 8,
   },
   inputLabel: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '600',
-    color: THEME.colors.text,
-    marginBottom: 2,
+    color: '#374151',
+    marginBottom: 3,
   },
   textInput: {
-    height: 36,
+    height: 38,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 7,
-    paddingHorizontal: 9,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     fontSize: 12.5,
     color: THEME.colors.text,
   },
   passwordWrapper: {
-    height: 36,
+    height: 38,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 7,
-    paddingHorizontal: 9,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
   passwordInput: {
     flex: 1,
-    height: 36,
+    height: 38,
     fontSize: 12.5,
     color: THEME.colors.text,
   },
@@ -594,12 +719,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateSelectorCard: {
-    height: 36,
+    height: 40,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 7,
-    paddingHorizontal: 9,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -607,7 +732,7 @@ const styles = StyleSheet.create({
   dateSelectorContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     flex: 1,
   },
   dateSelectorText: {
@@ -618,15 +743,15 @@ const styles = StyleSheet.create({
   dateSelectorPlaceholder: {
     fontSize: 11.5,
     fontWeight: 'normal',
-    color: THEME.colors.textMuted,
+    color: '#9CA3AF',
   },
   dateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
     gap: 2,
   },
   dateBadgeText: {
@@ -638,27 +763,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
+    marginTop: 3,
   },
   dynamicCalculationText: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: THEME.colors.goldDark,
     fontWeight: 'bold',
   },
   submitButton: {
-    backgroundColor: THEME.colors.primary,
-    height: 40,
-    borderRadius: 8,
+    backgroundColor: '#EA580C',
+    height: 44,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: 'bold',
   },
 });

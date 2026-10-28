@@ -200,6 +200,7 @@ export const authService = {
       iskconConnectDate: params.iskconConnectDate,
       declaredRounds: params.declaredRounds || 16,
       invitationCode: params.invitationCode.trim().toUpperCase(),
+      invitationName: validation.invitation.notes || validation.invitation.code,
       publicAppreciationConsent: true,
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -258,7 +259,7 @@ export const authService = {
    */
   updatePermittedProfile: async (
     uid: string,
-    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'reminderOptOutRequestedAt' | 'sadhanaRemindersEnabled' | 'targetRoundsRequested' | 'targetRoundsRequestedAt'>>
+    updates: Partial<Pick<UserProfile, 'displayName' | 'phoneNumber' | 'publicAppreciationConsent' | 'declaredRounds' | 'reminderOptOutRequested' | 'reminderOptOutRequestedAt' | 'sadhanaRemindersEnabled' | 'targetRoundsRequested' | 'targetRoundsRequestedAt' | 'photoURL' | 'invitationName'>>
   ) => {
     try {
       const userRef = doc(db, 'users', uid);

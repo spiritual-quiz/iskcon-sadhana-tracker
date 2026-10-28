@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TouchableWithoutFeedback,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -21,9 +22,13 @@ import { db } from '../../config/firebase';
 import { UserProfile, UserStatus } from '../../types/auth';
 import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
 import { authService } from '../../services/authService';
+import { getAllInvitations } from '../../services/invitationService';
+import { InvitationCode } from '../../types/monitoring';
 
 export const ManageCounseleesScreen = ({ navigation }: any) => {
+  const [activeTab, setActiveTab] = useState<'all' | 'byInvitation'>('all');
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
+  const [invitations, setInvitations] = useState<InvitationCode[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'disabled'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -41,8 +46,12 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
 
   const loadCounselees = async () => {
     try {
-      const data = await authService.getAllCounselees();
+      const [data, invs] = await Promise.all([
+        authService.getAllCounselees(),
+        getAllInvitations().catch(() => []),
+      ]);
       setCounselees(data);
+      setInvitations(invs);
     } catch (e) {
       console.warn('Error loading counselees:', e);
     } finally {
@@ -195,6 +204,30 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
     return c.status === statusFilter;
   });
 
+  const groupedByInvitation = useMemo(() => {
+    const groups: { [name: string]: { code?: string; devotees: UserProfile[] } } = {};
+
+    counselees.forEach((devotee) => {
+      const code = (devotee.invitationCode || '').trim().toUpperCase();
+      const matchedInv = invitations.find((i) => i.code.trim().toUpperCase() === code);
+      let invName = devotee.invitationName || matchedInv?.notes;
+
+      if (!invName) {
+        if (code === 'KRISHNA7') invName = 'General Devotee Registration';
+        else if (code === 'SADHANA16') invName = '16 Rounds Devotee Group';
+        else if (code) invName = `${code} Group`;
+        else invName = 'General Devotee Registration';
+      }
+
+      if (!groups[invName]) {
+        groups[invName] = { code, devotees: [] };
+      }
+      groups[invName].devotees.push(devotee);
+    });
+
+    return groups;
+  }, [counselees, invitations]);
+
   return (
     <View style={styles.container}>
       <Header
@@ -204,37 +237,77 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
         onBackPress={() => navigation.goBack()}
       />
 
-      {/* Search & Filter Bar */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={THEME.colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by devotee name, phone, or email..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+      {/* Top 2 Tabs: All Devotees | By Invitation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'all' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('all')}
+        >
+          <Ionicons
+            name="people"
+            size={16}
+            color={activeTab === 'all' ? '#FFFFFF' : THEME.colors.primary}
           />
-        </View>
+          <Text
+            style={[styles.tabButtonText, activeTab === 'all' && styles.tabButtonTextActive]}
+          >
+            All Devotees ({counselees.length})
+          </Text>
+        </TouchableOpacity>
 
-        <View style={styles.filterRow}>
-          {(['all', 'approved', 'disabled'] as const).map((filter) => (
-            <TouchableOpacity
-              key={filter}
-              style={[styles.filterChip, statusFilter === filter && styles.filterChipActive]}
-              onPress={() => setStatusFilter(filter)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  statusFilter === filter && styles.filterChipTextActive,
-                ]}
-              >
-                {filter.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'byInvitation' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('byInvitation')}
+        >
+          <Ionicons
+            name="pricetags"
+            size={16}
+            color={activeTab === 'byInvitation' ? '#FFFFFF' : THEME.colors.primary}
+          />
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === 'byInvitation' && styles.tabButtonTextActive,
+            ]}
+          >
+            By Invitation ({Object.keys(groupedByInvitation).length})
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Search & Filter Bar (Shown in All Devotees tab) */}
+      {activeTab === 'all' && (
+        <View style={styles.searchSection}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={THEME.colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by devotee name, phone, or email..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          <View style={styles.filterRow}>
+            {(['all', 'approved', 'disabled'] as const).map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                style={[styles.filterChip, statusFilter === filter && styles.filterChipActive]}
+                onPress={() => setStatusFilter(filter)}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    statusFilter === filter && styles.filterChipTextActive,
+                  ]}
+                >
+                  {filter.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -243,7 +316,8 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {filtered.length === 0 ? (
+          {activeTab === 'all' ? (
+            filtered.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No counselees found matching your search.</Text>
             </View>
@@ -408,6 +482,93 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                 </View>
               );
             })
+          ) : (
+            // By Invitation Tab View
+            Object.keys(groupedByInvitation).length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No counselees registered under any invitation yet.</Text>
+              </View>
+            ) : (
+              Object.entries(groupedByInvitation).map(([groupName, groupData]) => (
+                <View key={groupName} style={styles.invitationGroupCard}>
+                  {/* Invitation Group Header */}
+                  <View style={styles.invitationGroupHeader}>
+                    <View style={styles.invitationGroupIcon}>
+                      <Ionicons name="folder" size={20} color="#EA580C" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.invitationGroupTitle}>{groupName}</Text>
+                      {groupData.code ? (
+                        <Text style={styles.invitationGroupCode}>Invitation Code: {groupData.code}</Text>
+                      ) : null}
+                    </View>
+                    <View style={styles.invitationGroupBadge}>
+                      <Ionicons name="people" size={13} color="#EA580C" />
+                      <Text style={styles.invitationGroupCount}>
+                        {groupData.devotees.length} {groupData.devotees.length === 1 ? 'Devotee' : 'Devotees'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Devotees List Under This Invitation */}
+                  <View style={styles.invitationDevoteesList}>
+                    {groupData.devotees.map((devotee, idx) => (
+                      <View
+                        key={devotee.uid}
+                        style={[styles.invDevoteeItem, idx > 0 && styles.invDevoteeDivider]}
+                      >
+                        <View style={styles.invDevoteeAvatar}>
+                          {devotee.photoURL ? (
+                            <Image source={{ uri: devotee.photoURL }} style={styles.invDevoteeImg} />
+                          ) : (
+                            <Ionicons name="person" size={18} color={THEME.colors.gold} />
+                          )}
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <Text style={styles.invDevoteeName}>{devotee.displayName}</Text>
+                            <StatusBadge type="status" value={devotee.status} />
+                          </View>
+                          <Text style={styles.invDevoteePhone}>
+                            {devotee.phoneNumber || devotee.email}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              marginTop: 4,
+                              gap: 8,
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <View style={styles.roundsBadgePill}>
+                              <Ionicons name="radio-button-on" size={11} color="#B45309" />
+                              <Text style={styles.roundsBadgeText}>
+                                {devotee.declaredRounds || 16} Rounds
+                              </Text>
+                            </View>
+                            {devotee.dateOfBirth && (
+                              <Text style={styles.invMetaText}>
+                                Age: {calculateAge(devotee.dateOfBirth)}y
+                              </Text>
+                            )}
+                            <Text style={styles.invMetaText}>
+                              Joined: {devotee.createdAt ? devotee.createdAt.split('T')[0] : 'Recent'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))
+            )
           )}
         </ScrollView>
       )}
@@ -888,5 +1049,154 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  // Tab selector styles
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    padding: 4,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: '#FFFFFF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tabButtonTextActive: {
+    color: THEME.colors.primary,
+    fontWeight: 'bold',
+  },
+  // By Invitation Grouping Styles
+  invitationGroupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
+    overflow: 'hidden',
+  },
+  invitationGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#FFF7ED',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FED7AA',
+    gap: 10,
+  },
+  invitationGroupIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFEDD5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invitationGroupTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#9A3412',
+  },
+  invitationGroupCode: {
+    fontSize: 11,
+    color: '#C2410C',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  invitationGroupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    gap: 4,
+  },
+  invitationGroupCount: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#EA580C',
+  },
+  invitationDevoteesList: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  invDevoteeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  invDevoteeDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  invDevoteeAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  invDevoteeImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  invDevoteeName: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+  },
+  invDevoteePhone: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  roundsBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 3,
+  },
+  roundsBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#B45309',
+  },
+  invMetaText: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
 });

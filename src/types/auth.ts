@@ -15,6 +15,8 @@ export interface UserProfile {
   targetRoundsRequested?: number; // target round change requested by counselee, pending counsellor approval
   targetRoundsRequestedAt?: string; // ISO string when requested
   invitationCode?: string;
+  invitationName?: string; // name of the invitation group the devotee joined through
+  photoURL?: string; // devotee profile photo URI
   publicAppreciationConsent: boolean;
   sadhanaRemindersEnabled?: boolean; // defaults to true (6 PM & 9 PM daily reminders)
   reminderOptOutRequested?: boolean; // student requested counsellor to turn off

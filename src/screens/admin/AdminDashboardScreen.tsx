@@ -23,6 +23,7 @@ import { authService } from '../../services/authService';
 import { sadhanaService } from '../../services/sadhanaService';
 import { reportService } from '../../services/reportService';
 import { localStorageService } from '../../services/localStorageService';
+import { notificationService } from '../../services/notificationService';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -90,6 +91,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       // 5. Upcoming birthdays
       const bdays = birthdayService.getUpcomingBirthdays(approved, 30);
       setUpcomingBirthdaysCount(bdays.length);
+
+      // 6. Check and dispatch high-priority notifications with tone for counsellor
+      await notificationService.checkAndDispatchAdminAlerts(user);
     } catch (e) {
       console.warn('Error loading admin dashboard metrics:', e);
     } finally {
