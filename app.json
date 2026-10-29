@@ -2,14 +2,14 @@
   "expo": {
     "name": "Bhakti Unnati",
     "slug": "bhakti-unnati",
-    "version": "1.0.18",
+    "version": "1.0.19",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFA600"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -17,12 +17,12 @@
     },
     "android": {
       "package": "org.iskcon.sadhanatracker",
-      "versionCode": 18,
+      "versionCode": 19,
       "softwareKeyboardLayoutMode": "resize",
-      "backgroundColor": "#FFA600",
+      "backgroundColor": "#FFFFFF",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFA600"
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "INTERNET",
@@ -30,6 +30,9 @@
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "WAKE_LOCK",
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE",
         "USE_BIOMETRIC",
@@ -42,7 +45,14 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-updates"
+      "expo-updates",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#EA580C"
+        }
+      ]
     ],
     "updates": {
       "url": "https://u.expo.dev/a2e04822-3261-4793-ae4b-6240fed77773"

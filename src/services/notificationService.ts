@@ -167,25 +167,30 @@ export const notificationService = {
     try {
       if (!Notifications.scheduleNotificationAsync) return;
 
+      const todayStr = getTodayDateStringIST();
+      const todayEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);
+
       // Battery optimization: Check if already scheduled in Android AlarmManager
       if (Notifications.getAllScheduledNotificationsAsync) {
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         const has6pm = scheduled.some((s: any) => s.identifier === 'sadhana_scheduled_6pm');
         const has9pm = scheduled.some((s: any) => s.identifier === 'sadhana_scheduled_9pm');
         if (has6pm && has9pm) {
-          return; // Already scheduled, prevent battery drain from redundant alarm registrations
+          // If already scheduled, dismiss any active shade banner if devotee completed today's card
+          if (todayEntry && Notifications.dismissNotificationAsync) {
+            await Notifications.dismissNotificationAsync('sadhana_scheduled_6pm');
+            await Notifications.dismissNotificationAsync('sadhana_scheduled_9pm');
+          }
+          return; // Already scheduled in AlarmManager, prevent battery drain
         }
       }
 
-      // Check if today is already filled before scheduling
-      const todayStr = getTodayDateStringIST();
-      const todayEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);
+      // If today is already filled, dismiss any active notifications but keep repeating alarms for future days
       if (todayEntry) {
         await notificationService.cancelTodayReminders();
-        return;
       }
 
-      // 6:00 PM Daily Reminder
+      // 6:00 PM Daily Reminder (repeats daily at 18:00 IST even if app is closed)
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_6pm',
         content: {
@@ -204,7 +209,7 @@ export const notificationService = {
         },
       });
 
-      // 9:00 PM Daily Reminder (Final Call)
+      // 9:00 PM Daily Reminder (Final Call, repeats daily at 21:00 IST even if app is closed)
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_9pm',
         content: {
@@ -242,6 +247,8 @@ export const notificationService = {
       }
       if (Notifications.dismissNotificationAsync) {
         await Notifications.dismissNotificationAsync(reminderId);
+        await Notifications.dismissNotificationAsync('sadhana_scheduled_6pm');
+        await Notifications.dismissNotificationAsync('sadhana_scheduled_9pm');
       }
     } catch (e) {
       console.warn('Error cancelling today reminder:', e);
