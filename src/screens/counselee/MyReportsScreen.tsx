@@ -86,7 +86,7 @@ export const MyReportsScreen = () => {
       <Header title="My Sadhana Reports" subtitle="Detailed Personal Practice Records" />
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         {(['weekly', 'monthly', 'daily'] as const).map((tab) => (
           <TouchableOpacity
             key={tab}
@@ -96,7 +96,13 @@ export const MyReportsScreen = () => {
             ]}
             onPress={() => setActiveTab(tab)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: activeTab === tab ? '#FFFFFF' : theme.colors.textMuted },
+                activeTab === tab && styles.tabTextActive,
+              ]}
+            >
               {tab.charAt(0).toUpperCase() + tab.slice(1)} Report
             </Text>
           </TouchableOpacity>
@@ -105,8 +111,8 @@ export const MyReportsScreen = () => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Generating report...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Generating report...</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -134,8 +140,8 @@ export const MyReportsScreen = () => {
                 </View>
               )}
 
-              <View style={styles.summaryCard}>
-                <Text style={styles.cardHeaderTitle}>Weekly Overview</Text>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <Text style={[styles.cardHeaderTitle, { color: theme.thickColor }]}>Weekly Overview</Text>
                 <View style={styles.metricRow}>
                   <Text style={styles.metricLabel}>Total Chanting Rounds:</Text>
                   <Text style={styles.metricValue}>{weeklyReport.totalRounds} rounds</Text>
@@ -204,7 +210,7 @@ export const MyReportsScreen = () => {
                 </View>
               )}
 
-              <View style={styles.summaryCard}>
+              <View style={[styles.summaryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <Text style={[styles.cardHeaderTitle, { color: theme.thickColor }]}>Monthly Overview</Text>
                 <View style={styles.metricRow}>
                   <Text style={styles.metricLabel}>Consistency Rating:</Text>
@@ -281,20 +287,20 @@ export const MyReportsScreen = () => {
 
           {activeTab === 'daily' && (
             <View>
-              <Text style={styles.cardHeaderTitle}>Recent Daily Submissions</Text>
+              <Text style={[styles.cardHeaderTitle, { color: theme.thickColor, marginBottom: 8 }]}>Recent Daily Submissions</Text>
               {recentDailyEntries.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No recent daily sadhana cards found.</Text>
+                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No recent daily sadhana cards found.</Text>
                 </View>
               ) : (
                 recentDailyEntries.map((entry) => {
                   const sleepMins = calculateSleepDurationMinutes(entry.sleepTimeStr, entry.wakeUpTimeStr);
                   return (
-                    <View key={entry.id} style={styles.dailyItemCard}>
+                    <View key={entry.id} style={[styles.dailyItemCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                       <View style={styles.dailyHeader}>
                         <View>
-                          <Text style={styles.dailyDate}>{entry.date}</Text>
-                          <Text style={styles.dailyScore}>
+                          <Text style={[styles.dailyDate, { color: theme.thickColor }]}>{entry.date}</Text>
+                          <Text style={[styles.dailyScore, { color: theme.colors.textMuted }]}>
                             {entry.dailyTotalScore} / 50 marks ({entry.percentage}%)
                           </Text>
                         </View>
@@ -302,20 +308,20 @@ export const MyReportsScreen = () => {
                       </View>
 
                       <View style={styles.dailyDetails}>
-                        <Text style={styles.dailyDetailItem}>
+                        <Text style={[styles.dailyDetailItem, { color: theme.colors.text }]}>
                           • Japa: {entry.completedRounds}/{entry.declaredRounds} rounds ({entry.japaMarks} marks at {entry.completionTimeStr || 'N/A'})
                         </Text>
-                        <Text style={styles.dailyDetailItem}>
+                        <Text style={[styles.dailyDetailItem, { color: theme.colors.text }]}>
                           • Reading: {entry.readingMinutes} mins ({entry.readingMarks} marks)
                         </Text>
-                        <Text style={styles.dailyDetailItem}>
+                        <Text style={[styles.dailyDetailItem, { color: theme.colors.text }]}>
                           • Hearing: {entry.hearingMinutes} mins ({entry.hearingMarks} marks)
                         </Text>
-                        <Text style={styles.dailyDetailItem}>
+                        <Text style={[styles.dailyDetailItem, { color: theme.colors.text }]}>
                           • Sleep: {entry.sleepTimeStr || 'N/A'} - {entry.wakeUpTimeStr || 'N/A'} ({formatMinutesToHours(sleepMins)})
                         </Text>
                         {entry.restMinutes > 0 && (
-                          <Text style={styles.dailyDetailItem}>
+                          <Text style={[styles.dailyDetailItem, { color: theme.colors.text }]}>
                             • Daytime Rest: {entry.restMinutes} mins
                           </Text>
                         )}

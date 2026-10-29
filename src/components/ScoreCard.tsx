@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { THEME } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { Grade } from '../types/sadhana';
 import { StatusBadge } from './StatusBadge';
 
@@ -30,75 +31,77 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
   grade,
   breakdown,
 }) => {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: theme.thickColor }]}>{title}</Text>
         <StatusBadge type="grade" value={grade} />
       </View>
 
-      <View style={styles.scoreRow}>
+      <View style={[styles.scoreRow, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
         <View style={styles.scoreBlock}>
-          <Text style={styles.scoreValue}>{score.toFixed(1)}</Text>
-          <Text style={styles.scoreMax}>/ {maxScore}</Text>
+          <Text style={[styles.scoreValue, { color: theme.thickColor }]}>{score.toFixed(1)}</Text>
+          <Text style={[styles.scoreMax, { color: theme.colors.textMuted }]}>/ {maxScore}</Text>
         </View>
 
-        <View style={styles.dividerVertical} />
+        <View style={[styles.dividerVertical, { backgroundColor: theme.colors.border }]} />
 
         <View style={styles.percentageBlock}>
-          <Text style={styles.percentageValue}>{percentage.toFixed(1)}%</Text>
-          <Text style={styles.percentageLabel}>Completion</Text>
+          <Text style={[styles.percentageValue, { color: theme.thickColor }]}>{percentage.toFixed(1)}%</Text>
+          <Text style={[styles.percentageLabel, { color: theme.colors.textMuted }]}>Completion</Text>
         </View>
       </View>
 
       {breakdown && (
-        <View style={styles.breakdownContainer}>
+        <View style={[styles.breakdownContainer, { borderTopColor: theme.colors.borderLight }]}>
           {breakdown.japa !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Japa</Text>
-              <Text style={styles.breakdownValue}>{breakdown.japa}/10</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Japa</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.japa}/10</Text>
             </View>
           )}
           {breakdown.reading !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Reading</Text>
-              <Text style={styles.breakdownValue}>{breakdown.reading}/10</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Reading</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.reading}/10</Text>
             </View>
           )}
           {breakdown.hearing !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Hearing</Text>
-              <Text style={styles.breakdownValue}>{breakdown.hearing}/10</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Hearing</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.hearing}/10</Text>
             </View>
           )}
           {breakdown.sleep !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Sleep</Text>
-              <Text style={styles.breakdownValue}>{breakdown.sleep}/10</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Sleep</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.sleep}/10</Text>
             </View>
           )}
           {breakdown.classMarks !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Class</Text>
-              <Text style={styles.breakdownValue}>{breakdown.classMarks}/10</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Class</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.classMarks}/10</Text>
             </View>
           )}
           {breakdown.morningMarks !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Morning</Text>
-              <Text style={styles.breakdownValue}>{breakdown.morningMarks}/50</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Morning</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.morningMarks}/50</Text>
             </View>
           )}
           {breakdown.onlineReadingMarks !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Online Read</Text>
-              <Text style={styles.breakdownValue}>{breakdown.onlineReadingMarks}/50</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Online Read</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.onlineReadingMarks}/50</Text>
             </View>
           )}
           {breakdown.satsangaMarks !== undefined && (
-            <View style={styles.breakdownItem}>
-              <Text style={styles.breakdownLabel}>Satsanga</Text>
-              <Text style={styles.breakdownValue}>{breakdown.satsangaMarks}/50</Text>
+            <View style={[styles.breakdownItem, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <Text style={[styles.breakdownLabel, { color: theme.colors.textMuted }]}>Satsanga</Text>
+              <Text style={[styles.breakdownValue, { color: theme.thickColor }]}>{breakdown.satsangaMarks}/50</Text>
             </View>
           )}
         </View>

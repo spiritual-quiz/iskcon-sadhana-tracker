@@ -156,31 +156,17 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       color: THEME.colors.danger,
     },
     {
-      id: 'AdminDailyReports',
-      title: 'Daily Reports',
-      subtitle: `${todaySubmissionsCount} submissions today`,
-      icon: 'calendar-outline',
-      badge: dailyLowScoreCount > 0 ? `${dailyLowScoreCount} < 50%` : null,
-      badgeColor: THEME.colors.danger,
-      color: THEME.colors.primary,
-    },
-    {
-      id: 'AdminWeeklyReports',
-      title: 'Weekly Reports',
-      subtitle: 'Class & morning attendance',
-      icon: 'bar-chart-outline',
-      badge: weeklyLowScoreCount > 0 ? `${weeklyLowScoreCount} < 50%` : null,
-      badgeColor: THEME.colors.danger,
-      color: THEME.colors.info,
-    },
-    {
-      id: 'AdminMonthlyReports',
-      title: 'Monthly Reports',
-      subtitle: 'Satsanga & consistency',
-      icon: 'pie-chart-outline',
-      badge: monthlyLowScoreCount > 0 ? `${monthlyLowScoreCount} < 50%` : null,
-      badgeColor: THEME.colors.danger,
-      color: THEME.colors.goldDark,
+      id: 'AdminReports',
+      title: 'Reports',
+      subtitle: 'Daily, Weekly & Monthly Audits',
+      icon: 'stats-chart-outline',
+      badge: (dailyLowScoreCount + weeklyLowScoreCount + monthlyLowScoreCount) > 0
+        ? `${dailyLowScoreCount + weeklyLowScoreCount + monthlyLowScoreCount} < 50%`
+        : `${todaySubmissionsCount} today`,
+      badgeColor: (dailyLowScoreCount + weeklyLowScoreCount + monthlyLowScoreCount) > 0
+        ? theme.colors.danger
+        : theme.thickColor,
+      color: theme.thickColor,
     },
     {
       id: 'BirthdayReminders',
@@ -275,27 +261,27 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           {/* Executive Metrics Overview Strip */}
           <View style={[styles.metricsStrip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <View style={styles.metricBox}>
-              <Text style={styles.metricValue}>{approvedCount}</Text>
-              <Text style={styles.metricLabel}>Counselees</Text>
+              <Text style={[styles.metricValue, { color: theme.thickColor }]}>{approvedCount}</Text>
+              <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Counselees</Text>
             </View>
-            <View style={styles.metricDivider} />
+            <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderLight }]} />
             <View style={styles.metricBox}>
-              <Text style={[styles.metricValue, pendingCount > 0 && styles.textWarning]}>
+              <Text style={[styles.metricValue, { color: theme.thickColor }, pendingCount > 0 && styles.textWarning]}>
                 {pendingCount}
               </Text>
-              <Text style={styles.metricLabel}>Pending</Text>
+              <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Pending</Text>
             </View>
-            <View style={styles.metricDivider} />
+            <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderLight }]} />
             <View style={styles.metricBox}>
-              <Text style={styles.metricValue}>{todaySubmissionsCount}</Text>
-              <Text style={styles.metricLabel}>Today's Cards</Text>
+              <Text style={[styles.metricValue, { color: theme.thickColor }]}>{todaySubmissionsCount}</Text>
+              <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Today's Cards</Text>
             </View>
-            <View style={styles.metricDivider} />
+            <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderLight }]} />
             <View style={styles.metricBox}>
-              <Text style={[styles.metricValue, missingAlertsCount > 0 && styles.textDanger]}>
+              <Text style={[styles.metricValue, { color: theme.thickColor }, missingAlertsCount > 0 && styles.textDanger]}>
                 {missingAlertsCount}
               </Text>
-              <Text style={styles.metricLabel}>Inactivity</Text>
+              <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Inactivity</Text>
             </View>
           </View>
 
@@ -332,13 +318,13 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
             </View>
           )}
 
-          {/* 12 Master Admin Sections Grid */}
-          <Text style={styles.sectionsTitle}>Counselling & Monitoring Modules</Text>
+          {/* Master Admin Sections Grid */}
+          <Text style={[styles.sectionsTitle, { color: theme.thickColor }]}>Counselling & Monitoring Modules</Text>
           <View style={styles.grid}>
             {adminSections.map((sec) => (
               <TouchableOpacity
                 key={sec.id}
-                style={styles.card}
+                style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
                 onPress={() => navigation.navigate(sec.id)}
               >
                 <View style={styles.cardTopRow}>
@@ -346,13 +332,13 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                     <Ionicons name={sec.icon as any} size={22} color={sec.color} />
                   </View>
                   {sec.badge && (
-                    <View style={[styles.badge, { backgroundColor: sec.badgeColor || THEME.colors.primary }]}>
+                    <View style={[styles.badge, { backgroundColor: sec.badgeColor || theme.thickColor }]}>
                       <Text style={styles.badgeText}>{sec.badge}</Text>
                     </View>
                   )}
                 </View>
-                <Text style={styles.cardTitle}>{sec.title}</Text>
-                <Text style={styles.cardSubtitle}>{sec.subtitle}</Text>
+                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{sec.title}</Text>
+                <Text style={[styles.cardSubtitle, { color: theme.colors.textMuted }]}>{sec.subtitle}</Text>
               </TouchableOpacity>
             ))}
           </View>

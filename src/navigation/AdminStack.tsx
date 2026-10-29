@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AdminDashboardScreen } from '../screens/admin/AdminDashboardScreen';
+import { AdminReportsScreen } from '../screens/admin/AdminReportsScreen';
 import { ManageCounseleesScreen } from '../screens/admin/ManageCounseleesScreen';
 import { PendingRegistrationsScreen } from '../screens/admin/PendingRegistrationsScreen';
 import { InvitationsScreen } from '../screens/admin/InvitationsScreen';
@@ -20,6 +21,7 @@ export const AdminStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
       <Stack.Screen name="ManageCounselees" component={ManageCounseleesScreen} />
       <Stack.Screen name="PendingRegistrations" component={PendingRegistrationsScreen} />
       <Stack.Screen name="Invitations" component={InvitationsScreen} />

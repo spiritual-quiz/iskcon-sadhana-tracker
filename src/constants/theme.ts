@@ -6,7 +6,13 @@ export type ThemeId =
   | 'pink'
   | 'black'
   | 'purple'
-  | 'teal';
+  | 'teal'
+  | 'maroon'
+  | 'gold'
+  | 'emerald'
+  | 'navy'
+  | 'sandalwood'
+  | 'violet';
 
 export interface ThemeColors {
   // Brand Header
@@ -618,6 +624,366 @@ const tealTheme: AppTheme = {
   shadows: baseShadows,
 };
 
+// 9. Radha Kunda Crimson / Maroon
+const maroonTheme: AppTheme = {
+  id: 'maroon',
+  name: 'Vrindavan Maroon',
+  thickColor: '#991B1B',
+  liteColor: '#FEF2F2',
+  colors: {
+    header: '#991B1B',
+    headerBorder: '#7F1D1D',
+    headerText: '#FFFFFF',
+    headerSubtitle: '#FEE2E2',
+
+    primary: '#991B1B',
+    primaryDark: '#7F1D1D',
+    primaryLight: '#DC2626',
+    primaryUltraLight: '#FEF2F2',
+
+    gold: '#D4AF37',
+    goldDark: '#B45309',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FEF08A',
+    saffron: '#B91C1C',
+    saffronLight: '#FECACA',
+    saffronDark: '#7F1D1D',
+
+    background: '#FEF2F2',
+    surface: '#FFFFFF',
+    surfaceVariant: '#FEE2E2',
+    surfaceMuted: '#FECACA',
+    card: '#FFFFFF',
+
+    text: '#450A0A',
+    textMuted: '#7F1D1D',
+    textLight: '#991B1B',
+    textInverse: '#FFFFFF',
+
+    border: '#FECACA',
+    borderLight: '#FEE2E2',
+
+    success: '#15803D',
+    successLight: '#DCFCE7',
+    warning: '#D97706',
+    warningLight: '#FEF3C7',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
+    infoLight: '#EFF6FF',
+
+    gradeA: '#15803D',
+    gradeB: '#2563EB',
+    gradeC: '#D97706',
+    gradeD: '#EA580C',
+    gradeE: '#DC2626',
+  },
+  typography: baseTypography,
+  spacing: baseSpacing,
+  borderRadius: baseBorderRadius,
+  shadows: baseShadows,
+};
+
+// 10. Sunset Amber Gold
+const goldTheme: AppTheme = {
+  id: 'gold',
+  name: 'Sunset Amber Gold',
+  thickColor: '#B45309',
+  liteColor: '#FFFBEB',
+  colors: {
+    header: '#B45309',
+    headerBorder: '#92400E',
+    headerText: '#FFFFFF',
+    headerSubtitle: '#FEF3C7',
+
+    primary: '#B45309',
+    primaryDark: '#92400E',
+    primaryLight: '#F59E0B',
+    primaryUltraLight: '#FFFBEB',
+
+    gold: '#D4AF37',
+    goldDark: '#92400E',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FEF08A',
+    saffron: '#D97706',
+    saffronLight: '#FDE68A',
+    saffronDark: '#92400E',
+
+    background: '#FFFBEB',
+    surface: '#FFFFFF',
+    surfaceVariant: '#FEF3C7',
+    surfaceMuted: '#FDE68A',
+    card: '#FFFFFF',
+
+    text: '#451A03',
+    textMuted: '#78350F',
+    textLight: '#92400E',
+    textInverse: '#FFFFFF',
+
+    border: '#FDE68A',
+    borderLight: '#FEF3C7',
+
+    success: '#15803D',
+    successLight: '#DCFCE7',
+    warning: '#D97706',
+    warningLight: '#FEF3C7',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
+    infoLight: '#EFF6FF',
+
+    gradeA: '#15803D',
+    gradeB: '#2563EB',
+    gradeC: '#D97706',
+    gradeD: '#EA580C',
+    gradeE: '#DC2626',
+  },
+  typography: baseTypography,
+  spacing: baseSpacing,
+  borderRadius: baseBorderRadius,
+  shadows: baseShadows,
+};
+
+// 11. Devotional Emerald Forest
+const emeraldTheme: AppTheme = {
+  id: 'emerald',
+  name: 'Kadamba Emerald',
+  thickColor: '#047857',
+  liteColor: '#ECFDF5',
+  colors: {
+    header: '#047857',
+    headerBorder: '#065F46',
+    headerText: '#FFFFFF',
+    headerSubtitle: '#D1FAE5',
+
+    primary: '#047857',
+    primaryDark: '#065F46',
+    primaryLight: '#10B981',
+    primaryUltraLight: '#ECFDF5',
+
+    gold: '#D4AF37',
+    goldDark: '#B45309',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FEF08A',
+    saffron: '#059669',
+    saffronLight: '#A7F3D0',
+    saffronDark: '#064E3B',
+
+    background: '#ECFDF5',
+    surface: '#FFFFFF',
+    surfaceVariant: '#D1FAE5',
+    surfaceMuted: '#A7F3D0',
+    card: '#FFFFFF',
+
+    text: '#022C22',
+    textMuted: '#065F46',
+    textLight: '#047857',
+    textInverse: '#FFFFFF',
+
+    border: '#A7F3D0',
+    borderLight: '#D1FAE5',
+
+    success: '#15803D',
+    successLight: '#DCFCE7',
+    warning: '#D97706',
+    warningLight: '#FEF3C7',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
+    infoLight: '#EFF6FF',
+
+    gradeA: '#15803D',
+    gradeB: '#2563EB',
+    gradeC: '#D97706',
+    gradeD: '#EA580C',
+    gradeE: '#DC2626',
+  },
+  typography: baseTypography,
+  spacing: baseSpacing,
+  borderRadius: baseBorderRadius,
+  shadows: baseShadows,
+};
+
+// 12. Shyama Sundar Midnight Navy
+const navyTheme: AppTheme = {
+  id: 'navy',
+  name: 'Midnight Navy',
+  thickColor: '#1E3A8A',
+  liteColor: '#EFF6FF',
+  colors: {
+    header: '#1E3A8A',
+    headerBorder: '#172554',
+    headerText: '#FFFFFF',
+    headerSubtitle: '#DBEAFE',
+
+    primary: '#1E3A8A',
+    primaryDark: '#172554',
+    primaryLight: '#3B82F6',
+    primaryUltraLight: '#EFF6FF',
+
+    gold: '#F59E0B',
+    goldDark: '#D97706',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FCD34D',
+    saffron: '#2563EB',
+    saffronLight: '#BFDBFE',
+    saffronDark: '#1E3A8A',
+
+    background: '#EFF6FF',
+    surface: '#FFFFFF',
+    surfaceVariant: '#DBEAFE',
+    surfaceMuted: '#BFDBFE',
+    card: '#FFFFFF',
+
+    text: '#0F172A',
+    textMuted: '#1E3A8A',
+    textLight: '#2563EB',
+    textInverse: '#FFFFFF',
+
+    border: '#BFDBFE',
+    borderLight: '#DBEAFE',
+
+    success: '#15803D',
+    successLight: '#DCFCE7',
+    warning: '#D97706',
+    warningLight: '#FEF3C7',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
+    infoLight: '#EFF6FF',
+
+    gradeA: '#15803D',
+    gradeB: '#2563EB',
+    gradeC: '#D97706',
+    gradeD: '#EA580C',
+    gradeE: '#DC2626',
+  },
+  typography: baseTypography,
+  spacing: baseSpacing,
+  borderRadius: baseBorderRadius,
+  shadows: baseShadows,
+};
+
+// 13. Chandan Sandalwood Bronze
+const sandalwoodTheme: AppTheme = {
+  id: 'sandalwood',
+  name: 'Chandan Bronze',
+  thickColor: '#854D0E',
+  liteColor: '#FEFCE8',
+  colors: {
+    header: '#854D0E',
+    headerBorder: '#713F12',
+    headerText: '#FFFFFF',
+    headerSubtitle: '#FEF9C3',
+
+    primary: '#854D0E',
+    primaryDark: '#713F12',
+    primaryLight: '#CA8A04',
+    primaryUltraLight: '#FEFCE8',
+
+    gold: '#D4AF37',
+    goldDark: '#B45309',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FEF08A',
+    saffron: '#A16207',
+    saffronLight: '#FDE68A',
+    saffronDark: '#713F12',
+
+    background: '#FEFCE8',
+    surface: '#FFFFFF',
+    surfaceVariant: '#FEF9C3',
+    surfaceMuted: '#FDE68A',
+    card: '#FFFFFF',
+
+    text: '#422006',
+    textMuted: '#713F12',
+    textLight: '#854D0E',
+    textInverse: '#FFFFFF',
+
+    border: '#FDE68A',
+    borderLight: '#FEF9C3',
+
+    success: '#15803D',
+    successLight: '#DCFCE7',
+    warning: '#D97706',
+    warningLight: '#FEF3C7',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
+    infoLight: '#EFF6FF',
+
+    gradeA: '#15803D',
+    gradeB: '#2563EB',
+    gradeC: '#D97706',
+    gradeD: '#EA580C',
+    gradeE: '#DC2626',
+  },
+  typography: baseTypography,
+  spacing: baseSpacing,
+  borderRadius: baseBorderRadius,
+  shadows: baseShadows,
+};
+
+// 14. Deep Bhakti Violet
+const violetTheme: AppTheme = {
+  id: 'violet',
+  name: 'Deep Bhakti Violet',
+  thickColor: '#5B21B6',
+  liteColor: '#F5F3FF',
+  colors: {
+    header: '#5B21B6',
+    headerBorder: '#4C1D95',
+    headerText: '#FFFFFF',
+    headerSubtitle: '#EDE9FE',
+
+    primary: '#5B21B6',
+    primaryDark: '#4C1D95',
+    primaryLight: '#7C3AED',
+    primaryUltraLight: '#F5F3FF',
+
+    gold: '#D4AF37',
+    goldDark: '#B45309',
+    goldLight: '#FEF3C7',
+    goldAccent: '#FEF08A',
+    saffron: '#6D28D9',
+    saffronLight: '#DDD6FE',
+    saffronDark: '#4C1D95',
+
+    background: '#F5F3FF',
+    surface: '#FFFFFF',
+    surfaceVariant: '#EDE9FE',
+    surfaceMuted: '#DDD6FE',
+    card: '#FFFFFF',
+
+    text: '#2E1065',
+    textMuted: '#581C87',
+    textLight: '#6D28D9',
+    textInverse: '#FFFFFF',
+
+    border: '#DDD6FE',
+    borderLight: '#EDE9FE',
+
+    success: '#15803D',
+    successLight: '#DCFCE7',
+    warning: '#D97706',
+    warningLight: '#FEF3C7',
+    danger: '#DC2626',
+    dangerLight: '#FEE2E2',
+    info: '#2563EB',
+    infoLight: '#EFF6FF',
+
+    gradeA: '#15803D',
+    gradeB: '#2563EB',
+    gradeC: '#D97706',
+    gradeD: '#EA580C',
+    gradeE: '#DC2626',
+  },
+  typography: baseTypography,
+  spacing: baseSpacing,
+  borderRadius: baseBorderRadius,
+  shadows: baseShadows,
+};
+
 export const THEME_PALETTES: Record<ThemeId, AppTheme> = {
   orange: orangeTheme,
   blue: blueTheme,
@@ -627,6 +993,12 @@ export const THEME_PALETTES: Record<ThemeId, AppTheme> = {
   black: blackTheme,
   purple: purpleTheme,
   teal: tealTheme,
+  maroon: maroonTheme,
+  gold: goldTheme,
+  emerald: emeraldTheme,
+  navy: navyTheme,
+  sandalwood: sandalwoodTheme,
+  violet: violetTheme,
 };
 
 // Default export for backward compatibility

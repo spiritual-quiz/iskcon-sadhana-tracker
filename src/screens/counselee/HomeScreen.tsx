@@ -101,9 +101,9 @@ export const HomeScreen = ({ navigation }: any) => {
         // Today is already filled, ensure reminder notification does NOT come
         await notificationService.cancelTodayReminders();
       } else {
-        // Devotee has not filled today's card yet: check and schedule mobile notification with short chime
+        // Devotee has not filled today's card yet: schedule daily alarms strictly at 6:00 PM and 9:00 PM IST
+        // Alarms will only trigger at those scheduled hours, never immediately when navigating to Home
         await notificationService.setupNotifications();
-        await notificationService.checkAndTriggerSadhanaReminder(user);
         await notificationService.scheduleDailyReminders(user);
       }
     } catch (e) {
@@ -141,19 +141,25 @@ export const HomeScreen = ({ navigation }: any) => {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
           {/* Today's Status Banner */}
-          <View style={[styles.todayBanner, todayEntry ? styles.bannerDone : styles.bannerPending]}>
-            <View style={styles.bannerIconCircle}>
+          <View
+            style={[
+              styles.todayBanner,
+              todayEntry ? styles.bannerDone : styles.bannerPending,
+              { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+            ]}
+          >
+            <View style={[styles.bannerIconCircle, { backgroundColor: theme.liteColor }]}>
               <Ionicons
                 name={todayEntry ? 'checkmark-circle' : 'hourglass-outline'}
                 size={28}
-                color={todayEntry ? THEME.colors.success : THEME.colors.warning}
+                color={todayEntry ? theme.colors.success : theme.thickColor}
               />
             </View>
             <View style={styles.bannerTextContainer}>
-              <Text style={styles.bannerTitle}>
+              <Text style={[styles.bannerTitle, { color: theme.thickColor }]}>
                 {todayEntry ? 'Today’s Card Submitted' : 'Daily Card Pending'}
               </Text>
-              <Text style={styles.bannerSubtitle}>
+              <Text style={[styles.bannerSubtitle, { color: theme.colors.textMuted }]}>
                 {todayEntry
                   ? `Score: ${todayEntry.dailyTotalScore}/50 (${todayEntry.grade})`
                   : 'Track your japa, reading, hearing & rest today'}
@@ -168,7 +174,7 @@ export const HomeScreen = ({ navigation }: any) => {
           </View>
 
           {/* Quick Devotee Profile Pill */}
-          <View style={styles.quickProfileCard}>
+          <View style={[styles.quickProfileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.quickProfileLeft}>
               <View style={[styles.quickAvatarCircle, { backgroundColor: theme.liteColor }]}>
                 <Ionicons name="person" size={16} color={theme.thickColor} />
