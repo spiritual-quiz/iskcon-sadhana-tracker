@@ -1,7 +1,9 @@
 export type Grade =
   | 'Advancing'
   | 'Good, Please Improve'
+  | 'Your Bhakti Is at Risk'
   | 'Your Sādhana Is at Risk'
+  | 'Your Sadhana Is at Risk'
   | 'Māyā Is Distracting You'
   | 'You Are in Māyā'
   | 'You Are Fallen'
@@ -44,6 +46,10 @@ export interface SadhanaEntry {
   // E. Online Reading Session (Monday to Friday, 10 Marks each day)
   onlineReadingAttended?: boolean;
   onlineReadingMarks?: number; // 0 or 10
+
+  // Weekly Morning Programme Session (Weekly, 50 Marks)
+  morningProgrammeAttended?: boolean;
+  morningProgrammeMarks?: number; // 0 or 50
 
   // G. Service (Weekly, 10 Marks)
   serviceAttended?: boolean;

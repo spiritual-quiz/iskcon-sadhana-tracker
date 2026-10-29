@@ -76,7 +76,7 @@ export const reportService = {
     const classAttended = hasAnySubmitted ? (attendance.weeklyClass?.attended || false) : false;
     const morningAttended = hasAnySubmitted ? (attendance.morningProgramme?.attended || false) : false;
 
-    // Calculate score out of 350 (280 daily + 10 class + 10 morning + 50 online reading)
+    // Calculate score out of 390 (280 daily core + 10 class + 50 morning + 50 online reading)
     const scoreCalc = hasAnySubmitted
       ? calculateWeeklyScoreAndGrade({
           dailyScores,
@@ -86,7 +86,7 @@ export const reportService = {
         })
       : {
           totalScore: 0,
-          maxAvailableMarks: 350,
+          maxAvailableMarks: 390,
           percentage: 0,
           grade: 'You Are Fallen' as const,
         };
@@ -105,7 +105,7 @@ export const reportService = {
       weeklyClassAttendance: classAttended,
       weeklyClassMarks: classAttended ? 10 : 0,
       morningProgrammeAttendance: morningAttended,
-      morningProgrammeMarks: morningAttended ? 10 : 0,
+      morningProgrammeMarks: morningAttended ? 50 : 0,
       onlineReadingDaysAttended,
       onlineReadingMarks,
       totalScore: scoreCalc.totalScore,
@@ -225,7 +225,7 @@ export const reportService = {
           maxAvailableMarks:
             dates.length * 50 +
             weeklyClassesScheduled * 10 +
-            morningProgrammesScheduled * 10 +
+            morningProgrammesScheduled * 50 +
             (isConducted ? 50 : 0),
           percentage: 0,
           grade: 'You Are Fallen' as const,
@@ -252,7 +252,7 @@ export const reportService = {
       weeklyClassesMarks: weeklyClassesAttended * 10,
       morningProgrammesScheduled,
       morningProgrammesAttended,
-      morningProgrammesMarks: morningProgrammesAttended * 10,
+      morningProgrammesMarks: morningProgrammesAttended * 50,
       satsangaScheduled: isConducted,
       satsangaAttended,
       satsangaMarks: isConducted && satsangaAttended ? 50 : 0,

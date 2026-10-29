@@ -33,7 +33,7 @@ export const attendanceService = {
       type: params.type,
       scheduledDate: params.scheduledDate,
       attended: params.attended,
-      marks: params.attended ? 10 : 0,
+      marks: params.attended ? (params.type === 'morning_programme' ? 50 : 10) : 0,
       isRecorded: true,
       updatedBy: params.updatedBy,
       updatedAt: new Date().toISOString(),

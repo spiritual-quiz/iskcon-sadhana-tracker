@@ -20,7 +20,7 @@ import { UserProfile } from '../../types/auth';
 import { reportService } from '../../services/reportService';
 import { attendanceService } from '../../services/attendanceService';
 import { authService } from '../../services/authService';
-import { getTodayDateStringIST } from '../../utils/dateUtils';
+import { getTodayDateStringIST, formatMinutesToHours } from '../../utils/dateUtils';
 import { MonthlyReport } from '../../types/report';
 import { useAuth } from '../../context/AuthContext';
 
@@ -165,7 +165,7 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                      <Text style={[styles.name, isLowScore && styles.nameAlert]}>{rep.counseleeName}</Text>
+                      <Text style={[styles.name, { color: theme.thickColor }, isLowScore && styles.nameAlert]}>{rep.counseleeName}</Text>
                       {isLowScore && (
                         <View style={styles.lowScoreAlertBadge}>
                           <Ionicons name="warning" size={11} color="#DC2626" />
@@ -183,6 +183,19 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                     Total Score: {rep.totalScore} / {rep.maxAvailableMarks} ({rep.percentage}%)
                   </Text>
                   <Text style={styles.roundsText}>{rep.totalRounds} Rounds</Text>
+                </View>
+
+                {/* Monthly Devotee Details Breakdown (Requirement 2) */}
+                <View style={{ backgroundColor: '#F9FAFB', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, color: THEME.colors.text, marginBottom: 2 }}>
+                    • Morning Programmes: <Text style={{ fontWeight: 'bold' }}>{rep.morningProgrammesAttended}/{rep.morningProgrammesScheduled}</Text> attended ({rep.morningProgrammesMarks} marks)
+                  </Text>
+                  <Text style={{ fontSize: 11, color: THEME.colors.text, marginBottom: 2 }}>
+                    • Weekly Classes: <Text style={{ fontWeight: 'bold' }}>{rep.weeklyClassesAttended}/{rep.weeklyClassesScheduled}</Text> attended ({rep.weeklyClassesMarks} marks)
+                  </Text>
+                  <Text style={{ fontSize: 11, color: THEME.colors.text }}>
+                    • Books Read: {formatMinutesToHours(rep.totalReadingMinutes)} • Lectures Heard: {formatMinutesToHours(rep.totalHearingMinutes)}
+                  </Text>
                 </View>
 
                 {/* Monthly Satsanga Attendance Toggle (50 marks, dynamic attendance) */}

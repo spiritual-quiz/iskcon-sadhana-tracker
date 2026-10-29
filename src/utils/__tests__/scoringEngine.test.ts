@@ -166,9 +166,9 @@ describe('Scoring Engine Unit Tests', () => {
       expect(calculateGrade(80.0)).toBe('Good, Please Improve');
     });
 
-    test('60% to 79%: Your Sādhana Is at Risk', () => {
-      expect(calculateGrade(79.9)).toBe('Your Sādhana Is at Risk');
-      expect(calculateGrade(60.0)).toBe('Your Sādhana Is at Risk');
+    test('60% to 79%: Your Bhakti Is at Risk', () => {
+      expect(calculateGrade(79.9)).toBe('Your Bhakti Is at Risk');
+      expect(calculateGrade(60.0)).toBe('Your Bhakti Is at Risk');
     });
 
     test('40% to 59%: Māyā Is Distracting You', () => {
@@ -232,21 +232,21 @@ describe('Scoring Engine Unit Tests', () => {
   });
 
   describe('Weekly Programme Scoring', () => {
-    test('calculates 7 days plus weekly class and morning programme out of 300', () => {
+    test('calculates 7 days plus weekly class and morning programme out of 340', () => {
       const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
         weeklyClassAttended: true, // +10
-        morningProgrammeAttended: true, // +10
+        morningProgrammeAttended: true, // +50
       });
 
-      expect(weekly.totalScore).toBe(300);
-      expect(weekly.maxAvailableMarks).toBe(300);
-      expect(weekly.percentage).toBe(100);
-      expect(weekly.grade).toBe('Advancing');
+      expect(weekly.totalScore).toBe(340);
+      expect(weekly.maxAvailableMarks).toBe(350);
+      expect(weekly.percentage).toBe(97.1);
+      expect(weekly.grade).toBe('Good, Please Improve');
     });
 
-    test('partial weekly score out of 300', () => {
+    test('partial weekly score out of 350', () => {
       const dailyScores = [30, 30, 30, 30, 30, 30, 30]; // 210
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
@@ -255,24 +255,25 @@ describe('Scoring Engine Unit Tests', () => {
       });
 
       expect(weekly.totalScore).toBe(220);
-      expect(weekly.maxAvailableMarks).toBe(300);
-      expect(weekly.percentage).toBe(73.3);
-      expect(weekly.grade).toBe('Your Sādhana Is at Risk');
+      expect(weekly.maxAvailableMarks).toBe(350);
+      expect(weekly.percentage).toBe(62.9);
+      expect(weekly.grade).toBe('Your Bhakti Is at Risk');
     });
 
-    test('calculates weekly score with online reading session (Mon-Fri, 50 marks max) out of 350', () => {
+    test('calculates weekly score with online reading session (Mon-Fri, 50 marks max) and morning programme (50 marks)', () => {
       const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
         weeklyClassAttended: true, // +10
-        morningProgrammeAttended: true, // +10
+        morningProgrammeAttended: true, // +50
         onlineReadingMarks: 50, // +50 (5 days x 10)
       });
 
-      expect(weekly.totalScore).toBe(350);
-      expect(weekly.maxAvailableMarks).toBe(350);
-      expect(weekly.percentage).toBe(100);
-      expect(weekly.grade).toBe('Advancing');
+      // 280 + 10 + 50 + 50 = 390
+      expect(weekly.totalScore).toBe(390);
+      expect(weekly.maxAvailableMarks).toBe(400);
+      expect(weekly.percentage).toBe(97.5);
+      expect(weekly.grade).toBe('Good, Please Improve');
     });
 
     test('calculates partial weekly score with 3 online reading sessions (30 marks)', () => {
@@ -284,10 +285,10 @@ describe('Scoring Engine Unit Tests', () => {
         onlineReadingMarks: 30, // +30 (3 days)
       });
 
-      // 280 + 10 + 30 = 320 / 350 = 91.4% -> Good, Please Improve
+      // 280 + 10 + 30 = 320 / 400 = 80.0% -> Good, Please Improve
       expect(weekly.totalScore).toBe(320);
-      expect(weekly.maxAvailableMarks).toBe(350);
-      expect(weekly.percentage).toBe(91.4);
+      expect(weekly.maxAvailableMarks).toBe(400);
+      expect(weekly.percentage).toBe(80.0);
       expect(weekly.grade).toBe('Good, Please Improve');
     });
   });
@@ -342,15 +343,15 @@ describe('Scoring Engine Unit Tests', () => {
         weeklyClassesScheduled: 4,
         weeklyClassesAttended: 4, // 40 marks
         morningProgrammesScheduled: 4,
-        morningProgrammesAttended: 4, // 40 marks
+        morningProgrammesAttended: 4, // 4 * 50 = 200 marks
         satsangaScheduled: true,
         satsangaAttended: true, // 50 marks
       });
 
-      // total = 1500 + 40 + 40 + 50 = 1630
-      // maxAvailable = 30*50 + 4*10 + 4*10 + 50 = 1630
-      expect(monthly.totalScore).toBe(1630);
-      expect(monthly.maxAvailableMarks).toBe(1630);
+      // total = 1500 + 40 + 200 + 50 = 1790
+      // maxAvailable = 30*50 + 4*10 + 4*50 + 50 = 1790
+      expect(monthly.totalScore).toBe(1790);
+      expect(monthly.maxAvailableMarks).toBe(1790);
       expect(monthly.percentage).toBe(100);
       expect(monthly.grade).toBe('Advancing');
     });
@@ -363,15 +364,15 @@ describe('Scoring Engine Unit Tests', () => {
         weeklyClassesScheduled: 4,
         weeklyClassesAttended: 4, // 40 marks
         morningProgrammesScheduled: 4,
-        morningProgrammesAttended: 4, // 40 marks
+        morningProgrammesAttended: 4, // 4 * 50 = 200 marks
         satsangaScheduled: false, // dynamic: no satsang this month
         satsangaAttended: false,
       });
 
-      // total = 1500 + 40 + 40 + 0 = 1580
-      // maxAvailable = 30*50 + 4*10 + 4*10 + 0 = 1580 (50 marks not added to denominator!)
-      expect(monthly.totalScore).toBe(1580);
-      expect(monthly.maxAvailableMarks).toBe(1580);
+      // total = 1500 + 40 + 200 + 0 = 1740
+      // maxAvailable = 30*50 + 4*10 + 4*50 + 0 = 1740 (50 marks not added to denominator!)
+      expect(monthly.totalScore).toBe(1740);
+      expect(monthly.maxAvailableMarks).toBe(1740);
       expect(monthly.percentage).toBe(100);
       expect(monthly.grade).toBe('Advancing');
     });
@@ -384,17 +385,17 @@ describe('Scoring Engine Unit Tests', () => {
         weeklyClassesScheduled: 4,
         weeklyClassesAttended: 4, // 40 marks
         morningProgrammesScheduled: 4,
-        morningProgrammesAttended: 4, // 40 marks
+        morningProgrammesAttended: 4, // 4 * 50 = 200 marks
         satsangaScheduled: true, // satsang was held
         satsangaAttended: false, // but absent
       });
 
-      // total = 1500 + 40 + 40 + 0 = 1580
-      // maxAvailable = 30*50 + 4*10 + 4*10 + 50 = 1630
-      // 1580 / 1630 = 96.9% -> Good, Please Improve
-      expect(monthly.totalScore).toBe(1580);
-      expect(monthly.maxAvailableMarks).toBe(1630);
-      expect(monthly.percentage).toBe(96.9);
+      // total = 1500 + 40 + 200 + 0 = 1740
+      // maxAvailable = 30*50 + 4*10 + 4*50 + 50 = 1790
+      // 1740 / 1790 = 97.2% -> Good, Please Improve
+      expect(monthly.totalScore).toBe(1740);
+      expect(monthly.maxAvailableMarks).toBe(1790);
+      expect(monthly.percentage).toBe(97.2);
       expect(monthly.grade).toBe('Good, Please Improve');
     });
   });

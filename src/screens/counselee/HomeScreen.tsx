@@ -36,6 +36,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
+  const lastLoadedAtRef = React.useRef<number>(0);
 
   useEffect(() => {
     const checkPostLoginBio = async () => {
@@ -56,7 +57,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadHomeData();
+      loadHomeData(false);
     }, [user?.uid])
   );
 
@@ -66,8 +67,14 @@ export const HomeScreen = ({ navigation }: any) => {
     return `${parseInt(d, 10)}-${parseInt(m, 10)}-${y}`;
   };
 
-  const loadHomeData = async () => {
+  const loadHomeData = async (force: boolean = false) => {
     if (!user?.uid) return;
+    const nowMs = Date.now();
+    // Battery optimization: Avoid refetching full reports within 45s unless explicitly pulled to refresh
+    if (!force && nowMs - lastLoadedAtRef.current < 45000 && todayEntry) {
+      return;
+    }
+    lastLoadedAtRef.current = nowMs;
     try {
       const now = new Date();
       const [entry, week, month] = await Promise.all([
@@ -109,7 +116,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
   const onRefresh = () => {
     setIsRefreshing(true);
-    loadHomeData();
+    loadHomeData(true);
   };
 
   return (
@@ -153,7 +160,7 @@ export const HomeScreen = ({ navigation }: any) => {
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.bannerButton}
+              style={[styles.bannerButton, { backgroundColor: theme.thickColor }]}
               onPress={() => navigation.navigate('DailySadhana')}
             >
               <Text style={styles.bannerButtonText}>{todayEntry ? 'Edit' : 'Fill Now'}</Text>
@@ -163,27 +170,27 @@ export const HomeScreen = ({ navigation }: any) => {
           {/* Quick Devotee Profile Pill */}
           <View style={styles.quickProfileCard}>
             <View style={styles.quickProfileLeft}>
-              <View style={styles.quickAvatarCircle}>
-                <Ionicons name="person" size={16} color={THEME.colors.gold} />
+              <View style={[styles.quickAvatarCircle, { backgroundColor: theme.liteColor }]}>
+                <Ionicons name="person" size={16} color={theme.thickColor} />
               </View>
               <View>
-                <Text style={styles.quickProfileName}>{user?.displayName || 'Devotee'}</Text>
-                <Text style={styles.quickProfilePhone}>{user?.phoneNumber || 'No phone added'}</Text>
+                <Text style={[styles.quickProfileName, { color: theme.colors.text }]}>{user?.displayName || 'Devotee'}</Text>
+                <Text style={[styles.quickProfilePhone, { color: theme.colors.textMuted }]}>{user?.phoneNumber || 'No phone added'}</Text>
               </View>
             </View>
             <TouchableOpacity
-              style={styles.quickEditBtn}
+              style={[styles.quickEditBtn, { borderColor: theme.thickColor }]}
               onPress={() => navigation.navigate('Profile')}
             >
-              <Ionicons name="create-outline" size={14} color={THEME.colors.primary} />
-              <Text style={styles.quickEditBtnText}>Edit Details</Text>
+              <Ionicons name="create-outline" size={14} color={theme.thickColor} />
+              <Text style={[styles.quickEditBtnText, { color: theme.thickColor }]}>Edit Details</Text>
             </TouchableOpacity>
           </View>
 
           {/* Current Week Summary */}
           {weeklyReport && (
             <View style={styles.section}>
-              <Text style={styles.sectionHeaderTitle}>Current Week Progress</Text>
+              <Text style={[styles.sectionHeaderTitle, { color: theme.thickColor }]}>Current Week Progress</Text>
               <ScoreCard
                 title={`${formatNumericDate(weeklyReport.startDate)} to ${formatNumericDate(weeklyReport.endDate)}`}
                 score={weeklyReport.totalScore}
@@ -199,10 +206,10 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
           )}
 
-          {/* Current Month Summary */}
+          {/* Current Month Progress */}
           {monthlyReport && (
             <View style={styles.section}>
-              <Text style={styles.sectionHeaderTitle}>Current Month Progress</Text>
+              <Text style={[styles.sectionHeaderTitle, { color: theme.thickColor }]}>Current Month Progress</Text>
               <ScoreCard
                 title={monthlyReport.monthName}
                 score={monthlyReport.totalScore}
@@ -223,50 +230,50 @@ export const HomeScreen = ({ navigation }: any) => {
             <View style={[styles.statBox, styles.statBoxRounds]}>
               <Ionicons name="radio-button-on" size={24} color={THEME.colors.goldDark} />
               <Text style={[styles.statNumber, { color: THEME.colors.goldDark }]}>{weeklyReport?.totalRounds || 0}</Text>
-              <Text style={styles.statLabel}>Week Rounds</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Week Rounds</Text>
             </View>
 
-            <View style={[styles.statBox, styles.statBoxReading]}>
-              <Ionicons name="book-outline" size={24} color={THEME.colors.primary} />
-              <Text style={[styles.statNumber, { color: THEME.colors.primary }]}>{weeklyReport?.totalReadingMinutes || 0}m</Text>
-              <Text style={styles.statLabel}>Week Reading</Text>
+            <View style={[styles.statBox, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
+              <Ionicons name="book-outline" size={24} color={theme.thickColor} />
+              <Text style={[styles.statNumber, { color: theme.thickColor }]}>{weeklyReport?.totalReadingMinutes || 0}m</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Week Reading</Text>
             </View>
 
             <View style={[styles.statBox, styles.statBoxHearing]}>
               <Ionicons name="headset-outline" size={24} color={THEME.colors.info} />
               <Text style={[styles.statNumber, { color: THEME.colors.info }]}>{weeklyReport?.totalHearingMinutes || 0}m</Text>
-              <Text style={styles.statLabel}>Week Hearing</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>Week Hearing</Text>
             </View>
           </View>
 
           {/* Spiritual Quote / Prabhupada Vani */}
-          <View style={styles.quoteCard}>
-            <Ionicons name="flower" size={20} color={THEME.colors.gold} style={styles.quoteIcon} />
-            <Text style={styles.quoteText}>
+          <View style={[styles.quoteCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Ionicons name="flower" size={20} color={theme.thickColor} style={styles.quoteIcon} />
+            <Text style={[styles.quoteText, { color: theme.colors.text }]}>
               "Sadhana-bhakti is the steady practice of devotional service. By chanting sincerely and
               reading every day, one naturally awakens love for Sri Krishna."
             </Text>
-            <Text style={styles.quoteAuthor}>— His Divine Grace A.C. Bhaktivedanta Swami Prabhupāda</Text>
+            <Text style={[styles.quoteAuthor, { color: theme.thickColor }]}>— His Divine Grace A.C. Bhaktivedanta Swami Prabhupāda</Text>
           </View>
 
           {/* Navigation Shortcuts */}
           <View style={styles.shortcutsRow}>
             <TouchableOpacity
-              style={styles.shortcutCard}
+              style={[styles.shortcutCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
               onPress={() => navigation.navigate('MyReports')}
             >
-              <Ionicons name="stats-chart-outline" size={24} color={THEME.colors.primary} />
-              <Text style={styles.shortcutTitle}>My Reports</Text>
-              <Text style={styles.shortcutSubtitle}>Daily, Weekly & Monthly</Text>
+              <Ionicons name="stats-chart-outline" size={24} color={theme.thickColor} />
+              <Text style={[styles.shortcutTitle, { color: theme.colors.text }]}>My Reports</Text>
+              <Text style={[styles.shortcutSubtitle, { color: theme.colors.textMuted }]}>Daily, Weekly & Monthly</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.shortcutCard}
+              style={[styles.shortcutCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
               onPress={() => navigation.navigate('Community')}
             >
-              <Ionicons name="people-outline" size={24} color={THEME.colors.goldDark} />
-              <Text style={styles.shortcutTitle}>Community</Text>
-              <Text style={styles.shortcutSubtitle}>Devotee Summaries</Text>
+              <Ionicons name="people-outline" size={24} color={theme.thickColor} />
+              <Text style={[styles.shortcutTitle, { color: theme.colors.text }]}>Community</Text>
+              <Text style={[styles.shortcutSubtitle, { color: theme.colors.textMuted }]}>Devotee Summaries</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

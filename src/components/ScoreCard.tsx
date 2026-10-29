@@ -86,7 +86,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
           {breakdown.morningMarks !== undefined && (
             <View style={styles.breakdownItem}>
               <Text style={styles.breakdownLabel}>Morning</Text>
-              <Text style={styles.breakdownValue}>{breakdown.morningMarks}/10</Text>
+              <Text style={styles.breakdownValue}>{breakdown.morningMarks}/50</Text>
             </View>
           )}
           {breakdown.onlineReadingMarks !== undefined && (

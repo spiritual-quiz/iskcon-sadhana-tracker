@@ -90,7 +90,10 @@ export const MyReportsScreen = () => {
         {(['weekly', 'monthly', 'daily'] as const).map((tab) => (
           <TouchableOpacity
             key={tab}
-            style={[styles.tabButton, activeTab === tab && styles.tabButtonActive]}
+            style={[
+              styles.tabButton,
+              activeTab === tab && [styles.tabButtonActive, { backgroundColor: theme.thickColor }],
+            ]}
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
@@ -202,10 +205,10 @@ export const MyReportsScreen = () => {
               )}
 
               <View style={styles.summaryCard}>
-                <Text style={styles.cardHeaderTitle}>Monthly Overview</Text>
+                <Text style={[styles.cardHeaderTitle, { color: theme.thickColor }]}>Monthly Overview</Text>
                 <View style={styles.metricRow}>
                   <Text style={styles.metricLabel}>Consistency Rating:</Text>
-                  <Text style={[styles.metricValue, styles.highlightText]}>
+                  <Text style={[styles.metricValue, { color: theme.thickColor }]}>
                     {monthlyReport.consistencyRating}
                   </Text>
                 </View>

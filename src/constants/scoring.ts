@@ -36,7 +36,7 @@ export const SCORING_RULES = {
     maxMarks: 10,
   },
   morningProgramme: {
-    maxMarks: 10,
+    maxMarks: 50,
   },
   monthlySatsanga: {
     maxMarks: 50,
@@ -44,7 +44,7 @@ export const SCORING_RULES = {
   grades: [
     { grade: 'Advancing', minPercentage: 100.0, maxPercentage: 100.0, label: 'Advancing' },
     { grade: 'Good, Please Improve', minPercentage: 80.0, maxPercentage: 99.9, label: 'Good, Please Improve' },
-    { grade: 'Your Sādhana Is at Risk', minPercentage: 60.0, maxPercentage: 79.9, label: 'Your Sādhana Is at Risk' },
+    { grade: 'Your Bhakti Is at Risk', minPercentage: 60.0, maxPercentage: 79.9, label: 'Your Bhakti Is at Risk' },
     { grade: 'Māyā Is Distracting You', minPercentage: 40.0, maxPercentage: 59.9, label: 'Māyā Is Distracting You' },
     { grade: 'You Are in Māyā', minPercentage: 20.0, maxPercentage: 39.9, label: 'You Are in Māyā' },
     { grade: 'You Are Fallen', minPercentage: 0.0, maxPercentage: 19.9, label: 'You Are Fallen' },

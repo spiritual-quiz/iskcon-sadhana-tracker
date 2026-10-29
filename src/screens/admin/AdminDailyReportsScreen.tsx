@@ -326,34 +326,48 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
 
                       <View style={styles.detailsGrid}>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Japa</Text>
+                          <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Japa Chanting</Text>
                           <Text style={styles.detailValue}>
-                            {item.completedRounds}/{item.declaredRounds} ({item.japaMarks}m @ {item.completionTimeStr || 'N/A'})
+                            {item.completedRounds}/{item.declaredRounds} rounds ({item.japaMarks}m @ {item.completionTimeStr || 'N/A'})
                           </Text>
                         </View>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Reading</Text>
+                          <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Reading Books</Text>
                           <Text style={styles.detailValue}>
-                            {item.readingMinutes}m ({item.readingMarks} marks)
+                            {item.readingMinutes} mins ({item.readingMarks} marks)
                           </Text>
                         </View>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Hearing</Text>
+                          <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Hearing Lectures</Text>
                           <Text style={styles.detailValue}>
-                            {item.hearingMinutes}m ({item.hearingMarks} marks)
+                            {item.hearingMinutes} mins ({item.hearingMarks} marks)
                           </Text>
                         </View>
                         <View style={styles.detailItem}>
-                          <Text style={styles.detailLabel}>Sleep & Rest</Text>
+                          <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Sleeping & Rest</Text>
                           <Text style={styles.detailValue}>
-                            {formatMinutesToHours(sleepMins)} ({item.sleepMarks ?? 0}m)
+                            Bedtime: {item.sleepTimeStr || 'N/A'} • Wakeup: {item.wakeUpTimeStr || 'N/A'} • Night: {formatMinutesToHours(sleepMins)} • Day Rest: {item.restMinutes || 0} mins ({item.sleepMarks ?? 0}m)
                           </Text>
                         </View>
-                        {item.onlineReadingAttended && (
+                        <View style={styles.detailItem}>
+                          <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Online Reading Session</Text>
+                          <Text style={[styles.detailValue, { color: item.onlineReadingAttended ? '#15803D' : '#DC2626', fontWeight: 'bold' }]}>
+                            {item.onlineReadingAttended ? 'Present (10 marks)' : 'Absent (0 marks)'}
+                          </Text>
+                        </View>
+                        {item.morningProgrammeAttended !== undefined && (
                           <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Online Reading</Text>
-                            <Text style={[styles.detailValue, { color: '#15803D', fontWeight: 'bold' }]}>
-                              Attended (10 marks)
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Morning Programme</Text>
+                            <Text style={[styles.detailValue, { color: item.morningProgrammeAttended ? '#15803D' : '#DC2626', fontWeight: 'bold' }]}>
+                              {item.morningProgrammeAttended ? 'Attended (50 marks)' : 'Absent (0 marks)'}
+                            </Text>
+                          </View>
+                        )}
+                        {item.serviceAttended !== undefined && (
+                          <View style={styles.detailItem}>
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Weekly Service</Text>
+                            <Text style={[styles.detailValue, { color: item.serviceAttended ? '#15803D' : '#DC2626', fontWeight: 'bold' }]}>
+                              {item.serviceAttended ? 'Attended (10 marks)' : 'Absent (0 marks)'}
                             </Text>
                           </View>
                         )}
@@ -598,13 +612,16 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                               return (
                                 <View key={d.dateStr} style={styles.expandedDayRow}>
                                   <View style={styles.expandedDayLeft}>
-                                    <Text style={styles.expandedDayDate}>{d.dayName} ({d.label}):</Text>
+                                    <Text style={[styles.expandedDayDate, { color: theme.thickColor }]}>{d.dayName} ({d.label}):</Text>
                                     <Text style={styles.expandedDayDetails}>
                                       Japa: {item.completedRounds}/{item.declaredRounds} • Read: {item.readingMinutes}m • Hear: {item.hearingMinutes}m
                                     </Text>
+                                    <Text style={[styles.expandedDayDetails, { color: theme.colors.textMuted, fontSize: 11, marginTop: 2 }]}>
+                                      Sleep: {item.sleepTimeStr || 'N/A'} - {item.wakeUpTimeStr || 'N/A'} • Day Rest: {item.restMinutes || 0}m • Online: {item.onlineReadingAttended ? 'Present (10m)' : 'Absent (0m)'}
+                                    </Text>
                                   </View>
                                   <View style={styles.expandedDayRight}>
-                                    <Text style={styles.expandedDayScore}>
+                                    <Text style={[styles.expandedDayScore, { color: theme.thickColor }]}>
                                       {item.dailyTotalScore}m ({item.percentage}%)
                                     </Text>
                                     <StatusBadge type="grade" value={item.grade} />
@@ -642,23 +659,29 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.detailsGrid}>
                           <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Japa</Text>
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Japa Chanting</Text>
                             <Text style={styles.detailValue}>
-                              {item.completedRounds}/{item.declaredRounds} ({item.japaMarks}m)
+                              {item.completedRounds}/{item.declaredRounds} ({item.japaMarks}m @ {item.completionTimeStr || 'N/A'})
                             </Text>
                           </View>
                           <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Reading</Text>
-                            <Text style={styles.detailValue}>{item.readingMinutes}m</Text>
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Reading Books</Text>
+                            <Text style={styles.detailValue}>{item.readingMinutes} mins</Text>
                           </View>
                           <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Hearing</Text>
-                            <Text style={styles.detailValue}>{item.hearingMinutes}m</Text>
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Hearing Lectures</Text>
+                            <Text style={styles.detailValue}>{item.hearingMinutes} mins</Text>
                           </View>
                           <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>Sleep</Text>
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Sleeping & Rest</Text>
                             <Text style={styles.detailValue}>
-                              {formatMinutesToHours(calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr))}
+                              Bed: {item.sleepTimeStr || 'N/A'} • Wake: {item.wakeUpTimeStr || 'N/A'} • Sleep: {formatMinutesToHours(calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr))} • Day Rest: {item.restMinutes || 0}m
+                            </Text>
+                          </View>
+                          <View style={styles.detailItem}>
+                            <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Online Reading</Text>
+                            <Text style={[styles.detailValue, { color: item.onlineReadingAttended ? '#15803D' : '#DC2626', fontWeight: 'bold' }]}>
+                              {item.onlineReadingAttended ? 'Present (10m)' : 'Absent (0m)'}
                             </Text>
                           </View>
                         </View>

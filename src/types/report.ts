@@ -16,11 +16,11 @@ export interface WeeklyReport {
   weeklyClassAttendance: boolean;
   weeklyClassMarks: number; // 0 or 10
   morningProgrammeAttendance: boolean;
-  morningProgrammeMarks: number; // 0 or 10
+  morningProgrammeMarks: number; // 0 or 50
   onlineReadingDaysAttended: number; // 0 to 5 days (Mon to Fri)
   onlineReadingMarks: number; // 0 to 50 marks (10 marks each day)
   totalScore: number;
-  maxAvailableMarks: number; // 280 + 10 + 10 + 50 = 350
+  maxAvailableMarks: number; // 280 + 50 + 10 + 50 = 390
   percentage: number;
   grade: Grade;
   missingReportDays: number;

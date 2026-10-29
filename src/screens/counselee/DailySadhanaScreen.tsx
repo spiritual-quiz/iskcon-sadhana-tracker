@@ -67,12 +67,15 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const [sleepTime, setSleepTime] = useState<string>('');
   const [wakeUpTime, setWakeUpTime] = useState<string>('');
-  const [restMinutes, setRestMinutes] = useState<string>('0');
+  const [restMinutes, setRestMinutes] = useState<string>('30');
 
   // E. Online Reading Session (Monday to Friday, 10 Marks)
   const [onlineReadingAttended, setOnlineReadingAttended] = useState<boolean>(false);
   const [weekReadingMap, setWeekReadingMap] = useState<{ [dateStr: string]: boolean }>({});
   const [isUpdatingReading, setIsUpdatingReading] = useState<boolean>(false);
+
+  // Weekly Morning Programme Session (Weekly, 50 Marks)
+  const [morningProgrammeAttended, setMorningProgrammeAttended] = useState<boolean>(false);
 
   // F. Service (Weekly, 10 Marks)
   const [serviceAttended, setServiceAttended] = useState<boolean>(false);
@@ -134,19 +137,22 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setWakeUpTime(entry.wakeUpTimeStr || '');
         setRestMinutes(String(entry.restMinutes || 0));
         setOnlineReadingAttended(entry.onlineReadingAttended ?? false);
+        setMorningProgrammeAttended(entry.morningProgrammeAttended ?? false);
         setServiceAttended(entry.serviceAttended ?? false);
         setMonthlyMeetingAttended(entry.monthlyMeetingAttended ?? false);
       } else {
-        // Reset defaults for fresh entry - all entry marks start at 0
-        setDeclaredRounds(user.declaredRounds ? String(user.declaredRounds) : '16');
-        setCompletedRounds('');
+        // Pre-filled defaults (editable by user):
+        const defaultRounds = user.declaredRounds ? String(user.declaredRounds) : '16';
+        setDeclaredRounds(defaultRounds);
+        setCompletedRounds(defaultRounds); // Fixed chanting rounds visible in box
         setCompletionTime('');
-        setReadingMinutes('');
-        setHearingMinutes('');
-        setSleepTime('');
-        setWakeUpTime('');
-        setRestMinutes('0');
+        setReadingMinutes('30'); // 30 minutes default
+        setHearingMinutes('30'); // 30 minutes default
+        setSleepTime('21:30'); // 9:30 PM default
+        setWakeUpTime('03:30'); // 3:30 AM default
+        setRestMinutes('30'); // 30 minutes daytime rest default
         setOnlineReadingAttended(false);
+        setMorningProgrammeAttended(false);
         setServiceAttended(false);
         setMonthlyMeetingAttended(false);
         setCorrectionReason('');
@@ -284,6 +290,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     wakeUpTimeStr: wakeUpTime.trim(),
     restMinutes: numRest,
     onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
+    morningProgrammeAttended: morningProgrammeAttended,
     serviceAttended: serviceAttended,
     monthlyMeetingAttended: monthlyMeetingAttended,
   });
@@ -379,6 +386,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           wakeUpTimeStr: wakeUpTime.trim(),
           restMinutes: numRest,
           onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
+          morningProgrammeAttended,
           serviceAttended,
           monthlyMeetingAttended,
         },
@@ -636,9 +644,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionIcon}>
-                <Ionicons name="disc-outline" size={18} color="#EA580C" />
+                <Ionicons name="disc-outline" size={18} color={theme.thickColor} />
               </View>
-              <Text style={styles.sectionTitle}>A. Japa - Chanting</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>A. Japa - Chanting</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#FFEDD5', borderColor: '#FDBA74' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#EA580C' }]}>{liveEvaluation.japaMarks}/10 M</Text>
               </View>
@@ -816,7 +824,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.sectionIcon}>
                 <Ionicons name="book-outline" size={18} color="#15803D" />
               </View>
-              <Text style={styles.sectionTitle}>B. Reading Prabhupada's Books</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>B. Reading Prabhupada's Books</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#15803D' }]}>{liveEvaluation.readingMarks}/10 M</Text>
               </View>
@@ -863,7 +871,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.sectionIcon}>
                 <Ionicons name="headset-outline" size={18} color="#0284C7" />
               </View>
-              <Text style={styles.sectionTitle}>C. Spiritual Hearing / Lectures</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>C. Spiritual Hearing / Lectures</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#E0F2FE', borderColor: '#7DD3FC' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#0284C7' }]}>{liveEvaluation.hearingMarks}/10 M</Text>
               </View>
@@ -909,7 +917,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.sectionIcon}>
                 <Ionicons name="moon-outline" size={18} color="#7C3AED" />
               </View>
-              <Text style={styles.sectionTitle}>D. Sleep & Rest Routine</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>D. Sleep & Rest Routine</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#7C3AED' }]}>{liveEvaluation.sleepMarks}/10 M</Text>
               </View>
@@ -994,7 +1002,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={[styles.sectionIcon, { backgroundColor: '#EFF6FF' }]}>
                 <Ionicons name="laptop-outline" size={18} color="#2563EB" />
               </View>
-              <Text style={styles.sectionTitle}>E. Online Reading Session (Mon–Fri)</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>E. Online Reading Session (Mon–Fri)</Text>
               <View
                 style={[
                   styles.marksBadge,
@@ -1193,13 +1201,95 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </View>
           </View>
 
+          {/* Weekly Morning Programme Session (Weekly, 50 Marks) */}
+          <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="sunny-outline" size={18} color="#D97706" />
+              </View>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>
+                Weekly Morning Programme (50 Marks)
+              </Text>
+              <View
+                style={[
+                  styles.marksBadge,
+                  morningProgrammeAttended
+                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.marksBadgeText,
+                    morningProgrammeAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                  ]}
+                >
+                  {morningProgrammeAttended ? '50/50 W' : '0/50 W'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.highlightBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+              <Ionicons name="sunny-outline" size={15} color="#D97706" />
+              <Text style={[styles.highlightBadgeText, { color: '#92400E' }]}>
+                Weekly morning programme & Maṅgala-ārati • Attended: 50 marks • Absent: 0 marks (counted towards Weekly Report)
+              </Text>
+            </View>
+
+            <View style={styles.satsangPillsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  morningProgrammeAttended && styles.satsangPillAttended,
+                ]}
+                onPress={() => setMorningProgrammeAttended(true)}
+              >
+                <Ionicons
+                  name={morningProgrammeAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={morningProgrammeAttended ? '#FFFFFF' : '#15803D'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    morningProgrammeAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Attended (50M)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.satsangPill,
+                  !morningProgrammeAttended && styles.satsangPillAbsent,
+                ]}
+                onPress={() => setMorningProgrammeAttended(false)}
+              >
+                <Ionicons
+                  name={!morningProgrammeAttended ? 'close-circle' : 'ellipse-outline'}
+                  size={16}
+                  color={!morningProgrammeAttended ? '#FFFFFF' : '#DC2626'}
+                />
+                <Text
+                  style={[
+                    styles.satsangPillText,
+                    !morningProgrammeAttended && styles.satsangPillTextActive,
+                  ]}
+                >
+                  Absent (0M)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Section F: Service (Weekly, 10 Marks) */}
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
                 <Ionicons name="hand-left-outline" size={18} color="#EA580C" />
               </View>
-              <Text style={styles.sectionTitle}>F. Service (Weekly, 10 Marks)</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>F. Service (Weekly, 10 Marks)</Text>
               <View
                 style={[
                   styles.marksBadge,
@@ -1279,7 +1369,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={[styles.sectionIcon, { backgroundColor: '#FAF5FF' }]}>
                 <Ionicons name="people-outline" size={18} color="#9333EA" />
               </View>
-              <Text style={styles.sectionTitle}>G. Monthly Satsang (Monthly Programme)</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>G. Monthly Satsang (Monthly Programme)</Text>
               <View
                 style={[
                   styles.marksBadge,
@@ -1394,7 +1484,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
                 <Ionicons name="chatbubbles-outline" size={18} color="#16A34A" />
               </View>
-              <Text style={styles.sectionTitle}>H. Monthly Counsellor Meeting (50 Marks)</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>H. Monthly Counsellor Meeting (50 Marks)</Text>
               <View
                 style={[
                   styles.marksBadge,
@@ -1487,7 +1577,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, isSaving && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { backgroundColor: theme.thickColor }, isSaving && styles.submitButtonDisabled]}
             onPress={handleSave}
             disabled={isSaving}
           >

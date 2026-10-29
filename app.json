@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bhakti Unnati",
     "slug": "bhakti-unnati",
-    "version": "1.0.16",
+    "version": "1.0.17",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "org.iskcon.sadhanatracker",
-      "versionCode": 16,
+      "versionCode": 17,
       "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#FFA600",
       "adaptiveIcon": {
@@ -41,7 +41,20 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-updates"
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/a2e04822-3261-4793-ae4b-6240fed77773"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a2e04822-3261-4793-ae4b-6240fed77773"
+      }
+    },
+    "owner": "sadhanatracker"
   }
 }

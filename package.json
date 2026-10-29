@@ -1,6 +1,6 @@
 {
   "name": "iskcon-sadhana-tracker",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -25,6 +25,7 @@
     "expo-local-authentication": "~57.0.3",
     "expo-notifications": "~57.0.24",
     "expo-status-bar": "~57.0.1",
+    "expo-updates": "~57.0.26",
     "firebase": "^11.3.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",

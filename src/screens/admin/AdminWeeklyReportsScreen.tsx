@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -19,18 +20,20 @@ import { UserProfile } from '../../types/auth';
 import { reportService } from '../../services/reportService';
 import { attendanceService } from '../../services/attendanceService';
 import { authService } from '../../services/authService';
-import { getTodayDateStringIST, getWeekDetails } from '../../utils/dateUtils';
+import { getTodayDateStringIST, getWeekDetails, formatMinutesToHours, calculateSleepDurationMinutes } from '../../utils/dateUtils';
 import { WeeklyReport } from '../../types/report';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
   const { weekId, startDate, endDate } = getWeekDetails(todayStr);
 
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
   const [filterMode, setFilterMode] = useState<'all' | 'lowScore'>('all');
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -161,13 +164,18 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
           ) : (
             displayedReports.map((rep) => {
               const isLowScore = (rep.percentage ?? 0) < 50;
+              const isExpanded = expandedUserId === rep.userId;
 
               return (
               <View key={rep.userId} style={[styles.card, isLowScore && styles.cardLowScore]}>
-                <View style={styles.cardHeader}>
+                <TouchableOpacity
+                  style={styles.cardHeader}
+                  onPress={() => setExpandedUserId(isExpanded ? null : rep.userId)}
+                  activeOpacity={0.7}
+                >
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                      <Text style={[styles.name, isLowScore && styles.nameAlert]}>{rep.counseleeName}</Text>
+                      <Text style={[styles.name, { color: theme.thickColor }, isLowScore && styles.nameAlert]}>{rep.counseleeName}</Text>
                       {isLowScore && (
                         <View style={styles.lowScoreAlertBadge}>
                           <Ionicons name="warning" size={11} color="#DC2626" />
@@ -180,7 +188,13 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                     </Text>
                   </View>
                   <StatusBadge type="grade" value={rep.grade} />
-                </View>
+                  <Ionicons
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={THEME.colors.textMuted}
+                    style={{ marginLeft: 6 }}
+                  />
+                </TouchableOpacity>
 
                 {/* Attendance Toggles */}
                 <View style={styles.attendanceRow}>
@@ -236,7 +250,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                         rep.morningProgrammeAttendance && styles.attPillTextActive,
                       ]}
                     >
-                      Morning Prog ({rep.morningProgrammeMarks}/10)
+                      Morning Prog ({rep.morningProgrammeMarks}/50)
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -257,6 +271,48 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                     <Text style={styles.missingItem}>Missing: {rep.missingReportDays}d</Text>
                   )}
                 </View>
+
+                {/* Expandable 7-Day Detailed Breakdown (Requirement 2) */}
+                {isExpanded && (
+                  <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 8 }}>
+                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.thickColor, marginBottom: 6 }}>
+                      Full 7-Day Devotee Sadhana Details:
+                    </Text>
+                    {rep.dailyEntries.map((dayEntry, idx) => {
+                      if (!dayEntry) {
+                        return (
+                          <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+                            <Text style={{ fontSize: 11, color: THEME.colors.textMuted }}>Day {idx + 1}:</Text>
+                            <Text style={{ fontSize: 11, color: '#DC2626' }}>No Card Submitted</Text>
+                          </View>
+                        );
+                      }
+                      const sleepM = calculateSleepDurationMinutes(dayEntry.sleepTimeStr, dayEntry.wakeUpTimeStr);
+                      return (
+                        <View key={dayEntry.id || idx} style={{ backgroundColor: '#F9FAFB', borderRadius: 8, padding: 8, marginBottom: 6 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: theme.thickColor }}>{dayEntry.date}</Text>
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#15803D' }}>
+                              {dayEntry.dailyTotalScore}/50 marks ({dayEntry.percentage}%)
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 11, color: THEME.colors.text }}>
+                            • Japa: {dayEntry.completedRounds}/{dayEntry.declaredRounds} rounds ({dayEntry.japaMarks}m @ {dayEntry.completionTimeStr || 'N/A'})
+                          </Text>
+                          <Text style={{ fontSize: 11, color: THEME.colors.text }}>
+                            • Read: {dayEntry.readingMinutes}m ({dayEntry.readingMarks}m) • Hear: {dayEntry.hearingMinutes}m ({dayEntry.hearingMarks}m)
+                          </Text>
+                          <Text style={{ fontSize: 11, color: THEME.colors.text }}>
+                            • Sleeping: Bed {dayEntry.sleepTimeStr || 'N/A'} - Wake {dayEntry.wakeUpTimeStr || 'N/A'} ({formatMinutesToHours(sleepM)}) • Day Rest: {dayEntry.restMinutes || 0}m
+                          </Text>
+                          <Text style={{ fontSize: 11, color: dayEntry.onlineReadingAttended ? '#15803D' : '#9CA3AF' }}>
+                            • Online Reading Session: {dayEntry.onlineReadingAttended ? 'Present (10m)' : 'Absent (0m)'}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
             );
           })

@@ -25,7 +25,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ type, value, label }) 
         backgroundColor = '#EFF6FF';
         textColor = THEME.colors.gradeB;
         break;
+      case 'Your Bhakti Is at Risk':
       case 'Your Sādhana Is at Risk':
+      case 'Your Sadhana Is at Risk':
       case 'C':
         backgroundColor = THEME.colors.warningLight;
         textColor = THEME.colors.gradeC;

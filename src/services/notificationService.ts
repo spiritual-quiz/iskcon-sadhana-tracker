@@ -167,6 +167,16 @@ export const notificationService = {
     try {
       if (!Notifications.scheduleNotificationAsync) return;
 
+      // Battery optimization: Check if already scheduled in Android AlarmManager
+      if (Notifications.getAllScheduledNotificationsAsync) {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const has6pm = scheduled.some((s: any) => s.identifier === 'sadhana_scheduled_6pm');
+        const has9pm = scheduled.some((s: any) => s.identifier === 'sadhana_scheduled_9pm');
+        if (has6pm && has9pm) {
+          return; // Already scheduled, prevent battery drain from redundant alarm registrations
+        }
+      }
+
       // Check if today is already filled before scheduling
       const todayStr = getTodayDateStringIST();
       const todayEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);

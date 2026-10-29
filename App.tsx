@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import * as Updates from 'expo-updates';
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -12,6 +13,22 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     notificationService.setupNotifications();
+
+    // Over-The-Air updates: Silently download & apply updates whenever user opens the app
+    const checkAppUpdates = async () => {
+      try {
+        if (!__DEV__ && Updates?.checkForUpdateAsync) {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+          }
+        }
+      } catch (e) {
+        // Offline / dev fallback
+      }
+    };
+    checkAppUpdates();
   }, []);
 
   const navTheme = {
