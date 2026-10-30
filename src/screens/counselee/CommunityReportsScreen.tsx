@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { reportService } from '../../services/reportService';
@@ -18,6 +19,7 @@ import { SharedWeeklySummary } from '../../types/report';
 import { AppreciationCard } from '../../types/appreciation';
 
 export const CommunityReportsScreen = () => {
+  const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
   const { weekId } = getWeekDetails(todayStr);
 
@@ -48,28 +50,38 @@ export const CommunityReportsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Community Devotee Sanga"
         subtitle={`Encouraging Sincere Sadhana (${weekId})`}
       />
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'summaries' && styles.tabBtnActive]}
+          style={[styles.tabBtn, activeTab === 'summaries' && { backgroundColor: theme.thickColor }]}
           onPress={() => setActiveTab('summaries')}
         >
-          <Text style={[styles.tabBtnText, activeTab === 'summaries' && styles.tabBtnTextActive]}>
+          <Text
+            style={[
+              styles.tabBtnText,
+              { color: activeTab === 'summaries' ? '#FFFFFF' : theme.colors.textMuted },
+            ]}
+          >
             Weekly Summaries
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'appreciation' && styles.tabBtnActive]}
+          style={[styles.tabBtn, activeTab === 'appreciation' && { backgroundColor: theme.thickColor }]}
           onPress={() => setActiveTab('appreciation')}
         >
-          <Text style={[styles.tabBtnText, activeTab === 'appreciation' && styles.tabBtnTextActive]}>
+          <Text
+            style={[
+              styles.tabBtnText,
+              { color: activeTab === 'appreciation' ? '#FFFFFF' : theme.colors.textMuted },
+            ]}
+          >
             Sadhana Appreciation
           </Text>
         </TouchableOpacity>
@@ -77,16 +89,16 @@ export const CommunityReportsScreen = () => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading devotee summaries...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading devotee summaries...</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {activeTab === 'summaries' && (
             <View>
-              <View style={styles.noticeBox}>
-                <Ionicons name="shield-checkmark-outline" size={18} color={THEME.colors.primary} />
-                <Text style={styles.noticeText}>
+              <View style={[styles.noticeBox, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={theme.thickColor} />
+                <Text style={[styles.noticeText, { color: theme.thickColor }]}>
                   Privacy Protected: Only aggregate scores and practice totals are shared. Private sleep,
                   daily details, and phone numbers remain strictly confidential.
                 </Text>
@@ -94,38 +106,38 @@ export const CommunityReportsScreen = () => {
 
               {weeklySummaries.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No community summaries published yet for this week.</Text>
+                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No community summaries published yet for this week.</Text>
                 </View>
               ) : (
                 weeklySummaries.map((summary) => (
-                  <View key={summary.id} style={styles.summaryCard}>
+                  <View key={summary.id} style={[styles.summaryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                     <View style={styles.summaryHeader}>
                       <View>
-                        <Text style={styles.devoteeName}>{summary.counseleeName}</Text>
-                        <Text style={styles.weekLabel}>{summary.weekId}</Text>
+                        <Text style={[styles.devoteeName, { color: theme.thickColor }]}>{summary.counseleeName}</Text>
+                        <Text style={[styles.weekLabel, { color: theme.colors.textMuted }]}>{summary.weekId}</Text>
                       </View>
                       <StatusBadge type="grade" value={summary.grade} />
                     </View>
 
-                    <View style={styles.metricsRow}>
+                    <View style={[styles.metricsRow, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
                       <View style={styles.metricItem}>
-                        <Text style={styles.metricLabel}>Total Score</Text>
-                        <Text style={styles.metricValue}>
+                        <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Total Score</Text>
+                        <Text style={[styles.metricValue, { color: theme.thickColor }]}>
                           {summary.totalScore.toFixed(1)} / {summary.maxAvailableMarks}
                         </Text>
                       </View>
                       <View style={styles.metricItem}>
-                        <Text style={styles.metricLabel}>Percentage</Text>
-                        <Text style={styles.metricValue}>{summary.percentage.toFixed(1)}%</Text>
+                        <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Percentage</Text>
+                        <Text style={[styles.metricValue, { color: theme.thickColor }]}>{summary.percentage.toFixed(1)}%</Text>
                       </View>
                       <View style={styles.metricItem}>
-                        <Text style={styles.metricLabel}>Rounds</Text>
-                        <Text style={styles.metricValue}>{summary.totalRounds}</Text>
+                        <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Rounds</Text>
+                        <Text style={[styles.metricValue, { color: theme.thickColor }]}>{summary.totalRounds}</Text>
                       </View>
                     </View>
 
                     <View style={styles.readingHearingRow}>
-                      <Text style={styles.readHearText}>
+                      <Text style={[styles.readHearText, { color: theme.colors.textMuted }]}>
                         Reading: {formatMinutesToHours(summary.totalReadingMinutes)}  •  Hearing: {formatMinutesToHours(summary.totalHearingMinutes)}
                       </Text>
                     </View>
@@ -139,24 +151,24 @@ export const CommunityReportsScreen = () => {
             <View>
               {appreciations.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No published appreciation cards yet.</Text>
+                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No published appreciation cards yet.</Text>
                 </View>
               ) : (
                 appreciations.map((card) => (
-                  <View key={card.id} style={styles.appreciationCard}>
+                  <View key={card.id} style={[styles.appreciationCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                     <View style={styles.appreciationBadgeRow}>
-                      <View style={styles.categoryBadge}>
-                        <Ionicons name="sparkles" size={14} color={THEME.colors.goldDark} />
-                        <Text style={styles.categoryText}>{card.category}</Text>
+                      <View style={[styles.categoryBadge, { backgroundColor: theme.liteColor }]}>
+                        <Ionicons name="sparkles" size={14} color={theme.thickColor} />
+                        <Text style={[styles.categoryText, { color: theme.thickColor }]}>{card.category}</Text>
                       </View>
-                      <Text style={styles.periodText}>{card.period}</Text>
+                      <Text style={[styles.periodText, { color: theme.colors.textMuted }]}>{card.period}</Text>
                     </View>
 
-                    <Text style={styles.appreciationName}>{card.counseleeName}</Text>
-                    <Text style={styles.achievementText}>{card.achievement}</Text>
+                    <Text style={[styles.appreciationName, { color: theme.thickColor }]}>{card.counseleeName}</Text>
+                    <Text style={[styles.achievementText, { color: theme.colors.textMuted }]}>{card.achievement}</Text>
 
-                    <View style={styles.messageBox}>
-                      <Text style={styles.messageText}>"{card.message}"</Text>
+                    <View style={[styles.messageBox, { backgroundColor: theme.liteColor, borderLeftColor: theme.thickColor }]}>
+                      <Text style={[styles.messageText, { color: theme.colors.text }]}>"{card.message}"</Text>
                     </View>
                   </View>
                 ))

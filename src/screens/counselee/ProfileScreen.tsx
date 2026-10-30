@@ -181,29 +181,29 @@ export const ProfileScreen = () => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card */}
-        <View style={styles.profileHeaderCard}>
+        <View style={[styles.profileHeaderCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <TouchableOpacity style={styles.avatarTouchable} onPress={handlePickImage} activeOpacity={0.8}>
             {photoUrl ? (
               <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
             ) : (
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={40} color={THEME.colors.gold} />
+              <View style={[styles.avatarCircle, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+                <Ionicons name="person" size={40} color={theme.thickColor} />
               </View>
             )}
-            <View style={styles.cameraIconBadge}>
+            <View style={[styles.cameraIconBadge, { backgroundColor: theme.thickColor }]}>
               <Ionicons name="camera" size={13} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={handlePickImage} style={styles.addPhotoLink}>
-            <Text style={styles.addPhotoText}>{photoUrl ? 'Change Photo' : 'Add Photo'}</Text>
+            <Text style={[styles.addPhotoText, { color: theme.thickColor }]}>{photoUrl ? 'Change Photo' : 'Add Photo'}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.profileName}>{user?.displayName}</Text>
-          <Text style={styles.profileEmail}>{user?.email}</Text>
+          <Text style={[styles.profileName, { color: theme.thickColor }]}>{user?.displayName}</Text>
+          <Text style={[styles.profileEmail, { color: theme.colors.textMuted }]}>{user?.email}</Text>
           <View style={styles.badgeRow}>
             <StatusBadge type="status" value={user?.status || 'pending'} />
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>
+            <View style={[styles.roleBadge, { backgroundColor: theme.liteColor, borderColor: theme.thickColor, borderWidth: 1 }]}>
+              <Text style={[styles.roleBadgeText, { color: theme.thickColor }]}>
                 {user?.role === 'counsellor' ? 'Counsellor' : 'Counselee'}
               </Text>
             </View>
@@ -211,61 +211,61 @@ export const ProfileScreen = () => {
         </View>
 
         {/* Dynamic Spiritual Milestones */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Spiritual Information</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Spiritual Information</Text>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Daily Chanting Commitment:</Text>
-            <Text style={styles.infoValueHighlight}>{user?.declaredRounds || 16} Rounds</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Daily Chanting Commitment:</Text>
+            <Text style={[styles.infoValueHighlight, { color: theme.thickColor }]}>{user?.declaredRounds || 16} Rounds</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>ISKCON Association Started:</Text>
-            <Text style={styles.infoValue}>{user?.iskconConnectDate || 'Not specified'}</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>ISKCON Association Started:</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>{user?.iskconConnectDate || 'Not specified'}</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Connection Duration:</Text>
-            <Text style={styles.infoValueGold}>{dynamicConnection.text}</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Connection Duration:</Text>
+            <Text style={[styles.infoValueGold, { color: theme.thickColor }]}>{dynamicConnection.text}</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Date of Birth:</Text>
-            <Text style={styles.infoValue}>{user?.dateOfBirth || 'Not specified'}</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Date of Birth:</Text>
+            <Text style={[styles.infoValue, { color: theme.colors.text }]}>{user?.dateOfBirth || 'Not specified'}</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Current Age:</Text>
-            <Text style={styles.infoValueGold}>{dynamicAge > 0 ? `${dynamicAge} years` : 'N/A'}</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Current Age:</Text>
+            <Text style={[styles.infoValueGold, { color: theme.thickColor }]}>{dynamicAge > 0 ? `${dynamicAge} years` : 'N/A'}</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Invitation Name:</Text>
-            <Text style={styles.infoValueGold}>{invitationName || 'General Devotee Registration'}</Text>
+          <View style={[styles.infoRow, { borderBottomColor: theme.colors.borderLight }]}>
+            <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Invitation Name:</Text>
+            <Text style={[styles.infoValueGold, { color: theme.thickColor }]}>{invitationName || 'General Devotee Registration'}</Text>
           </View>
 
-          <Text style={styles.protectedNotice}>
+          <Text style={[styles.protectedNotice, { color: theme.colors.textMuted }]}>
             * Birth dates and ISKCON association dates are verified during registration and can be adjusted with counsellor consultation.
           </Text>
         </View>
 
         {/* Editable Fields */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Editable Contact Details</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Editable Contact Details</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Full Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.liteColor, borderColor: theme.colors.border, color: theme.colors.text }]}
               value={displayName}
               onChangeText={setDisplayName}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mobile Phone Number</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Mobile Phone Number</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.liteColor, borderColor: theme.colors.border, color: theme.colors.text }]}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
@@ -273,21 +273,21 @@ export const ProfileScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Daily Chanting Commitment (Rounds)</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Daily Chanting Commitment (Rounds)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.liteColor, borderColor: theme.colors.border, color: theme.colors.text }]}
               value={declaredRounds}
               onChangeText={setDeclaredRounds}
               keyboardType="numeric"
               placeholder="16"
             />
-            <Text style={styles.fieldHint}>
+            <Text style={[styles.fieldHint, { color: theme.colors.textMuted }]}>
               Changes require counsellor approval before taking effect.
             </Text>
             {user?.targetRoundsRequested && (
-              <View style={styles.pendingBadge}>
-                <Ionicons name="hourglass" size={13} color="#B45309" />
-                <Text style={styles.pendingBadgeText}>
+              <View style={[styles.pendingBadge, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+                <Ionicons name="hourglass" size={13} color={theme.thickColor} />
+                <Text style={[styles.pendingBadgeText, { color: theme.thickColor }]}>
                   Pending: {user.targetRoundsRequested} Rounds (Awaiting Counsellor Approval)
                 </Text>
               </View>
@@ -295,12 +295,12 @@ export const ProfileScreen = () => {
           </View>
 
           <TouchableOpacity
-            style={styles.saveBtn}
+            style={[styles.saveBtn, { backgroundColor: theme.thickColor }]}
             onPress={handleSavePermitted}
             disabled={isSaving}
           >
             {isSaving ? (
-              <ActivityIndicator color={THEME.colors.textInverse} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.saveBtnText}>Save Profile Changes</Text>
             )}
@@ -308,8 +308,8 @@ export const ProfileScreen = () => {
         </View>
 
         {/* Theme & Customization */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Appearance & Theme</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Appearance & Theme</Text>
           <TouchableOpacity
             style={[styles.themeRow, { borderColor: theme.colors.border }]}
             onPress={openThemePicker}
@@ -318,17 +318,17 @@ export const ProfileScreen = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View style={[styles.themeCircle, { backgroundColor: theme.thickColor }]} />
               <View>
-                <Text style={styles.themeNameText}>{theme.name}</Text>
-                <Text style={styles.themeSubText}>Tap to choose a different background palette</Text>
+                <Text style={[styles.themeNameText, { color: theme.colors.text }]}>{theme.name}</Text>
+                <Text style={[styles.themeSubText, { color: theme.colors.textMuted }]}>Tap to choose a different background palette</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
+            <Ionicons name="chevron-forward" size={18} color={theme.thickColor} />
           </TouchableOpacity>
         </View>
 
         {/* Biometric Touch Sensor Setting */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Touch Sensor / Fingerprint Sign-In</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Touch Sensor / Fingerprint Sign-In</Text>
           <View style={styles.biometricRow}>
             <View
               style={[
@@ -344,7 +344,7 @@ export const ProfileScreen = () => {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.biometricStatusTitle}>
+                <Text style={[styles.biometricStatusTitle, { color: theme.colors.text }]}>
                   {isBiometricEnrolled ? 'Fingerprint Active' : 'Not Linked Yet'}
                 </Text>
                 <View
@@ -363,7 +363,7 @@ export const ProfileScreen = () => {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.biometricStatusDesc}>
+              <Text style={[styles.biometricStatusDesc, { color: theme.colors.textMuted }]}>
                 {isBiometricEnrolled
                   ? `Fingerprint login linked for ${user?.displayName || 'this account'}`
                   : 'Link your phone touch sensor to sign in instantly next time without password'}
