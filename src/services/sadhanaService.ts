@@ -183,34 +183,74 @@ export const sadhanaService = {
   ): Promise<SadhanaEntry[]> => {
     const cacheKey = `user_range_${userId}_${startDate}_${endDate}`;
     const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
-    if (cached) return cached;
+    if (cached && cached.length > 0) return cached;
 
-    // 1. Check local persistent storage first (instant)
+    // 1. Check local persistent storage first (instant 0ms)
     const localEntries = await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
     if (localEntries && localEntries.length > 0) {
       await fastCache.set(cacheKey, localEntries, 60);
       return localEntries;
     }
 
+    // 2. Query Firestore with single-field filter (NEVER requires composite index)
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
-        where('userId', '==', userId),
-        where('date', '>=', startDate),
-        where('date', '<=', endDate),
-        orderBy('date', 'asc')
+        where('userId', '==', userId)
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
       if (!snap.empty) {
-        const results = snap.docs.map((d) => d.data() as SadhanaEntry);
-        await fastCache.set(cacheKey, results, 60);
-        return results;
+        const results = snap.docs
+          .map((d) => d.data() as SadhanaEntry)
+          .filter((d) => d && d.date && d.date >= startDate && d.date <= endDate)
+          .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+        if (results.length > 0) {
+          await Promise.all(results.map((e) => localStorageService.saveSadhanaEntry(e)));
+          await fastCache.set(cacheKey, results, 60);
+          return results;
+        }
       }
     } catch (e) {
-      // Permission denied or offline fallback
+      // Query failed or timeout, proceed to direct doc ID lookups
+    }
+
+    // 3. Fallback: Direct doc ID lookups for individual dates in range (bypasses any indexing)
+    try {
+      const datesInRange: string[] = [];
+      const [y1, m1, d1] = startDate.split('-').map(Number);
+      const [y2, m2, d2] = endDate.split('-').map(Number);
+      const startUtc = Date.UTC(y1, m1 - 1, d1);
+      const endUtc = Date.UTC(y2, m2 - 1, d2);
+      for (let t = startUtc; t <= endUtc; t += 86400000) {
+        datesInRange.push(new Date(t).toISOString().split('T')[0]);
+      }
+
+      if (datesInRange.length > 0 && datesInRange.length <= 31) {
+        const docSnaps = await Promise.all(
+          datesInRange.map(async (d) => {
+            const entryId = `${userId}_${d}`;
+            try {
+              const snap = await getDoc(doc(db, 'sadhana_entries', entryId));
+              return snap.exists() ? (snap.data() as SadhanaEntry) : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        const found = docSnaps.filter((e): e is SadhanaEntry => e !== null);
+        if (found.length > 0) {
+          found.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+          await Promise.all(found.map((e) => localStorageService.saveSadhanaEntry(e)));
+          await fastCache.set(cacheKey, found, 60);
+          return found;
+        }
+      }
+    } catch {
+      // Ignore
     }
 
     return localEntries || [];

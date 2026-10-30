@@ -22,6 +22,8 @@ import { useAuth } from '../../context/AuthContext';
 import { sadhanaService } from '../../services/sadhanaService';
 import { attendanceService } from '../../services/attendanceService';
 import { notificationService } from '../../services/notificationService';
+import { reportService } from '../../services/reportService';
+import { fastCache } from '../../services/fastCacheService';
 import { evaluateDailySadhana, calculateGrade } from '../../utils/scoringEngine';
 import {
   getTodayDateStringIST,
@@ -444,6 +446,20 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       if (selectedDate === todayStr) {
         await notificationService.cancelTodayReminders();
       }
+
+      // Invalidate caches and immediately publish/update the shared weekly summary so Sanga is up-to-date!
+      fastCache.invalidate(`weekly_report_${user.uid}`);
+      fastCache.invalidate(`user_range_${user.uid}`);
+      fastCache.invalidate('community_summaries');
+      reportService.generateWeeklyReport({
+        userId: user.uid,
+        counseleeName: user.displayName || 'Devotee',
+        weekDateString: selectedDate,
+        publishSharedSummary: true,
+        publicConsent: user.publicAppreciationConsent ?? true,
+        forceRefresh: true,
+      }).catch((e) => console.warn('Could not update weekly summary:', e));
+
       if (isWeekday()) {
         setWeekReadingMap((prev) => ({
           ...prev,

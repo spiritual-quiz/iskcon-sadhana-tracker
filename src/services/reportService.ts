@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { WeeklyReport, MonthlyReport, SharedWeeklySummary, SharedMonthlySummary } from '../types/report';
-import { SadhanaEntry } from '../types/sadhana';
+import { SadhanaEntry, Grade } from '../types/sadhana';
 import { sadhanaService } from './sadhanaService';
 import { attendanceService } from './attendanceService';
 import { calculateWeeklyScoreAndGrade, calculateMonthlyScoreAndGrade } from '../utils/scoringEngine';
@@ -28,11 +28,14 @@ export const reportService = {
     weekDateString: string; // Any date in that week (e.g. today)
     publishSharedSummary?: boolean;
     publicConsent?: boolean;
+    forceRefresh?: boolean;
   }): Promise<WeeklyReport> => {
     const { weekId, startDate, endDate, dates } = getWeekDetails(params.weekDateString);
     const cacheKey = `weekly_report_${params.userId}_${weekId}`;
-    const cached = await fastCache.get<WeeklyReport>(cacheKey);
-    if (cached) return cached;
+    if (!params.forceRefresh) {
+      const cached = await fastCache.get<WeeklyReport>(cacheKey);
+      if (cached) return cached;
+    }
 
     // Fetch daily entries for all 7 days of the week
     const entries = await sadhanaService.getEntriesForDateRange(params.userId, startDate, endDate);
@@ -88,7 +91,7 @@ export const reportService = {
           totalScore: 0,
           maxAvailableMarks: 390,
           percentage: 0,
-          grade: 'You Are Fallen' as const,
+          grade: ('Card Pending' as any) as Grade,
         };
 
     const report: WeeklyReport = {
@@ -293,14 +296,25 @@ export const reportService = {
   /**
    * Counselees: Fetch permitted weekly community summaries
    */
-  getCommunityWeeklySummaries: async (weekId: string): Promise<SharedWeeklySummary[]> => {
+  getCommunityWeeklySummaries: async (weekId: string, forceRefresh = false): Promise<SharedWeeklySummary[]> => {
+    if (!forceRefresh) {
+      const cached = await fastCache.get<SharedWeeklySummary[]>(`community_summaries_${weekId}`);
+      if (cached && cached.length > 0) return cached;
+    }
+
     try {
       const q = query(collection(db, 'shared_weekly_summaries'), where('weekId', '==', weekId));
-      const snap = await getDocs(q);
+      const snap = await Promise.race([
+        getDocs(q),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ]);
       if (!snap.empty) {
-        return snap.docs
+        const results = snap.docs
           .map((d) => d.data() as SharedWeeklySummary)
-          .filter((s) => s.publicConsent !== false);
+          .filter((s) => s && s.publicConsent !== false);
+        await Promise.all(results.map((s) => localStorageService.saveSharedWeeklySummary(s)));
+        await fastCache.set(`community_summaries_${weekId}`, results, 30);
+        return results;
       }
     } catch (e) {
       // Fallback to local storage

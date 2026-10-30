@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -28,48 +29,58 @@ export const CommunityReportsScreen = () => {
   const [weeklySummaries, setWeeklySummaries] = useState<SharedWeeklySummary[]>([]);
   const [appreciations, setAppreciations] = useState<AppreciationCard[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   useEffect(() => {
-    loadCommunityData();
+    loadCommunityData(false);
   }, [activeTab]);
 
-  const loadCommunityData = async () => {
-    setIsLoading(true);
+  const loadCommunityData = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       if (activeTab === 'summaries') {
-        let summaries = await reportService.getCommunityWeeklySummaries(weekId);
-        if (!summaries || summaries.length === 0) {
-          // If no pre-computed shared summaries exist for this week yet, dynamically compute from devotees
-          const devotees = await authService.getAllCounselees();
-          const approved = devotees.filter((u) => u.status === 'approved' && u.publicAppreciationConsent !== false);
-          const computedReports = await Promise.all(
-            approved.map((u) =>
-              reportService.generateWeeklyReport({
-                userId: u.uid,
-                counseleeName: u.displayName,
-                weekDateString: todayStr,
-                publishSharedSummary: true,
-                publicConsent: u.publicAppreciationConsent ?? true,
-              })
-            )
-          );
-          summaries = computedReports
-            .filter((r) => r.totalScore > 0 || r.totalRounds > 0 || r.totalReadingMinutes > 0)
-            .map((r) => ({
-              id: `${r.userId}_${weekId}`,
-              userId: r.userId,
-              counseleeName: r.counseleeName,
-              weekId,
-              totalRounds: r.totalRounds,
-              totalReadingMinutes: r.totalReadingMinutes,
-              totalHearingMinutes: r.totalHearingMinutes,
-              totalScore: r.totalScore,
-              maxAvailableMarks: r.maxAvailableMarks,
-              percentage: r.percentage,
-              grade: r.grade,
-              publicConsent: true,
-            }));
-        }
+        // Fetch all approved counselees who have granted public consent
+        const devotees = await authService.getAllCounselees();
+        const approved = devotees.filter(
+          (u) => u.status === 'approved' && u.publicAppreciationConsent !== false
+        );
+
+        // Always compute live, updated weekly reports from daily entries for this Monday-to-Sunday week
+        const computedReports = await Promise.all(
+          approved.map((u) =>
+            reportService.generateWeeklyReport({
+              userId: u.uid,
+              counseleeName: u.displayName || 'Devotee',
+              weekDateString: todayStr,
+              publishSharedSummary: true,
+              publicConsent: u.publicAppreciationConsent ?? true,
+              forceRefresh: forceRefresh,
+            })
+          )
+        );
+
+        const summaries: SharedWeeklySummary[] = computedReports.map((r) => ({
+          id: `${r.userId}_${weekId}`,
+          userId: r.userId,
+          counseleeName: r.counseleeName,
+          weekId,
+          totalRounds: r.totalRounds,
+          totalReadingMinutes: r.totalReadingMinutes,
+          totalHearingMinutes: r.totalHearingMinutes,
+          totalScore: r.totalScore,
+          maxAvailableMarks: r.maxAvailableMarks,
+          percentage: r.percentage,
+          grade: r.grade,
+          publicConsent: true,
+        }));
+
+        // Sort: active participants with scores first (descending), then alphabetically
+        summaries.sort((a, b) => b.totalScore - a.totalScore || a.counseleeName.localeCompare(b.counseleeName));
         setWeeklySummaries(summaries);
       } else {
         const published = await appreciationService.getPublishedAppreciations();
@@ -77,8 +88,14 @@ export const CommunityReportsScreen = () => {
       }
     } catch (e) {
       console.warn('Error loading community reports:', e);
+      // Fallback to cached summaries if network fails
+      try {
+        const fallback = await reportService.getCommunityWeeklySummaries(weekId);
+        setWeeklySummaries(fallback);
+      } catch {}
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -87,10 +104,19 @@ export const CommunityReportsScreen = () => {
       <Header
         title="Community Devotee Sanga"
         subtitle={`Encouraging Sincere Sadhana (${weekId})`}
+        rightAction={{
+          iconName: 'refresh',
+          onPress: () => loadCommunityData(true),
+        }}
       />
 
       {/* Tabs */}
-      <View style={[styles.tabContainer, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
+      <View
+        style={[
+          styles.tabContainer,
+          { backgroundColor: theme.liteColor, borderColor: theme.colors.border },
+        ]}
+      >
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === 'summaries' && { backgroundColor: theme.thickColor }]}
           onPress={() => setActiveTab('summaries')}
@@ -123,13 +149,34 @@ export const CommunityReportsScreen = () => {
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.thickColor} />
-          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading devotee summaries...</Text>
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>
+            Loading devotee summaries...
+          </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => loadCommunityData(true)}
+              colors={[theme.thickColor]}
+              tintColor={theme.thickColor}
+            />
+          }
+        >
           {activeTab === 'summaries' && (
             <View>
-              <View style={[styles.noticeBox, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
+              <View
+                style={[
+                  styles.noticeBox,
+                  {
+                    backgroundColor: theme.liteColor,
+                    borderColor: theme.colors.borderLight,
+                  },
+                ]}
+              >
                 <Ionicons name="shield-checkmark-outline" size={18} color={theme.thickColor} />
                 <Text style={[styles.noticeText, { color: theme.thickColor }]}>
                   Privacy Protected: Only aggregate scores and practice totals are shared. Private sleep,
@@ -139,43 +186,86 @@ export const CommunityReportsScreen = () => {
 
               {weeklySummaries.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No community summaries published yet for this week.</Text>
+                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+                    No community summaries published yet for this week.
+                  </Text>
                 </View>
               ) : (
-                weeklySummaries.map((summary) => (
-                  <View key={summary.id} style={[styles.summaryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                    <View style={styles.summaryHeader}>
-                      <View>
-                        <Text style={[styles.devoteeName, { color: theme.thickColor }]}>{summary.counseleeName}</Text>
-                        <Text style={[styles.weekLabel, { color: theme.colors.textMuted }]}>{summary.weekId}</Text>
-                      </View>
-                      <StatusBadge type="grade" value={summary.grade} />
-                    </View>
+                weeklySummaries.map((summary) => {
+                  const isUnsubmitted =
+                    summary.totalScore === 0 &&
+                    summary.totalRounds === 0 &&
+                    summary.totalReadingMinutes === 0 &&
+                    summary.totalHearingMinutes === 0;
 
-                    <View style={[styles.metricsRow, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
-                      <View style={styles.metricItem}>
-                        <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Total Score</Text>
-                        <Text style={[styles.metricValue, { color: theme.thickColor }]}>
-                          {summary.totalScore.toFixed(1)} / {summary.maxAvailableMarks}
+                  return (
+                    <View
+                      key={summary.id}
+                      style={[
+                        styles.summaryCard,
+                        { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                      ]}
+                    >
+                      <View style={styles.summaryHeader}>
+                        <View>
+                          <Text style={[styles.devoteeName, { color: theme.thickColor }]}>
+                            {summary.counseleeName}
+                          </Text>
+                          <Text style={[styles.weekLabel, { color: theme.colors.textMuted }]}>
+                            {summary.weekId}
+                          </Text>
+                        </View>
+                        <StatusBadge
+                          type={isUnsubmitted ? 'custom' : 'grade'}
+                          value={isUnsubmitted ? 'Card Pending' : summary.grade}
+                          label={isUnsubmitted ? 'Card Pending' : undefined}
+                        />
+                      </View>
+
+                      <View
+                        style={[
+                          styles.metricsRow,
+                          {
+                            backgroundColor: theme.liteColor,
+                            borderColor: theme.colors.borderLight,
+                          },
+                        ]}
+                      >
+                        <View style={styles.metricItem}>
+                          <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+                            Total Score
+                          </Text>
+                          <Text style={[styles.metricValue, { color: theme.thickColor }]}>
+                            {summary.totalScore.toFixed(1)} / {summary.maxAvailableMarks}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+                            Percentage
+                          </Text>
+                          <Text style={[styles.metricValue, { color: theme.thickColor }]}>
+                            {summary.percentage.toFixed(1)}%
+                          </Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+                            Rounds
+                          </Text>
+                          <Text style={[styles.metricValue, { color: theme.thickColor }]}>
+                            {summary.totalRounds}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.readingHearingRow}>
+                        <Text style={[styles.readHearText, { color: theme.colors.textMuted }]}>
+                          Reading: {formatMinutesToHours(summary.totalReadingMinutes)} • Hearing:{' '}
+                          {formatMinutesToHours(summary.totalHearingMinutes)}
                         </Text>
                       </View>
-                      <View style={styles.metricItem}>
-                        <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Percentage</Text>
-                        <Text style={[styles.metricValue, { color: theme.thickColor }]}>{summary.percentage.toFixed(1)}%</Text>
-                      </View>
-                      <View style={styles.metricItem}>
-                        <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Rounds</Text>
-                        <Text style={[styles.metricValue, { color: theme.thickColor }]}>{summary.totalRounds}</Text>
-                      </View>
                     </View>
-
-                    <View style={styles.readingHearingRow}>
-                      <Text style={[styles.readHearText, { color: theme.colors.textMuted }]}>
-                        Reading: {formatMinutesToHours(summary.totalReadingMinutes)}  •  Hearing: {formatMinutesToHours(summary.totalHearingMinutes)}
-                      </Text>
-                    </View>
-                  </View>
-                ))
+                  );
+                })
               )}
             </View>
           )}
@@ -184,24 +274,52 @@ export const CommunityReportsScreen = () => {
             <View>
               {appreciations.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No published appreciation cards yet.</Text>
+                  <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+                    No published appreciation cards yet.
+                  </Text>
                 </View>
               ) : (
                 appreciations.map((card) => (
-                  <View key={card.id} style={[styles.appreciationCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                  <View
+                    key={card.id}
+                    style={[
+                      styles.appreciationCard,
+                      { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                    ]}
+                  >
                     <View style={styles.appreciationBadgeRow}>
                       <View style={[styles.categoryBadge, { backgroundColor: theme.liteColor }]}>
                         <Ionicons name="sparkles" size={14} color={theme.thickColor} />
-                        <Text style={[styles.categoryText, { color: theme.thickColor }]}>{card.category}</Text>
+                        <Text style={[styles.categoryText, { color: theme.thickColor }]}>
+                          {card.category}
+                        </Text>
                       </View>
-                      <Text style={[styles.periodText, { color: theme.colors.textMuted }]}>{card.period}</Text>
+                      <Text style={[styles.periodText, { color: theme.colors.textMuted }]}>
+                        {card.period}
+                      </Text>
                     </View>
 
-                    <Text style={[styles.appreciationName, { color: theme.thickColor }]}>{card.counseleeName}</Text>
-                    <Text style={[styles.achievementText, { color: theme.colors.textMuted }]}>{card.achievement}</Text>
+                    <Text style={[styles.appreciationName, { color: theme.thickColor }]}>
+                      {card.counseleeName}
+                    </Text>
 
-                    <View style={[styles.messageBox, { backgroundColor: theme.liteColor, borderLeftColor: theme.thickColor }]}>
-                      <Text style={[styles.messageText, { color: theme.colors.text }]}>"{card.message}"</Text>
+                    <View
+                      style={[
+                        styles.appreciationContentBox,
+                        {
+                          backgroundColor: theme.liteColor,
+                          borderColor: theme.colors.borderLight,
+                        },
+                      ]}
+                    >
+                      {card.achievement ? (
+                        <Text style={[styles.appreciationAchievement, { color: theme.thickColor }]}>
+                          ★ {card.achievement}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.appreciationNote, { color: theme.thickColor }]}>
+                        "{card.message}"
+                      </Text>
                     </View>
                   </View>
                 ))
@@ -217,179 +335,169 @@ export const CommunityReportsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.colors.background,
+  },
+  refreshHeaderBtn: {
+    padding: 6,
+    borderRadius: 8,
   },
   tabContainer: {
     flexDirection: 'row',
-    margin: THEME.spacing.base,
-    backgroundColor: THEME.colors.surfaceVariant,
-    borderRadius: THEME.borderRadius.md,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
     padding: 4,
   },
   tabBtn: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: THEME.borderRadius.sm,
-  },
-  tabBtnActive: {
-    backgroundColor: THEME.colors.primary,
+    borderRadius: 8,
   },
   tabBtnText: {
-    fontSize: THEME.typography.sizes.xs,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: THEME.colors.textMuted,
-  },
-  tabBtnTextActive: {
-    color: THEME.colors.textInverse,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: THEME.spacing.sm,
-    color: THEME.colors.textMuted,
   },
   scrollContent: {
-    padding: THEME.spacing.base,
-    paddingBottom: THEME.spacing.xxl,
+    padding: 16,
+    paddingBottom: 40,
   },
   noticeBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.primaryUltraLight,
-    padding: THEME.spacing.sm,
-    borderRadius: THEME.borderRadius.md,
     borderWidth: 1,
-    borderColor: THEME.colors.primaryLight,
-    marginBottom: THEME.spacing.base,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
   },
   noticeText: {
-    fontSize: 11,
-    color: THEME.colors.primary,
-    marginLeft: 6,
     flex: 1,
+    fontSize: 12,
     lineHeight: 16,
   },
   summaryCard: {
-    backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.base,
-    marginBottom: THEME.spacing.sm,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    ...THEME.shadows.soft,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
   summaryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   devoteeName: {
-    fontSize: THEME.typography.sizes.base,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
   },
   weekLabel: {
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
   },
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: THEME.colors.surfaceVariant,
-    padding: THEME.spacing.sm,
-    borderRadius: THEME.borderRadius.md,
-    marginVertical: 4,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
   },
   metricItem: {
     alignItems: 'center',
+    flex: 1,
   },
   metricLabel: {
     fontSize: 11,
-    color: THEME.colors.textMuted,
+    marginBottom: 4,
   },
   metricValue: {
-    fontSize: THEME.typography.sizes.sm,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: THEME.colors.primary,
-    marginTop: 2,
   },
   readingHearingRow: {
-    marginTop: 6,
     alignItems: 'center',
+    paddingTop: 4,
   },
   readHearText: {
-    fontSize: 11,
-    color: THEME.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    padding: 30,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
   appreciationCard: {
-    backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.base,
-    marginBottom: THEME.spacing.base,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: THEME.colors.border,
-    ...THEME.shadows.soft,
+    padding: 16,
+    marginBottom: 12,
   },
   appreciationBadgeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: THEME.colors.goldLight,
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: THEME.borderRadius.full,
+    borderRadius: 6,
   },
   categoryText: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
-    marginLeft: 4,
   },
   periodText: {
     fontSize: 11,
-    color: THEME.colors.textMuted,
   },
   appreciationName: {
-    fontSize: THEME.typography.sizes.lg,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: THEME.colors.primaryDark,
-    marginTop: 4,
-  },
-  achievementText: {
-    fontSize: THEME.typography.sizes.xs,
-    color: THEME.colors.goldDark,
-    fontWeight: '600',
-    marginTop: 2,
     marginBottom: 8,
   },
-  messageBox: {
-    backgroundColor: THEME.colors.surfaceVariant,
-    borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: THEME.colors.primary,
+  appreciationContentBox: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
   },
-  messageText: {
-    fontSize: THEME.typography.sizes.sm,
+  appreciationAchievement: {
+    fontSize: 12.5,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  appreciationNote: {
+    fontSize: 13,
     fontStyle: 'italic',
-    color: THEME.colors.text,
+    lineHeight: 18,
+    marginBottom: 6,
   },
-  emptyContainer: {
-    padding: THEME.spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: THEME.colors.textMuted,
-    fontSize: THEME.typography.sizes.sm,
+  counsellorSign: {
+    fontSize: 11,
+    textAlign: 'right',
   },
 });
