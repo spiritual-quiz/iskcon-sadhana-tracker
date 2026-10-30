@@ -23,6 +23,7 @@ try {
 export const NOTIFICATION_CHANNELS = {
   SADHANA_REMINDER: 'sadhana_reminder_channel',
   ADMIN_ALERTS: 'admin_alerts_channel',
+  APP_UPDATES: 'app_updates_channel',
 };
 
 // Track dispatched notification keys in the current session to prevent duplicate sounds
@@ -85,6 +86,19 @@ export const notificationService = {
           sound: 'default', // Standard notification chime
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#EA580C',
+          enableVibrate: true,
+          showBadge: true,
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
+        });
+
+        // App Updates Channel (for new versions & OTA updates)
+        await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.APP_UPDATES, {
+          name: 'App Updates',
+          description: 'High-priority alerts for new devotional application updates and features',
+          importance: Notifications.AndroidImportance.MAX, // Heads-up banner with tone
+          sound: 'default', // Standard notification chime
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#2563EB',
           enableVibrate: true,
           showBadge: true,
           lockscreenVisibility: Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
@@ -158,7 +172,40 @@ export const notificationService = {
   },
 
   /**
-   * Schedules standard daily reminders for 6:00 PM (18:00) and 9:00 PM (21:00) IST
+   * Dispatch system notification for app update available
+   */
+  triggerAppUpdateNotification: async (): Promise<boolean> => {
+    if (!Notifications?.scheduleNotificationAsync) return false;
+    try {
+      const todayStr = getTodayDateStringIST();
+      const identifier = `app_update_available_${todayStr}`;
+      if (dispatchedAlertKeys.has(identifier)) return false;
+      dispatchedAlertKeys.add(identifier);
+
+      await Notifications.scheduleNotificationAsync({
+        identifier,
+        content: {
+          title: 'Bhakti Unnati Update Available! 🚀',
+          body: 'A fresh devotional update is ready. Tap to install the latest features and enhancements.',
+          sound: 'default',
+          vibrate: [0, 250, 250, 250],
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          channelId: NOTIFICATION_CHANNELS.APP_UPDATES,
+          data: { screen: 'AppUpdate' },
+        },
+        trigger: null,
+      });
+      return true;
+    } catch (e) {
+      console.warn('Error triggering update notification:', e);
+      return false;
+    }
+  },
+
+  /**
+   * Schedules standard daily reminders for 6:00 PM (18:00) and 9:00 PM (21:00) IST.
+   * Uses both daily repeating alarms and exact timestamp triggers for the next 7 days
+   * to guarantee notifications fire reliably even when the app is completely closed.
    */
   scheduleDailyReminders: async (user: UserProfile | null): Promise<void> => {
     if (!user || !user.uid || !Notifications) return;
@@ -170,27 +217,12 @@ export const notificationService = {
       const todayStr = getTodayDateStringIST();
       const todayEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);
 
-      // Battery optimization: Check if already scheduled in Android AlarmManager
-      if (Notifications.getAllScheduledNotificationsAsync) {
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        const has6pm = scheduled.some((s: any) => s.identifier === 'sadhana_scheduled_6pm');
-        const has9pm = scheduled.some((s: any) => s.identifier === 'sadhana_scheduled_9pm');
-        if (has6pm && has9pm) {
-          // If already scheduled, dismiss any active shade banner if devotee completed today's card
-          if (todayEntry && Notifications.dismissNotificationAsync) {
-            await Notifications.dismissNotificationAsync('sadhana_scheduled_6pm');
-            await Notifications.dismissNotificationAsync('sadhana_scheduled_9pm');
-          }
-          return; // Already scheduled in AlarmManager, prevent battery drain
-        }
-      }
-
-      // If today is already filled, dismiss any active notifications but keep repeating alarms for future days
+      // If today is already filled, dismiss any active notifications
       if (todayEntry) {
         await notificationService.cancelTodayReminders();
       }
 
-      // 6:00 PM Daily Reminder (repeats daily at 18:00 IST even if app is closed)
+      // 1. Repeating 6:00 PM Daily Reminder (18:00 IST)
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_6pm',
         content: {
@@ -209,7 +241,7 @@ export const notificationService = {
         },
       });
 
-      // 9:00 PM Daily Reminder (Final Call, repeats daily at 21:00 IST even if app is closed)
+      // 2. Repeating 9:00 PM Daily Reminder (21:00 IST)
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_9pm',
         content: {
@@ -227,6 +259,57 @@ export const notificationService = {
           repeats: true,
         },
       });
+
+      // 3. Exact alarms for the upcoming 7 days to pierce through Android Doze & OEM battery killers
+      const now = new Date();
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const targetDate6pm = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+        targetDate6pm.setHours(18, 0, 0, 0);
+
+        const targetDate9pm = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+        targetDate9pm.setHours(21, 0, 0, 0);
+
+        const dateStr = targetDate6pm.toISOString().split('T')[0];
+
+        // Only schedule if the alarm time is still in the future
+        if (targetDate6pm.getTime() > Date.now()) {
+          const id6 = `sadhana_exact_6pm_${dateStr}`;
+          await Notifications.scheduleNotificationAsync({
+            identifier: id6,
+            content: {
+              title: 'Sadhana Reminder',
+              body: 'Hare Krishna! Please remember to fill your daily sadhana card for today.',
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
+              data: { screen: 'DailySadhana', date: dateStr },
+            },
+            trigger: {
+              date: targetDate6pm,
+            },
+          });
+        }
+
+        if (targetDate9pm.getTime() > Date.now()) {
+          const id9 = `sadhana_exact_9pm_${dateStr}`;
+          await Notifications.scheduleNotificationAsync({
+            identifier: id9,
+            content: {
+              title: 'Sadhana Reminder (Final Call)',
+              body: 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is pending. Please fill it before taking rest.',
+              sound: 'default',
+              vibrate: [0, 250, 250, 250],
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
+              data: { screen: 'DailySadhana', date: dateStr },
+            },
+            trigger: {
+              date: targetDate9pm,
+            },
+          });
+        }
+      }
     } catch (e) {
       console.warn('Error scheduling daily reminders:', e);
     }
@@ -241,12 +324,18 @@ export const notificationService = {
     try {
       const todayStr = getTodayDateStringIST();
       const reminderId = `sadhana_reminder_${todayStr}`;
+      const exact6Id = `sadhana_exact_6pm_${todayStr}`;
+      const exact9Id = `sadhana_exact_9pm_${todayStr}`;
 
       if (Notifications.cancelScheduledNotificationAsync) {
         await Notifications.cancelScheduledNotificationAsync(reminderId);
+        await Notifications.cancelScheduledNotificationAsync(exact6Id);
+        await Notifications.cancelScheduledNotificationAsync(exact9Id);
       }
       if (Notifications.dismissNotificationAsync) {
         await Notifications.dismissNotificationAsync(reminderId);
+        await Notifications.dismissNotificationAsync(exact6Id);
+        await Notifications.dismissNotificationAsync(exact9Id);
         await Notifications.dismissNotificationAsync('sadhana_scheduled_6pm');
         await Notifications.dismissNotificationAsync('sadhana_scheduled_9pm');
       }

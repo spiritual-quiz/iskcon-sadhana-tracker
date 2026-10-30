@@ -67,7 +67,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const [sleepTime, setSleepTime] = useState<string>('');
   const [wakeUpTime, setWakeUpTime] = useState<string>('');
-  const [restMinutes, setRestMinutes] = useState<string>('30');
+  const [restMinutes, setRestMinutes] = useState<string>('');
 
   // E. Online Reading Session (Monday to Friday, 10 Marks)
   const [onlineReadingAttended, setOnlineReadingAttended] = useState<boolean>(false);
@@ -141,16 +141,16 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setServiceAttended(entry.serviceAttended ?? false);
         setMonthlyMeetingAttended(entry.monthlyMeetingAttended ?? false);
       } else {
-        // Pre-filled defaults (editable by user):
+        // Fresh unsubmitted entry (all inputs empty/clean until user enters):
         const defaultRounds = user.declaredRounds ? String(user.declaredRounds) : '16';
         setDeclaredRounds(defaultRounds);
-        setCompletedRounds(defaultRounds); // Fixed chanting rounds visible in box
+        setCompletedRounds(''); // Empty until user enters or selects
         setCompletionTime('');
-        setReadingMinutes('30'); // 30 minutes default
-        setHearingMinutes('30'); // 30 minutes default
-        setSleepTime('21:30'); // 9:30 PM default
-        setWakeUpTime('03:30'); // 3:30 AM default
-        setRestMinutes('30'); // 30 minutes daytime rest default
+        setReadingMinutes(''); // Empty until devotee enters
+        setHearingMinutes(''); // Empty until devotee enters
+        setSleepTime(''); // Empty until devotee selects
+        setWakeUpTime(''); // Empty until devotee selects
+        setRestMinutes(''); // Empty until devotee enters
         setOnlineReadingAttended(false);
         setMorningProgrammeAttended(false);
         setServiceAttended(false);
@@ -280,32 +280,69 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const numHearing = parseInt(hearingMinutes, 10) || 0;
   const numRest = parseInt(restMinutes, 10) || 0;
 
-  const liveEvaluation = evaluateDailySadhana({
-    declaredRounds: numDeclared,
-    completedRounds: numCompleted,
-    completionTimeStr: completionTime.trim(),
-    readingMinutes: numReading,
-    hearingMinutes: numHearing,
-    sleepTimeStr: sleepTime.trim(),
-    wakeUpTimeStr: wakeUpTime.trim(),
-    restMinutes: numRest,
-    onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
-    morningProgrammeAttended: morningProgrammeAttended,
-    serviceAttended: serviceAttended,
-    monthlyMeetingAttended: monthlyMeetingAttended,
-  });
-
-  const dailyScore50 = Number(
-    (
-      liveEvaluation.japaMarks +
-      liveEvaluation.readingMarks +
-      liveEvaluation.hearingMarks +
-      liveEvaluation.sleepMarks +
-      liveEvaluation.onlineReadingMarks
-    ).toFixed(2)
+  // Has the devotee entered any sadhana data for this date?
+  // Marks should only be calculated after the devotee actually enters their details.
+  const hasUserEnteredData = Boolean(
+    existingEntry ||
+    completedRounds.trim() !== '' ||
+    completionTime.trim() !== '' ||
+    readingMinutes.trim() !== '' ||
+    hearingMinutes.trim() !== '' ||
+    sleepTime.trim() !== '' ||
+    wakeUpTime.trim() !== '' ||
+    (restMinutes.trim() !== '' && restMinutes.trim() !== '0') ||
+    onlineReadingAttended ||
+    morningProgrammeAttended ||
+    serviceAttended ||
+    monthlyMeetingAttended
   );
-  const dailyPercentage50 = Number(((dailyScore50 / 50) * 100).toFixed(1));
-  const dailyGrade50 = calculateGrade(dailyPercentage50);
+
+  const liveEvaluation = hasUserEnteredData
+    ? evaluateDailySadhana({
+        declaredRounds: numDeclared,
+        completedRounds: numCompleted,
+        completionTimeStr: completionTime.trim(),
+        readingMinutes: numReading,
+        hearingMinutes: numHearing,
+        sleepTimeStr: sleepTime.trim(),
+        wakeUpTimeStr: wakeUpTime.trim(),
+        restMinutes: numRest,
+        onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
+        morningProgrammeAttended: morningProgrammeAttended,
+        serviceAttended: serviceAttended,
+        monthlyMeetingAttended: monthlyMeetingAttended,
+      })
+    : {
+        japaMarks: 0,
+        readingMarks: 0,
+        hearingMarks: 0,
+        sleepMarks: 0,
+        onlineReadingMarks: 0,
+        dailyTotalScore: 0,
+        percentage: 0,
+        grade: 'Daily Card Pending',
+        breakdown: {
+          japa: { marks: 0, maxMarks: 10, details: 'Not entered' },
+          reading: { marks: 0, maxMarks: 10, details: 'Not entered' },
+          hearing: { marks: 0, maxMarks: 10, details: 'Not entered' },
+          sleep: { marks: 0, maxMarks: 10, details: 'Not entered' },
+          onlineReading: { marks: 0, maxMarks: 10, details: 'Not entered' },
+        },
+      };
+
+  const dailyScore50 = hasUserEnteredData
+    ? Number(
+        (
+          liveEvaluation.japaMarks +
+          liveEvaluation.readingMarks +
+          liveEvaluation.hearingMarks +
+          liveEvaluation.sleepMarks +
+          liveEvaluation.onlineReadingMarks
+        ).toFixed(2)
+      )
+    : 0;
+  const dailyPercentage50 = hasUserEnteredData ? Number(((dailyScore50 / 50) * 100).toFixed(1)) : 0;
+  const dailyGrade50 = hasUserEnteredData ? calculateGrade(dailyPercentage50) : 'Daily Card Pending';
 
   const sleepDurationMins = calculateSleepDurationMinutes(sleepTime.trim(), wakeUpTime.trim());
   const totalRestDurationMins = sleepDurationMins + numRest;
@@ -351,6 +388,14 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const handleSave = async () => {
     if (!user?.uid) return;
+
+    if (!hasUserEnteredData) {
+      Alert.alert(
+        'Sadhana Card Pending',
+        'Please enter your sadhana details (such as chanting, reading, hearing, or sleep) before submitting.'
+      );
+      return;
+    }
 
     if (numDeclared <= 0) {
       Alert.alert('Invalid Rounds', 'Declared commitment must be at least 1 round.');
@@ -607,9 +652,16 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   <Text style={styles.scoreDenom}> / 50</Text>
                 </Text>
               </View>
-              <View style={[styles.gradeBadge, { backgroundColor: THEME.colors.primary }]}>
+              <View
+                style={[
+                  styles.gradeBadge,
+                  {
+                    backgroundColor: hasUserEnteredData ? THEME.colors.primary : '#64748B',
+                  },
+                ]}
+              >
                 <Text style={styles.gradeText}>{dailyGrade50}</Text>
-                <Text style={styles.percentText}>{dailyPercentage50}%</Text>
+                <Text style={styles.percentText}>{hasUserEnteredData ? `${dailyPercentage50}%` : 'Pending'}</Text>
               </View>
             </View>
 

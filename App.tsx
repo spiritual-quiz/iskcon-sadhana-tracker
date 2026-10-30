@@ -16,13 +16,14 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     notificationService.setupNotifications();
 
-    // Over-The-Air updates: Check for update and prompt user with professional bank-style modal
+    // Over-The-Air updates: Check for update, trigger notification, and prompt user with professional modal
     const checkAppUpdates = async () => {
       try {
         if (!__DEV__ && Updates?.checkForUpdateAsync) {
           const update = await Updates.checkForUpdateAsync();
           if (update.isAvailable) {
             setShowUpdateModal(true);
+            await notificationService.triggerAppUpdateNotification();
           }
         }
       } catch (e) {
@@ -33,8 +34,13 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleApplyUpdate = async () => {
-    if (Updates?.fetchUpdateAsync && Updates?.reloadAsync) {
+    if (Updates?.fetchUpdateAsync) {
       await Updates.fetchUpdateAsync();
+    }
+  };
+
+  const handleRestartApp = async () => {
+    if (Updates?.reloadAsync) {
       await Updates.reloadAsync();
     }
   };
@@ -55,6 +61,7 @@ const AppContent: React.FC = () => {
         <AppUpdateModal
           visible={showUpdateModal}
           onUpdate={handleApplyUpdate}
+          onRestart={handleRestartApp}
           onDismiss={() => setShowUpdateModal(false)}
         />
       </AuthProvider>
