@@ -66,6 +66,18 @@ export const AdminReportsScreen = ({ navigation }: any) => {
   const [allCounselees, setAllCounselees] = useState<UserProfile[]>([]);
   const [expandedDevoteeId, setExpandedDevoteeId] = useState<string | null>(null);
 
+  const formatFriendlyTime = (t24?: string) => {
+    if (!t24 || !t24.includes(':')) return t24 || 'N/A';
+    const [hStr, mStr] = t24.split(':');
+    let h = parseInt(hStr, 10);
+    const m = (mStr || '00').padStart(2, '0');
+    if (isNaN(h)) return t24;
+    const period = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12;
+    if (h12 === 0) h12 = 12;
+    return `${h12}:${m} ${period}`;
+  };
+
   // Helper for past 7 days
   const getPast7Days = () => {
     const list: { dateStr: string; label: string; dayName: string }[] = [];
@@ -631,7 +643,8 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                     </View>
                                   );
                                 }
-                                const sleepMins = calculateSleepDurationMinutes(entry.sleepTimeStr, entry.wakeUpTimeStr);
+                                const nightSleepMins = calculateSleepDurationMinutes(entry.sleepTimeStr, entry.wakeUpTimeStr);
+                                const totalSleptMins = nightSleepMins + (Number(entry.restMinutes) || 0);
                                 return (
                                   <View key={day.dateStr} style={[styles.entryDetailRow, { borderColor: theme.colors.borderLight }]}>
                                     <View style={styles.entryDetailHeader}>
@@ -641,10 +654,10 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                       <StatusBadge type="grade" value={entry.grade} />
                                     </View>
                                     <Text style={[styles.entryDetailStats, { color: theme.colors.textMuted }]}>
-                                      📿 Chanting: {entry.completedRounds || 0} / {entry.declaredRounds || 16} rounds ({entry.japaMarks}/10)
+                                      📿 Chanting: {entry.completedRounds || 0} / {entry.declaredRounds || 16} rounds ({entry.japaMarks}/10) • Done at {formatFriendlyTime(entry.completionTimeStr)}
                                       {'\n'}📖 Reading: {entry.readingMinutes || 0}m ({entry.readingMarks}/10)
                                       {'\n'}🎧 Hearing: {entry.hearingMinutes || 0}m ({entry.hearingMarks}/10)
-                                      {'\n'}🛏️ Sleep: Bed {entry.sleepTimeStr || '9:30 PM'}, Wake {entry.wakeUpTimeStr || '3:30 AM'} ({formatMinutesToHours(sleepMins)}), Rest {entry.restMinutes || 0}m ({entry.sleepMarks}/10)
+                                      {'\n'}🛏️ Sleep Routine: Bed {formatFriendlyTime(entry.sleepTimeStr || '21:30')}, Wake {formatFriendlyTime(entry.wakeUpTimeStr || '03:30')} (Night: {formatMinutesToHours(nightSleepMins)}), Day Rest: {entry.restMinutes || 0}m • Total Slept: {formatMinutesToHours(totalSleptMins)} ({entry.sleepMarks}/10)
                                       {'\n'}💻 Online Reading: {entry.onlineReadingAttended ? 'Attended (+50)' : 'Not attended'}
                                       {'\n'}🌅 Morning Programme: {entry.morningProgrammeAttended ? 'Attended (+50)' : 'Not attended'}
                                       {entry.serviceAttended ? `\n🙏 Service: Attended (+10)` : ''}
@@ -673,7 +686,8 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                     </View>
                   ) : (
                     filteredSingleDayEntries.map((entry) => {
-                      const sleepMins = calculateSleepDurationMinutes(entry.sleepTimeStr, entry.wakeUpTimeStr);
+                      const nightSleepMins = calculateSleepDurationMinutes(entry.sleepTimeStr, entry.wakeUpTimeStr);
+                      const totalSleptMins = nightSleepMins + (Number(entry.restMinutes) || 0);
                       return (
                         <View
                           key={entry.id || entry.userId}
@@ -704,7 +718,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                 {entry.completedRounds || 0} Rds
                               </Text>
                               <Text style={[styles.breakdownBoxSub, { color: theme.colors.textMuted }]}>
-                                {entry.japaMarks}/10 pts
+                                Done @ {formatFriendlyTime(entry.completionTimeStr)} ({entry.japaMarks}/10)
                               </Text>
                             </View>
 
@@ -729,12 +743,12 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                             </View>
 
                             <View style={styles.breakdownBox}>
-                              <Text style={[styles.breakdownBoxLabel, { color: theme.colors.textMuted }]}>Sleep Routine</Text>
+                              <Text style={[styles.breakdownBoxLabel, { color: theme.colors.textMuted }]}>Sleep & Rest</Text>
                               <Text style={[styles.breakdownBoxVal, { color: theme.thickColor }]}>
-                                {entry.wakeUpTimeStr || '3:30 AM'}
+                                Total: {formatMinutesToHours(totalSleptMins)}
                               </Text>
                               <Text style={[styles.breakdownBoxSub, { color: theme.colors.textMuted }]}>
-                                Bed {entry.sleepTimeStr || '9:30 PM'} ({formatMinutesToHours(sleepMins)})
+                                Bed {formatFriendlyTime(entry.sleepTimeStr || '21:30')} • Wake {formatFriendlyTime(entry.wakeUpTimeStr || '03:30')} (Night {formatMinutesToHours(nightSleepMins)}, Rest {entry.restMinutes || 0}m)
                               </Text>
                             </View>
                           </View>
@@ -1003,6 +1017,8 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                           ) : (
                             report.dailyEntries.map((e) => {
                               if (!e) return null;
+                              const eNightSleep = calculateSleepDurationMinutes(e.sleepTimeStr, e.wakeUpTimeStr);
+                              const eTotalSleep = eNightSleep + (Number(e.restMinutes) || 0);
                               return (
                                 <View key={e.date} style={[styles.weeklyDailyEntryRow, { borderColor: theme.colors.borderLight }]}>
                                   <View style={{ flex: 1 }}>
@@ -1010,7 +1026,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                       {e.date}
                                     </Text>
                                     <Text style={[styles.weeklyDailyEntryDetails, { color: theme.colors.textMuted }]}>
-                                      📿 {e.completedRounds || 0} rds • 📖 {e.readingMinutes || 0}m • 🎧 {e.hearingMinutes || 0}m
+                                      📿 {e.completedRounds || 0} rds (@ {formatFriendlyTime(e.completionTimeStr)}) • 📖 {e.readingMinutes || 0}m • 🎧 {e.hearingMinutes || 0}m • 🛏️ Slept {formatMinutesToHours(eTotalSleep)}
                                     </Text>
                                   </View>
                                   <View style={{ alignItems: 'flex-end' }}>

@@ -298,7 +298,8 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                 </View>
               ) : (
                 displayedEntries.map((item) => {
-                  const sleepMins = calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr);
+                  const nightSleepMins = calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr);
+                  const totalSleptMins = nightSleepMins + (Number(item.restMinutes) || 0);
                   const isLowScore = (item.percentage ?? 0) < 50;
                   const maxDailyMarks = item.onlineReadingAttended ? 50 : 40;
 
@@ -346,7 +347,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                         <View style={styles.detailItem}>
                           <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Sleeping & Rest</Text>
                           <Text style={styles.detailValue}>
-                            Bedtime: {item.sleepTimeStr || 'N/A'} • Wakeup: {item.wakeUpTimeStr || 'N/A'} • Night: {formatMinutesToHours(sleepMins)} • Day Rest: {item.restMinutes || 0} mins ({item.sleepMarks ?? 0}m)
+                            Bedtime: {item.sleepTimeStr || 'N/A'} • Wakeup: {item.wakeUpTimeStr || 'N/A'} • Night: {formatMinutesToHours(nightSleepMins)} • Day Rest: {item.restMinutes || 0}m • Total Slept: {formatMinutesToHours(totalSleptMins)} ({item.sleepMarks ?? 0}m)
                           </Text>
                         </View>
                         <View style={styles.detailItem}>
@@ -675,7 +676,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                           <View style={styles.detailItem}>
                             <Text style={[styles.detailLabel, { color: theme.thickColor }]}>Sleeping & Rest</Text>
                             <Text style={styles.detailValue}>
-                              Bed: {item.sleepTimeStr || 'N/A'} • Wake: {item.wakeUpTimeStr || 'N/A'} • Sleep: {formatMinutesToHours(calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr))} • Day Rest: {item.restMinutes || 0}m
+                              Bed: {item.sleepTimeStr || 'N/A'} • Wake: {item.wakeUpTimeStr || 'N/A'} • Night: {formatMinutesToHours(calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr))} • Day Rest: {item.restMinutes || 0}m • Total Slept: {formatMinutesToHours(calculateSleepDurationMinutes(item.sleepTimeStr, item.wakeUpTimeStr) + (Number(item.restMinutes) || 0))}
                             </Text>
                           </View>
                           <View style={styles.detailItem}>
