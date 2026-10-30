@@ -14,6 +14,7 @@ import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { reportService } from '../../services/reportService';
 import { appreciationService } from '../../services/appreciationService';
+import { authService } from '../../services/authService';
 import { getTodayDateStringIST, getWeekDetails, formatMinutesToHours } from '../../utils/dateUtils';
 import { SharedWeeklySummary } from '../../types/report';
 import { AppreciationCard } from '../../types/appreciation';
@@ -36,7 +37,39 @@ export const CommunityReportsScreen = () => {
     setIsLoading(true);
     try {
       if (activeTab === 'summaries') {
-        const summaries = await reportService.getCommunityWeeklySummaries(weekId);
+        let summaries = await reportService.getCommunityWeeklySummaries(weekId);
+        if (!summaries || summaries.length === 0) {
+          // If no pre-computed shared summaries exist for this week yet, dynamically compute from devotees
+          const devotees = await authService.getAllCounselees();
+          const approved = devotees.filter((u) => u.status === 'approved' && u.publicAppreciationConsent !== false);
+          const computedReports = await Promise.all(
+            approved.map((u) =>
+              reportService.generateWeeklyReport({
+                userId: u.uid,
+                counseleeName: u.displayName,
+                weekDateString: todayStr,
+                publishSharedSummary: true,
+                publicConsent: u.publicAppreciationConsent ?? true,
+              })
+            )
+          );
+          summaries = computedReports
+            .filter((r) => r.totalScore > 0 || r.totalRounds > 0 || r.totalReadingMinutes > 0)
+            .map((r) => ({
+              id: `${r.userId}_${weekId}`,
+              userId: r.userId,
+              counseleeName: r.counseleeName,
+              weekId,
+              totalRounds: r.totalRounds,
+              totalReadingMinutes: r.totalReadingMinutes,
+              totalHearingMinutes: r.totalHearingMinutes,
+              totalScore: r.totalScore,
+              maxAvailableMarks: r.maxAvailableMarks,
+              percentage: r.percentage,
+              grade: r.grade,
+              publicConsent: true,
+            }));
+        }
         setWeeklySummaries(summaries);
       } else {
         const published = await appreciationService.getPublishedAppreciations();
