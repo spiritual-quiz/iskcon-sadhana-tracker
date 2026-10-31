@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { notificationService } from '../services/notificationService';
 
 export type UpdateModalStage = 'idle' | 'downloading' | 'completed' | 'error';
 
@@ -52,16 +53,20 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
     setStage('downloading');
     setProgress(12);
     setErrorMsg(null);
+    notificationService.showUpdateDownloadProgress(12);
 
-    // Smoothly increment progress bar towards 92% during network download
+    // Smoothly increment progress bar towards 95% during network download
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     progressTimerRef.current = setInterval(() => {
       setProgress((prev) => {
-        if (prev < 35) return prev + 7;
-        if (prev < 70) return prev + 5;
-        if (prev < 90) return prev + 3;
-        if (prev < 95) return prev + 1;
-        return prev;
+        let nextVal = prev;
+        if (prev < 35) nextVal = prev + 7;
+        else if (prev < 70) nextVal = prev + 5;
+        else if (prev < 90) nextVal = prev + 3;
+        else if (prev < 95) nextVal = prev + 1;
+        
+        notificationService.showUpdateDownloadProgress(nextVal);
+        return nextVal;
       });
     }, 280);
 
@@ -70,8 +75,10 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setProgress(100);
       setStage('completed');
+      await notificationService.showUpdateCompleteNotification();
     } catch (e: any) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      await notificationService.dismissUpdateDownloadProgress();
       setErrorMsg(
         e?.message || 'Could not complete update. Please check your internet connection and try again.'
       );
@@ -154,21 +161,27 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                     ]}
                   >
                     <View style={styles.featureItem}>
-                      <Ionicons name="calculator-outline" size={16} color={theme.thickColor} />
+                      <Ionicons name="people-outline" size={16} color={theme.thickColor} />
                       <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Sadhana marks calculate only after devotee enters values (0/50 initially)
+                        Sanga weekly calculation Monday–Sunday live sync with pull-to-refresh
                       </Text>
                     </View>
                     <View style={styles.featureItem}>
                       <Ionicons name="notifications-outline" size={16} color={theme.thickColor} />
                       <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Reliable 6 PM & 9 PM alarms fire even when the app is completely closed
+                        Reliable 6 PM & 9 PM sadhana alarms fire even when app is completely closed
                       </Text>
                     </View>
                     <View style={styles.featureItem}>
-                      <Ionicons name="color-palette-outline" size={16} color={theme.thickColor} />
+                      <Ionicons name="phone-portrait-outline" size={16} color={theme.thickColor} />
                       <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Full dynamic font & card colors across all 14 themes & community reports
+                        Official iPhone & Web PWA support with Add-to-Home-Screen
+                      </Text>
+                    </View>
+                    <View style={styles.featureItem}>
+                      <Ionicons name="calculator-outline" size={16} color={theme.thickColor} />
+                      <Text style={[styles.featureText, { color: theme.colors.text }]}>
+                        Sadhana marks calculate only after entry (0/50 initially for pending)
                       </Text>
                     </View>
                   </View>

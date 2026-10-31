@@ -203,6 +203,65 @@ export const notificationService = {
   },
 
   /**
+   * Show live update download progress in the Android notification shade
+   */
+  showUpdateDownloadProgress: async (progress: number): Promise<void> => {
+    if (!Notifications?.scheduleNotificationAsync) return;
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'bhakti_update_progress',
+        content: {
+          title: `Updating Bhakti Unnati (${progress}%)`,
+          body: progress < 95 ? 'Downloading update package in background...' : 'Finalizing update installation...',
+          sound: null, // silent while updating progress
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          channelId: NOTIFICATION_CHANNELS.APP_UPDATES,
+        },
+        trigger: null,
+      });
+    } catch (e) {
+      // Ignore background notification error
+    }
+  },
+
+  /**
+   * Dismiss the download progress notification from notification tray
+   */
+  dismissUpdateDownloadProgress: async (): Promise<void> => {
+    if (!Notifications?.dismissNotificationAsync) return;
+    try {
+      await Notifications.dismissNotificationAsync('bhakti_update_progress');
+    } catch (e) {
+      // Ignore
+    }
+  },
+
+  /**
+   * Show notification when update is downloaded and ready to apply
+   */
+  showUpdateCompleteNotification: async (): Promise<void> => {
+    if (!Notifications?.scheduleNotificationAsync) return;
+    try {
+      await Notifications.dismissNotificationAsync('bhakti_update_progress');
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'bhakti_update_complete',
+        content: {
+          title: 'Bhakti Unnati Update Ready! 🎉',
+          body: 'Devotional updates installed successfully. Close and reopen the app (or restart) to enjoy new features.',
+          sound: 'default',
+          vibrate: [0, 250, 250, 250],
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          channelId: NOTIFICATION_CHANNELS.APP_UPDATES,
+          data: { screen: 'AppUpdateComplete' },
+        },
+        trigger: null,
+      });
+    } catch (e) {
+      console.warn('Error showing update complete notification:', e);
+    }
+  },
+
+  /**
    * Schedules standard daily reminders for 6:00 PM (18:00) and 9:00 PM (21:00) IST.
    * Uses both daily repeating alarms and exact timestamp triggers for the next 7 days
    * to guarantee notifications fire reliably even when the app is completely closed.

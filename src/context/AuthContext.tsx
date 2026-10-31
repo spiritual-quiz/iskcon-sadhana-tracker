@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User } from 'firebase/auth';
 import { authService, RegisterParams } from '../services/authService';
 import { UserProfile, AuthState } from '../types/auth';
+import { notificationService } from '../services/notificationService';
 
 interface AuthContextType extends AuthState {
   signIn: (email: string, pass: string) => Promise<UserProfile>;
@@ -25,6 +26,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(profile);
       setFirebaseUser(fbUser);
       setIsLoading(false);
+      if (profile) {
+        notificationService.scheduleDailyReminders(profile).catch(() => {});
+      }
     });
 
     return () => unsubscribe();

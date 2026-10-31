@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bhakti Unnati",
     "slug": "bhakti-unnati",
-    "version": "1.0.24",
+    "version": "1.0.25",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "org.iskcon.sadhanatracker",
-      "versionCode": 24,
+      "versionCode": 25,
       "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#FFFFFF",
       "adaptiveIcon": {
@@ -41,6 +41,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "experiments": {
+      "baseUrl": "/iskcon-sadhana-tracker"
     },
     "plugins": [
       "expo-asset",
