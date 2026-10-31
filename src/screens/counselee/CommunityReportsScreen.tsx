@@ -72,8 +72,12 @@ export const CommunityReportsScreen = () => {
           totalRounds: r.totalRounds,
           totalReadingMinutes: r.totalReadingMinutes,
           totalHearingMinutes: r.totalHearingMinutes,
+          onlineReadingDaysAttended: r.onlineReadingDaysAttended,
+          onlineReadingMarks: r.onlineReadingMarks,
+          morningProgrammeAttendance: r.morningProgrammeAttendance,
+          weeklyServiceAttendance: r.weeklyServiceAttendance,
           totalScore: r.totalScore,
-          maxAvailableMarks: r.maxAvailableMarks,
+          maxAvailableMarks: 410,
           percentage: r.percentage,
           grade: r.grade,
           publicConsent: true,
@@ -193,10 +197,11 @@ export const CommunityReportsScreen = () => {
               ) : (
                 weeklySummaries.map((summary) => {
                   const isUnsubmitted =
-                    summary.totalScore === 0 &&
-                    summary.totalRounds === 0 &&
-                    summary.totalReadingMinutes === 0 &&
-                    summary.totalHearingMinutes === 0;
+                    ((summary.totalScore === 0 &&
+                      summary.totalRounds === 0 &&
+                      summary.totalReadingMinutes === 0 &&
+                      summary.totalHearingMinutes === 0) ||
+                      (summary.grade as any) === 'Card Pending');
 
                   return (
                     <View
@@ -236,7 +241,7 @@ export const CommunityReportsScreen = () => {
                             Total Score
                           </Text>
                           <Text style={[styles.metricValue, { color: theme.thickColor }]}>
-                            {summary.totalScore.toFixed(1)} / {summary.maxAvailableMarks}
+                            {summary.totalScore.toFixed(1)} / {summary.maxAvailableMarks || 410}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
@@ -261,8 +266,25 @@ export const CommunityReportsScreen = () => {
                         <Text style={[styles.readHearText, { color: theme.colors.textMuted }]}>
                           Reading: {formatMinutesToHours(summary.totalReadingMinutes)} • Hearing:{' '}
                           {formatMinutesToHours(summary.totalHearingMinutes)}
+                          {(summary.onlineReadingDaysAttended || 0) > 0 ? ` • Online: ${summary.onlineReadingDaysAttended}d` : ''}
                         </Text>
                       </View>
+
+                      {/* Badges for Morning Program and Service if attended */}
+                      {(!isUnsubmitted && (summary.morningProgrammeAttendance || summary.weeklyServiceAttendance)) && (
+                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                          {summary.morningProgrammeAttendance && (
+                            <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: '#86EFAC' }}>
+                              <Text style={{ fontSize: 11, color: '#15803D', fontWeight: '600' }}>🌅 Morning Prog (50M)</Text>
+                            </View>
+                          )}
+                          {summary.weeklyServiceAttendance && (
+                            <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: '#DDD6FE' }}>
+                              <Text style={{ fontSize: 11, color: '#6D28D9', fontWeight: '600' }}>🙏 Service (10M)</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   );
                 })

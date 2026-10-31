@@ -245,7 +245,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
   // Attendance toggling
   const handleToggleWeeklyAttendance = async (
     userId: string,
-    type: 'morning_programme' | 'weekly_class',
+    type: 'morning_programme' | 'service' | 'weekly_class',
     currentAttended: boolean
   ) => {
     setUpdatingId(`${userId}_${type}`);
@@ -281,6 +281,26 @@ export const AdminReportsScreen = ({ navigation }: any) => {
       await loadMonthlyData();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not update satsanga attendance.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleToggleMonthlyMeeting = async (userId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'attended' ? 'absent' : 'attended';
+    const monthId = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+    setUpdatingId(`${userId}_meeting`);
+    try {
+      await attendanceService.recordMonthlyMeeting({
+        userId,
+        monthId,
+        scheduledDate: todayStr,
+        status: nextStatus as any,
+        updatedBy: user?.uid || 'admin',
+      });
+      await loadMonthlyData();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not update counsellor meeting attendance.');
     } finally {
       setUpdatingId(null);
     }
@@ -924,7 +944,8 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                   const devotee = allCounselees.find((u) => u.uid === report.userId);
                   const isExpanded = expandedWeeklyUserId === report.userId;
                   const isMorningUpdating = updatingId === `${report.userId}_morning_programme`;
-                  const isClassUpdating = updatingId === `${report.userId}_weekly_class`;
+                  const isServiceUpdating = updatingId === `${report.userId}_service`;
+                  const weekDates = getWeekDetails(report.startDate).dates;
 
                   return (
                     <View
@@ -951,19 +972,62 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                         <StatusBadge type="grade" value={report.grade} />
                       </View>
 
-                      {/* Weekly Score Summary */}
+                      {/* Weekly Score Summary: Strictly 0 / 410 */}
                       <ScoreCard
-                        title={`Score: ${report.totalScore.toFixed(1)} / ${report.maxAvailableMarks}`}
+                        title={`Score: ${report.totalScore.toFixed(1)} / 410`}
                         score={report.totalScore}
-                        maxScore={report.maxAvailableMarks}
+                        maxScore={410}
                         percentage={report.percentage}
                         grade={report.grade}
                         breakdown={{
-                          classMarks: report.weeklyClassMarks,
+                          classMarks: report.weeklyServiceMarks,
                           morningMarks: report.morningProgrammeMarks,
                           onlineReadingMarks: report.onlineReadingMarks,
                         }}
                       />
+
+                      {/* Weekly Metrics Aggregate Box */}
+                      <View style={styles.breakdownGrid}>
+                        <View style={styles.breakdownBox}>
+                          <Text style={[styles.breakdownBoxLabel, { color: theme.colors.textMuted }]}>Rounds</Text>
+                          <Text style={[styles.breakdownBoxVal, { color: theme.thickColor }]}>
+                            {report.totalRounds}
+                          </Text>
+                          <Text style={[styles.breakdownBoxSub, { color: theme.colors.textMuted }]}>
+                            Week Japa
+                          </Text>
+                        </View>
+
+                        <View style={styles.breakdownBox}>
+                          <Text style={[styles.breakdownBoxLabel, { color: theme.colors.textMuted }]}>Reading</Text>
+                          <Text style={[styles.breakdownBoxVal, { color: theme.thickColor }]}>
+                            {formatMinutesToHours(report.totalReadingMinutes)}
+                          </Text>
+                          <Text style={[styles.breakdownBoxSub, { color: theme.colors.textMuted }]}>
+                            Total Read
+                          </Text>
+                        </View>
+
+                        <View style={styles.breakdownBox}>
+                          <Text style={[styles.breakdownBoxLabel, { color: theme.colors.textMuted }]}>Hearing</Text>
+                          <Text style={[styles.breakdownBoxVal, { color: theme.thickColor }]}>
+                            {formatMinutesToHours(report.totalHearingMinutes)}
+                          </Text>
+                          <Text style={[styles.breakdownBoxSub, { color: theme.colors.textMuted }]}>
+                            Total Heard
+                          </Text>
+                        </View>
+
+                        <View style={styles.breakdownBox}>
+                          <Text style={[styles.breakdownBoxLabel, { color: theme.colors.textMuted }]}>Online Read</Text>
+                          <Text style={[styles.breakdownBoxVal, { color: theme.thickColor }]}>
+                            {report.onlineReadingDaysAttended}d
+                          </Text>
+                          <Text style={[styles.breakdownBoxSub, { color: theme.colors.textMuted }]}>
+                            {report.onlineReadingMarks} Marks
+                          </Text>
+                        </View>
+                      </View>
 
                       {/* Attendance Toggles for Counsellor */}
                       <View style={[styles.attendanceSection, { borderTopColor: theme.colors.borderLight }]}>
@@ -1010,40 +1074,40 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                             )}
                           </TouchableOpacity>
 
-                          {/* Weekly Class (10 Marks) Toggle */}
+                          {/* Weekly Service (10 Marks) Toggle */}
                           <TouchableOpacity
                             style={[
                               styles.attendanceBtn,
                               {
-                                backgroundColor: report.weeklyClassAttendance ? '#DCFCE7' : '#FEE2E2',
-                                borderColor: report.weeklyClassAttendance ? '#86EFAC' : '#FCA5A5',
+                                backgroundColor: report.weeklyServiceAttendance ? '#DCFCE7' : '#FEE2E2',
+                                borderColor: report.weeklyServiceAttendance ? '#86EFAC' : '#FCA5A5',
                               },
                             ]}
-                            disabled={isClassUpdating}
+                            disabled={isServiceUpdating}
                             onPress={() =>
                               handleToggleWeeklyAttendance(
                                 report.userId,
-                                'weekly_class',
-                                report.weeklyClassAttendance
+                                'service',
+                                report.weeklyServiceAttendance
                               )
                             }
                           >
-                            {isClassUpdating ? (
+                            {isServiceUpdating ? (
                               <ActivityIndicator size="small" color="#15803D" />
                             ) : (
                               <>
                                 <Ionicons
-                                  name={report.weeklyClassAttendance ? 'checkmark-circle' : 'close-circle'}
+                                  name={report.weeklyServiceAttendance ? 'checkmark-circle' : 'close-circle'}
                                   size={16}
-                                  color={report.weeklyClassAttendance ? '#15803D' : '#DC2626'}
+                                  color={report.weeklyServiceAttendance ? '#15803D' : '#DC2626'}
                                 />
                                 <Text
                                   style={[
                                     styles.attendanceBtnText,
-                                    { color: report.weeklyClassAttendance ? '#15803D' : '#DC2626' },
+                                    { color: report.weeklyServiceAttendance ? '#15803D' : '#DC2626' },
                                   ]}
                                 >
-                                  Weekly Class: {report.weeklyClassAttendance ? '10 Marks' : 'Pending'}
+                                  Weekly Service: {report.weeklyServiceAttendance ? '10 Marks' : 'Pending'}
                                 </Text>
                               </>
                             )}
@@ -1051,7 +1115,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                         </View>
                       </View>
 
-                      {/* Expandable Daily Breakdown */}
+                      {/* Expandable Daily Breakdown: ALL 7 DAYS MUST BE SHOWN */}
                       <TouchableOpacity
                         style={[styles.expandToggleBtn, { borderTopColor: theme.colors.borderLight }]}
                         onPress={() => setExpandedWeeklyUserId(isExpanded ? null : report.userId)}
@@ -1068,20 +1132,19 @@ export const AdminReportsScreen = ({ navigation }: any) => {
 
                       {isExpanded && (
                         <View style={[styles.expandedDailyList, { borderTopColor: theme.colors.borderLight }]}>
-                          {report.dailyEntries.filter((e) => e !== null).length === 0 ? (
-                            <Text style={[styles.noDailyEntriesText, { color: theme.colors.textMuted }]}>
-                              No daily entries submitted during this week.
-                            </Text>
-                          ) : (
-                            report.dailyEntries.map((e) => {
-                              if (!e) return null;
+                          {weekDates.map((dayDate, dayIdx) => {
+                            const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                            const dayName = dayNames[dayIdx] || '';
+                            const e = report.dailyEntries[dayIdx];
+
+                            if (e) {
                               const eNightSleep = calculateSleepDurationMinutes(e.sleepTimeStr, e.wakeUpTimeStr);
                               const eTotalSleep = eNightSleep + (Number(e.restMinutes) || 0);
                               return (
-                                <View key={e.date} style={[styles.weeklyDailyEntryRow, { borderColor: theme.colors.borderLight }]}>
+                                <View key={dayDate} style={[styles.weeklyDailyEntryRow, { borderColor: theme.colors.borderLight }]}>
                                   <View style={{ flex: 1 }}>
                                     <Text style={[styles.weeklyDailyEntryDate, { color: theme.colors.text }]}>
-                                      {e.date}
+                                      {dayName}, {dayDate}
                                     </Text>
                                     <Text style={[styles.weeklyDailyEntryDetails, { color: theme.colors.textMuted }]}>
                                       📿 {e.completedRounds || 0} rds (@ {formatFriendlyTime(e.completionTimeStr)}) • 📖 {e.readingMinutes || 0}m • 🎧 {e.hearingMinutes || 0}m • 🛏️ Slept {formatMinutesToHours(eTotalSleep)}
@@ -1095,8 +1158,27 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                   </View>
                                 </View>
                               );
-                            })
-                          )}
+                            }
+
+                            return (
+                              <View key={dayDate} style={[styles.weeklyDailyEntryRow, { borderColor: theme.colors.borderLight, opacity: 0.65 }]}>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.weeklyDailyEntryDate, { color: theme.colors.textMuted }]}>
+                                    {dayName}, {dayDate}
+                                  </Text>
+                                  <Text style={[styles.weeklyDailyEntryDetails, { color: theme.colors.danger }]}>
+                                    0/50 - Not Submitted
+                                  </Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                  <Text style={[styles.weeklyDailyScore, { color: theme.colors.textMuted }]}>
+                                    0/50
+                                  </Text>
+                                  <StatusBadge type="custom" value="Card Pending" label="Pending" />
+                                </View>
+                              </View>
+                            );
+                          })}
                         </View>
                       )}
                     </View>
@@ -1121,7 +1203,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                     {monthNames[selectedMonth - 1]} {selectedYear}
                   </Text>
                   <Text style={[styles.dateSelectorSubtitle, { color: theme.colors.textMuted }]}>
-                    {filteredMonthlyReports.length} Active Devotee Records
+                    {filteredMonthlyReports.length} Active Devotee Records (1st to end of month)
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => shiftMonth(1)} style={styles.dateArrowBtn}>
@@ -1169,7 +1251,9 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                 filteredMonthlyReports.map((report) => {
                   const devotee = allCounselees.find((u) => u.uid === report.userId);
                   const isSatsangaUpdating = updatingId === `${report.userId}_satsanga`;
+                  const isMeetingUpdating = updatingId === `${report.userId}_meeting`;
                   const isSatsangaAttended = report.satsangaStatus === 'attended';
+                  const isMeetingAttended = report.counsellorMeetingStatus === 'attended';
                   const submittedCount = report.dailyEntries.filter((e) => e !== null).length;
 
                   return (
@@ -1191,13 +1275,13 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                             </View>
                           </View>
                           <Text style={[styles.devoteePhone, { color: theme.colors.textMuted }]}>
-                            {devotee?.phoneNumber || 'No phone'} • Submitted {submittedCount} days
+                            {devotee?.phoneNumber || 'No phone'} • Submitted {submittedCount} days ({report.startDate} to {report.endDate})
                           </Text>
                         </View>
                         <StatusBadge type="grade" value={report.grade} />
                       </View>
 
-                      {/* Score Summary */}
+                      {/* Dynamic Score Summary */}
                       <ScoreCard
                         title={`Score: ${report.totalScore.toFixed(1)} / ${report.maxAvailableMarks}`}
                         score={report.totalScore}
@@ -1205,9 +1289,9 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                         percentage={report.percentage}
                         grade={report.grade}
                         breakdown={{
-                          classMarks: report.weeklyClassesMarks,
+                          classMarks: report.weeklyServicesMarks,
                           morningMarks: report.morningProgrammesMarks,
-                          satsangaMarks: report.satsangaMarks,
+                          satsangaMarks: (report.satsangaMarks || 0) + (report.counsellorMeetingMarks || 0),
                         }}
                       />
 
@@ -1254,42 +1338,97 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                         </View>
                       </View>
 
-                      {/* Monthly Satsanga Attendance Verification */}
+                      {/* Score Components Detail Row */}
+                      <View style={{ marginHorizontal: 12, marginTop: 4, marginBottom: 8, padding: 8, backgroundColor: theme.liteColor, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.borderLight }}>
+                        <Text style={{ fontSize: 11, color: theme.colors.text, fontWeight: '600', marginBottom: 2 }}>
+                          📊 Dynamic Score Details ({report.weekdaysCount} weekdays @ 50, {report.weekendDaysCount} weekends @ 40):
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                          • Daily Sadhana: {report.dailySadhanaScore} / {report.maxDailyMarks} marks
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                          • Morning Prog: {report.morningProgrammesAttended}/{report.morningProgrammesScheduled} weeks ({report.morningProgrammesMarks} marks)
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                          • Weekly Service: {report.weeklyServicesAttended}/{report.weeklyServicesScheduled} weeks ({report.weeklyServicesMarks} marks)
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                          • Satsanga: {isSatsangaAttended ? '50 / 50 marks' : '0 / 50 marks'} • Met Counsellor: {isMeetingAttended ? '50 / 50 marks' : '0 / 50 marks'}
+                        </Text>
+                      </View>
+
+                      {/* Attendance Verification Section for Counsellor */}
                       <View style={[styles.attendanceSection, { borderTopColor: theme.colors.borderLight }]}>
                         <Text style={[styles.attendanceTitle, { color: theme.thickColor }]}>
-                          Monthly Counsellor Satsanga (50 Marks):
+                          Monthly Attendance & Meetings (Tap to Grant/Revoke 50 Marks):
                         </Text>
-                        <TouchableOpacity
-                          style={[
-                            styles.attendanceBtn,
-                            {
-                              backgroundColor: isSatsangaAttended ? '#DCFCE7' : '#FEE2E2',
-                              borderColor: isSatsangaAttended ? '#86EFAC' : '#FCA5A5',
-                            },
-                          ]}
-                          disabled={isSatsangaUpdating}
-                          onPress={() => handleToggleMonthlySatsanga(report.userId, report.satsangaStatus)}
-                        >
-                          {isSatsangaUpdating ? (
-                            <ActivityIndicator size="small" color="#15803D" />
-                          ) : (
-                            <>
-                              <Ionicons
-                                name={isSatsangaAttended ? 'checkmark-circle' : 'close-circle'}
-                                size={16}
-                                color={isSatsangaAttended ? '#15803D' : '#DC2626'}
-                              />
-                              <Text
-                                style={[
-                                  styles.attendanceBtnText,
-                                  { color: isSatsangaAttended ? '#15803D' : '#DC2626' },
-                                ]}
-                              >
-                                Monthly Satsanga: {isSatsangaAttended ? 'Attended (50 Marks)' : 'Not Attended / Pending'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                        <View style={styles.attendanceButtonsRow}>
+                          {/* Monthly Satsanga (50 Marks) Toggle */}
+                          <TouchableOpacity
+                            style={[
+                              styles.attendanceBtn,
+                              {
+                                backgroundColor: isSatsangaAttended ? '#DCFCE7' : '#FEE2E2',
+                                borderColor: isSatsangaAttended ? '#86EFAC' : '#FCA5A5',
+                              },
+                            ]}
+                            disabled={isSatsangaUpdating}
+                            onPress={() => handleToggleMonthlySatsanga(report.userId, report.satsangaStatus)}
+                          >
+                            {isSatsangaUpdating ? (
+                              <ActivityIndicator size="small" color="#15803D" />
+                            ) : (
+                              <>
+                                <Ionicons
+                                  name={isSatsangaAttended ? 'checkmark-circle' : 'close-circle'}
+                                  size={16}
+                                  color={isSatsangaAttended ? '#15803D' : '#DC2626'}
+                                />
+                                <Text
+                                  style={[
+                                    styles.attendanceBtnText,
+                                    { color: isSatsangaAttended ? '#15803D' : '#DC2626' },
+                                  ]}
+                                >
+                                  Satsanga: {isSatsangaAttended ? '50 Marks' : 'Pending'}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+
+                          {/* Monthly Counsellor Meeting (50 Marks) Toggle */}
+                          <TouchableOpacity
+                            style={[
+                              styles.attendanceBtn,
+                              {
+                                backgroundColor: isMeetingAttended ? '#DCFCE7' : '#FEE2E2',
+                                borderColor: isMeetingAttended ? '#86EFAC' : '#FCA5A5',
+                              },
+                            ]}
+                            disabled={isMeetingUpdating}
+                            onPress={() => handleToggleMonthlyMeeting(report.userId, report.counsellorMeetingStatus)}
+                          >
+                            {isMeetingUpdating ? (
+                              <ActivityIndicator size="small" color="#15803D" />
+                            ) : (
+                              <>
+                                <Ionicons
+                                  name={isMeetingAttended ? 'checkmark-circle' : 'close-circle'}
+                                  size={16}
+                                  color={isMeetingAttended ? '#15803D' : '#DC2626'}
+                                />
+                                <Text
+                                  style={[
+                                    styles.attendanceBtnText,
+                                    { color: isMeetingAttended ? '#15803D' : '#DC2626' },
+                                  ]}
+                                >
+                                  Met Counsellor: {isMeetingAttended ? '50 Marks' : 'Pending'}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   );

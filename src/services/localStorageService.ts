@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SadhanaEntry, WeeklyAttendance, MonthlySatsangaAttendance } from '../types/sadhana';
+import { SadhanaEntry, WeeklyAttendance, MonthlySatsangaAttendance, MonthlyMeetingAttendance } from '../types/sadhana';
 import { WeeklyReport, MonthlyReport, SharedWeeklySummary, SharedMonthlySummary } from '../types/report';
 import { UserProfile, UserStatus } from '../types/auth';
 import { InvitationCode } from '../types/monitoring';
@@ -12,6 +12,7 @@ const KEYS = {
   SADHANA_ENTRIES: '@iskcon_sadhana_entries',
   WEEKLY_ATTENDANCE: '@iskcon_weekly_attendance',
   MONTHLY_SATSANGA: '@iskcon_monthly_satsanga',
+  MONTHLY_MEETING: '@iskcon_monthly_meeting',
   WEEKLY_REPORTS: '@iskcon_weekly_reports',
   MONTHLY_REPORTS: '@iskcon_monthly_reports',
   SHARED_WEEKLY: '@iskcon_shared_weekly',
@@ -215,16 +216,18 @@ export const localStorageService = {
   getWeeklyAttendanceForUser: async (
     userId: string,
     weekId: string
-  ): Promise<{ weeklyClass?: WeeklyAttendance; morningProgramme?: WeeklyAttendance }> => {
+  ): Promise<{ weeklyClass?: WeeklyAttendance; morningProgramme?: WeeklyAttendance; service?: WeeklyAttendance }> => {
     try {
       const raw = await AsyncStorage.getItem(KEYS.WEEKLY_ATTENDANCE);
       if (!raw) return {};
       const data: Record<string, WeeklyAttendance> = JSON.parse(raw);
       const classId = `${userId}_${weekId}_weekly_class`;
       const morningId = `${userId}_${weekId}_morning_programme`;
+      const serviceId = `${userId}_${weekId}_service`;
       return {
         weeklyClass: data[classId],
         morningProgramme: data[morningId],
+        service: data[serviceId],
       };
     } catch (e) {
       return {};
@@ -256,6 +259,37 @@ export const localStorageService = {
       const raw = await AsyncStorage.getItem(KEYS.MONTHLY_SATSANGA);
       if (!raw) return null;
       const data: Record<string, MonthlySatsangaAttendance> = JSON.parse(raw);
+      return data[`${userId}_${monthId}`] || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Save monthly meeting with counsellor attendance
+   */
+  saveMonthlyMeeting: async (attendance: MonthlyMeetingAttendance): Promise<void> => {
+    try {
+      const raw = await AsyncStorage.getItem(KEYS.MONTHLY_MEETING);
+      const data: Record<string, MonthlyMeetingAttendance> = raw ? JSON.parse(raw) : {};
+      data[attendance.id] = attendance;
+      await AsyncStorage.setItem(KEYS.MONTHLY_MEETING, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Error saving monthly meeting to local storage:', e);
+    }
+  },
+
+  /**
+   * Get monthly meeting with counsellor for user
+   */
+  getMonthlyMeetingForUser: async (
+    userId: string,
+    monthId: string
+  ): Promise<MonthlyMeetingAttendance | null> => {
+    try {
+      const raw = await AsyncStorage.getItem(KEYS.MONTHLY_MEETING);
+      if (!raw) return null;
+      const data: Record<string, MonthlyMeetingAttendance> = JSON.parse(raw);
       return data[`${userId}_${monthId}`] || null;
     } catch (e) {
       return null;

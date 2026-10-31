@@ -232,64 +232,63 @@ describe('Scoring Engine Unit Tests', () => {
   });
 
   describe('Weekly Programme Scoring', () => {
-    test('calculates 7 days plus weekly class and morning programme out of 340', () => {
-      const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
+    test('calculates 7 days (350) plus morning programme (50) and weekly service (10) strictly out of 410', () => {
+      const dailyScores = [50, 50, 50, 50, 50, 50, 50]; // 350
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
-        weeklyClassAttended: true, // +10
+        serviceAttended: true, // +10
         morningProgrammeAttended: true, // +50
       });
 
-      expect(weekly.totalScore).toBe(340);
-      expect(weekly.maxAvailableMarks).toBe(350);
-      expect(weekly.percentage).toBe(97.1);
-      expect(weekly.grade).toBe('Good, Please Improve');
+      // 350 + 50 + 10 = 410
+      expect(weekly.totalScore).toBe(410);
+      expect(weekly.maxAvailableMarks).toBe(410);
+      expect(weekly.percentage).toBe(100);
+      expect(weekly.grade).toBe('Advancing');
     });
 
-    test('partial weekly score out of 350', () => {
+    test('partial weekly score out of 410', () => {
       const dailyScores = [30, 30, 30, 30, 30, 30, 30]; // 210
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
-        weeklyClassAttended: true, // +10
+        serviceAttended: true, // +10
         morningProgrammeAttended: false,
       });
 
+      // 210 + 10 = 220 / 410 = 53.7% -> Māyā Is Distracting You
       expect(weekly.totalScore).toBe(220);
-      expect(weekly.maxAvailableMarks).toBe(350);
-      expect(weekly.percentage).toBe(62.9);
-      expect(weekly.grade).toBe('Your Bhakti Is at Risk');
+      expect(weekly.maxAvailableMarks).toBe(410);
+      expect(weekly.percentage).toBe(53.7);
+      expect(weekly.grade).toBe('Māyā Is Distracting You');
     });
 
-    test('calculates weekly score with online reading session (Mon-Fri, 50 marks max) and morning programme (50 marks)', () => {
-      const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
+    test('calculates weekly score with full morning programme (50) and service (10) when core daily scores vary', () => {
+      const dailyScores = [40, 50, 50, 40, 50, 40, 40]; // 310
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
-        weeklyClassAttended: true, // +10
+        serviceAttended: true, // +10
         morningProgrammeAttended: true, // +50
-        onlineReadingMarks: 50, // +50 (5 days x 10)
       });
 
-      // 280 + 10 + 50 + 50 = 390
-      expect(weekly.totalScore).toBe(390);
-      expect(weekly.maxAvailableMarks).toBe(400);
-      expect(weekly.percentage).toBe(97.5);
+      // 310 + 50 + 10 = 370 / 410 = 90.2% -> Good, Please Improve
+      expect(weekly.totalScore).toBe(370);
+      expect(weekly.maxAvailableMarks).toBe(410);
+      expect(weekly.percentage).toBe(90.2);
       expect(weekly.grade).toBe('Good, Please Improve');
     });
 
-    test('calculates partial weekly score with 3 online reading sessions (30 marks)', () => {
-      const dailyScores = [40, 40, 40, 40, 40, 40, 40]; // 280
+    test('calculates unsubmitted / 0 score weekly calculation as 0 out of 410', () => {
+      const dailyScores = [0, 0, 0, 0, 0, 0, 0];
       const weekly = calculateWeeklyScoreAndGrade({
         dailyScores,
-        weeklyClassAttended: true, // +10
-        morningProgrammeAttended: false, // 0
-        onlineReadingMarks: 30, // +30 (3 days)
+        serviceAttended: false,
+        morningProgrammeAttended: false,
       });
 
-      // 280 + 10 + 30 = 320 / 400 = 80.0% -> Good, Please Improve
-      expect(weekly.totalScore).toBe(320);
-      expect(weekly.maxAvailableMarks).toBe(400);
-      expect(weekly.percentage).toBe(80.0);
-      expect(weekly.grade).toBe('Good, Please Improve');
+      expect(weekly.totalScore).toBe(0);
+      expect(weekly.maxAvailableMarks).toBe(410);
+      expect(weekly.percentage).toBe(0);
+      expect(weekly.grade).toBe('You Are Fallen');
     });
   });
 

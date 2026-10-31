@@ -76,10 +76,10 @@ export interface WeeklyAttendance {
   id: string; // `${userId}_${weekId}_${type}`
   userId: string;
   weekId: string; // e.g. "2026-W41"
-  type: 'weekly_class' | 'morning_programme';
+  type: 'weekly_class' | 'morning_programme' | 'service';
   scheduledDate: string; // YYYY-MM-DD
   attended: boolean;
-  marks: number; // 10 or 0
+  marks: number; // 50 (morning), 10 (service / class), or 0
   isRecorded: boolean; // whether attendance was submitted
   updatedBy: string;
   updatedAt: string;
@@ -96,6 +96,22 @@ export interface MonthlySatsangaAttendance {
   marks: number; // 50 or 0
   isRecorded: boolean;
   status?: MonthlySatsangStatus;
+  conducted?: boolean;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export type MonthlyMeetingStatus = 'attended' | 'absent' | 'not_conducted';
+
+export interface MonthlyMeetingAttendance {
+  id: string; // `${userId}_${monthId}`
+  userId: string;
+  monthId: string; // YYYY-MM
+  scheduledDate: string; // YYYY-MM-DD
+  attended: boolean;
+  marks: number; // 50 or 0
+  isRecorded: boolean;
+  status?: MonthlyMeetingStatus;
   conducted?: boolean;
   updatedBy: string;
   updatedAt: string;

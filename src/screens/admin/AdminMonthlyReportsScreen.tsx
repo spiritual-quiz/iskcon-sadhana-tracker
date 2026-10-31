@@ -76,7 +76,7 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
         : 'attended';
 
     const monthId = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
-    setUpdatingId(userId);
+    setUpdatingId(`${userId}_satsanga`);
     try {
       await attendanceService.recordMonthlySatsanga({
         userId,
@@ -88,6 +88,32 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
       await loadMonthlyData();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not update satsanga attendance.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleCycleMeeting = async (userId: string, currentStatus?: string) => {
+    const nextStatus =
+      currentStatus === 'attended'
+        ? 'absent'
+        : currentStatus === 'absent'
+        ? 'not_conducted'
+        : 'attended';
+
+    const monthId = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+    setUpdatingId(`${userId}_meeting`);
+    try {
+      await attendanceService.recordMonthlyMeeting({
+        userId,
+        monthId,
+        scheduledDate: todayStr,
+        status: nextStatus as any,
+        updatedBy: user?.uid || 'admin',
+      });
+      await loadMonthlyData();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not update counsellor meeting attendance.');
     } finally {
       setUpdatingId(null);
     }
@@ -180,18 +206,21 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
 
                 <View style={[styles.scoreRow, isLowScore && styles.scoreRowAlert]}>
                   <Text style={[styles.scoreText, isLowScore && styles.scoreTextAlert]}>
-                    Total Score: {rep.totalScore} / {rep.maxAvailableMarks} ({rep.percentage}%)
+                    Total Score: {rep.totalScore.toFixed(1)} / {rep.maxAvailableMarks} ({rep.percentage}%)
                   </Text>
                   <Text style={styles.roundsText}>{rep.totalRounds} Rounds</Text>
                 </View>
 
-                {/* Monthly Devotee Details Breakdown (Requirement 2) */}
+                {/* Monthly Devotee Details Breakdown (Weekdays @ 50, Weekends @ 40, Weekly cycles, Satsanga, Meeting) */}
                 <View style={{ backgroundColor: '#F9FAFB', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.thickColor, marginBottom: 2 }}>
+                    • Daily Breakdown: {rep.dailySadhanaScore} / {rep.maxDailyMarks} ({rep.weekdaysCount} weekdays @ 50, {rep.weekendDaysCount} weekends @ 40)
+                  </Text>
                   <Text style={{ fontSize: 11, color: THEME.colors.text, marginBottom: 2 }}>
                     • Morning Programmes: <Text style={{ fontWeight: 'bold' }}>{rep.morningProgrammesAttended}/{rep.morningProgrammesScheduled}</Text> attended ({rep.morningProgrammesMarks} marks)
                   </Text>
                   <Text style={{ fontSize: 11, color: THEME.colors.text, marginBottom: 2 }}>
-                    • Weekly Classes: <Text style={{ fontWeight: 'bold' }}>{rep.weeklyClassesAttended}/{rep.weeklyClassesScheduled}</Text> attended ({rep.weeklyClassesMarks} marks)
+                    • Weekly Services: <Text style={{ fontWeight: 'bold' }}>{rep.weeklyServicesAttended}/{rep.weeklyServicesScheduled}</Text> attended ({rep.weeklyServicesMarks} marks)
                   </Text>
                   <Text style={{ fontSize: 11, color: THEME.colors.text }}>
                     • Books Read: {formatMinutesToHours(rep.totalReadingMinutes)} • Lectures Heard: {formatMinutesToHours(rep.totalHearingMinutes)}
@@ -207,9 +236,10 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                       : rep.satsangaStatus === 'not_conducted'
                       ? styles.satsangaBtnNotHeld
                       : styles.satsangaBtnAbsent,
+                    { marginBottom: 6 },
                   ]}
                   onPress={() => handleCycleSatsanga(rep.userId, rep.satsangaStatus)}
-                  disabled={updatingId === rep.userId}
+                  disabled={updatingId === `${rep.userId}_satsanga`}
                 >
                   <Ionicons
                     name={
@@ -224,10 +254,43 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
                   />
                   <Text style={styles.satsangaBtnTextActive} numberOfLines={1}>
                     {rep.satsangaStatus === 'attended'
-                      ? 'Monthly Satsang: Present'
+                      ? 'Monthly Satsang: Present (50m)'
                       : rep.satsangaStatus === 'not_conducted'
-                      ? 'Monthly Satsang: Not Conducted'
-                      : 'Monthly Satsang: Absent'}
+                      ? 'Monthly Satsang: Not Conducted (0m)'
+                      : 'Monthly Satsang: Absent (0m)'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Monthly Counsellor Meeting Toggle (50 marks) */}
+                <TouchableOpacity
+                  style={[
+                    styles.satsangaBtn,
+                    rep.counsellorMeetingStatus === 'attended'
+                      ? styles.satsangaBtnActive
+                      : rep.counsellorMeetingStatus === 'not_conducted'
+                      ? styles.satsangaBtnNotHeld
+                      : styles.satsangaBtnAbsent,
+                  ]}
+                  onPress={() => handleCycleMeeting(rep.userId, rep.counsellorMeetingStatus)}
+                  disabled={updatingId === `${rep.userId}_meeting`}
+                >
+                  <Ionicons
+                    name={
+                      rep.counsellorMeetingStatus === 'attended'
+                        ? 'checkmark-circle'
+                        : rep.counsellorMeetingStatus === 'not_conducted'
+                        ? 'pause-circle'
+                        : 'close-circle'
+                    }
+                    size={18}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.satsangaBtnTextActive} numberOfLines={1}>
+                    {rep.counsellorMeetingStatus === 'attended'
+                      ? 'Met Counsellor: Present (50m)'
+                      : rep.counsellorMeetingStatus === 'not_conducted'
+                      ? 'Met Counsellor: Not Conducted (0m)'
+                      : 'Met Counsellor: Absent (0m)'}
                   </Text>
                 </TouchableOpacity>
               </View>

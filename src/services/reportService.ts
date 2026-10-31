@@ -56,12 +56,8 @@ export const reportService = {
         totalRounds += entry.completedRounds;
         totalReadingMinutes += entry.readingMinutes;
         totalHearingMinutes += entry.hearingMinutes;
-        const coreDailyScore =
-          (entry.japaMarks || 0) +
-          (entry.readingMarks || 0) +
-          (entry.hearingMarks || 0) +
-          (entry.sleepMarks || 0);
-        dailyScores.push(coreDailyScore);
+        // Daily total score up to 50 (core 40 + online reading 10)
+        dailyScores.push(entry.dailyTotalScore || 0);
         if (entry.onlineReadingAttended) {
           onlineReadingDaysAttended++;
         }
@@ -74,22 +70,22 @@ export const reportService = {
     const onlineReadingMarks = onlineReadingDaysAttended * 10;
     const hasAnySubmitted = entries.length > 0;
 
-    // Fetch weekly attendance
+    // Fetch weekly attendance (morning programme: 50 marks, weekly service: 10 marks)
     const attendance = await attendanceService.getWeeklyAttendanceForUser(params.userId, weekId);
-    const classAttended = hasAnySubmitted ? (attendance.weeklyClass?.attended || false) : false;
     const morningAttended = hasAnySubmitted ? (attendance.morningProgramme?.attended || false) : false;
+    const serviceAttended = hasAnySubmitted ? (attendance.service?.attended || false) : false;
+    const classAttended = hasAnySubmitted ? (attendance.weeklyClass?.attended || false) : false;
 
-    // Calculate score out of 390 (280 daily core + 10 class + 50 morning + 50 online reading)
+    // Strictly 410 marks: 7 * 50 (350 daily) + 50 (morning prog) + 10 (weekly service) = 410
     const scoreCalc = hasAnySubmitted
       ? calculateWeeklyScoreAndGrade({
           dailyScores,
-          weeklyClassAttended: classAttended,
           morningProgrammeAttended: morningAttended,
-          onlineReadingMarks,
+          serviceAttended: serviceAttended,
         })
       : {
           totalScore: 0,
-          maxAvailableMarks: 390,
+          maxAvailableMarks: 410,
           percentage: 0,
           grade: ('Card Pending' as any) as Grade,
         };
@@ -109,10 +105,12 @@ export const reportService = {
       weeklyClassMarks: classAttended ? 10 : 0,
       morningProgrammeAttendance: morningAttended,
       morningProgrammeMarks: morningAttended ? 50 : 0,
+      weeklyServiceAttendance: serviceAttended,
+      weeklyServiceMarks: serviceAttended ? 10 : 0,
       onlineReadingDaysAttended,
       onlineReadingMarks,
       totalScore: scoreCalc.totalScore,
-      maxAvailableMarks: scoreCalc.maxAvailableMarks,
+      maxAvailableMarks: 410,
       percentage: scoreCalc.percentage,
       grade: scoreCalc.grade,
       missingReportDays,
@@ -129,8 +127,12 @@ export const reportService = {
         totalRounds,
         totalReadingMinutes,
         totalHearingMinutes,
+        onlineReadingDaysAttended,
+        onlineReadingMarks,
+        morningProgrammeAttendance: morningAttended,
+        weeklyServiceAttendance: serviceAttended,
         totalScore: scoreCalc.totalScore,
-        maxAvailableMarks: scoreCalc.maxAvailableMarks,
+        maxAvailableMarks: 410,
         percentage: scoreCalc.percentage,
         grade: scoreCalc.grade,
         publicConsent: params.publicConsent ?? true,
@@ -174,12 +176,27 @@ export const reportService = {
     let missingReportDays = 0;
     const dailyScores: number[] = [];
 
+    // Count weekdays (Mon-Fri @ 50) and weekends (Sat-Sun @ 40)
+    let weekdaysCount = 0;
+    let weekendDaysCount = 0;
+
+    dates.forEach((d) => {
+      const dayOfWeek = new Date(d + 'T12:00:00Z').getUTCDay();
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        weekdaysCount++;
+      } else {
+        weekendDaysCount++;
+      }
+    });
+
+    const maxDailyMarks = weekdaysCount * 50 + weekendDaysCount * 40;
+
     dailyEntries.forEach((entry) => {
       if (entry) {
         totalRounds += entry.completedRounds;
         totalReadingMinutes += entry.readingMinutes;
         totalHearingMinutes += entry.hearingMinutes;
-        dailyScores.push(entry.dailyTotalScore);
+        dailyScores.push(entry.dailyTotalScore || 0);
       } else {
         missingReportDays++;
         dailyScores.push(0);
@@ -191,23 +208,30 @@ export const reportService = {
     // Monthly satsanga attendance (50 marks, dynamic attendance)
     const satsanga = await attendanceService.getMonthlySatsangaForUser(params.userId, monthId);
     const satsangaAttended = hasAnySubmitted ? (satsanga?.attended || false) : false;
-    const isConducted = satsanga ? (satsanga.conducted !== false && satsanga.status !== 'not_conducted') : false;
-    const satsangaStatus = satsanga?.status || (satsangaAttended ? 'attended' : (isConducted ? 'absent' : 'not_conducted'));
+    const isSatsangaConducted = satsanga ? (satsanga.conducted !== false && satsanga.status !== 'not_conducted') : true;
+    const satsangaStatus = satsanga?.status || (satsangaAttended ? 'attended' : (isSatsangaConducted ? 'absent' : 'not_conducted'));
+
+    // Monthly counsellor meeting attendance (50 marks, monthly meeting with counsellor)
+    const meeting = await attendanceService.getMonthlyMeetingForUser(params.userId, monthId);
+    const meetingAttended = hasAnySubmitted ? (meeting?.attended || false) : false;
+    const isMeetingConducted = meeting ? (meeting.conducted !== false && meeting.status !== 'not_conducted') : true;
+    const meetingStatus = meeting?.status || (meetingAttended ? 'attended' : (isMeetingConducted ? 'absent' : 'not_conducted'));
 
     // Dynamic weekly cycles per month based on calendar weeks
     const weekIds = Array.from(new Set(dates.map((d) => getWeekDetails(d).weekId)));
-    const weeklyClassesScheduled = weekIds.length;
-    const morningProgrammesScheduled = weekIds.length;
+    const weeklyCyclesScheduled = weekIds.length;
+    const morningProgrammesScheduled = weeklyCyclesScheduled;
+    const weeklyServicesScheduled = weeklyCyclesScheduled;
 
-    let weeklyClassesAttended = 0;
     let morningProgrammesAttended = 0;
+    let weeklyServicesAttended = 0;
 
     if (hasAnySubmitted) {
       await Promise.all(
         weekIds.map(async (wId) => {
           const att = await attendanceService.getWeeklyAttendanceForUser(params.userId, wId);
-          if (att.weeklyClass?.attended) weeklyClassesAttended++;
           if (att.morningProgramme?.attended) morningProgrammesAttended++;
+          if (att.service?.attended) weeklyServicesAttended++;
         })
       );
     }
@@ -215,23 +239,25 @@ export const reportService = {
     const scoreCalc = hasAnySubmitted
       ? calculateMonthlyScoreAndGrade({
           dailyScores,
-          totalDaysInMonth: dates.length,
-          weeklyClassesScheduled,
-          weeklyClassesAttended,
-          morningProgrammesScheduled,
+          weekdaysCount,
+          weekendDaysCount,
+          weeklyCyclesScheduled,
           morningProgrammesAttended,
-          satsangaScheduled: isConducted,
+          weeklyServicesAttended,
+          satsangaScheduled: isSatsangaConducted,
           satsangaAttended,
+          counsellorMeetingScheduled: isMeetingConducted,
+          counsellorMeetingAttended: meetingAttended,
         })
       : {
           totalScore: 0,
           maxAvailableMarks:
-            dates.length * 50 +
-            weeklyClassesScheduled * 10 +
-            morningProgrammesScheduled * 50 +
-            (isConducted ? 50 : 0),
+            maxDailyMarks +
+            weeklyCyclesScheduled * 60 +
+            (isSatsangaConducted ? 50 : 0) +
+            (isMeetingConducted ? 50 : 0),
           percentage: 0,
-          grade: 'You Are Fallen' as const,
+          grade: ('Card Pending' as any) as Grade,
         };
 
     let consistencyRating: 'Consistent' | 'Improving' | 'Needs Encouragement' = 'Consistent';
@@ -245,21 +271,34 @@ export const reportService = {
       counseleeName: params.counseleeName,
       monthId,
       monthName,
+      startDate,
+      endDate,
       dailyEntries,
       totalRounds,
       totalReadingMinutes,
       totalHearingMinutes,
+      weekdaysCount,
+      weekendDaysCount,
+      maxDailyMarks,
       dailySadhanaScore: dailyScores.reduce((a, b) => a + b, 0),
-      weeklyClassesScheduled,
-      weeklyClassesAttended,
-      weeklyClassesMarks: weeklyClassesAttended * 10,
+      weeklyCyclesScheduled,
+      weeklyClassesScheduled: weeklyCyclesScheduled,
+      weeklyClassesAttended: weeklyServicesAttended,
+      weeklyClassesMarks: weeklyServicesAttended * 10,
       morningProgrammesScheduled,
       morningProgrammesAttended,
       morningProgrammesMarks: morningProgrammesAttended * 50,
-      satsangaScheduled: isConducted,
+      weeklyServicesScheduled,
+      weeklyServicesAttended,
+      weeklyServicesMarks: weeklyServicesAttended * 10,
+      satsangaScheduled: isSatsangaConducted,
       satsangaAttended,
-      satsangaMarks: isConducted && satsangaAttended ? 50 : 0,
+      satsangaMarks: isSatsangaConducted && satsangaAttended ? 50 : 0,
       satsangaStatus,
+      counsellorMeetingScheduled: isMeetingConducted,
+      counsellorMeetingAttended: meetingAttended,
+      counsellorMeetingMarks: isMeetingConducted && meetingAttended ? 50 : 0,
+      counsellorMeetingStatus: meetingStatus,
       totalScore: scoreCalc.totalScore,
       maxAvailableMarks: scoreCalc.maxAvailableMarks,
       percentage: scoreCalc.percentage,
@@ -310,7 +349,14 @@ export const reportService = {
       ]);
       if (!snap.empty) {
         const results = snap.docs
-          .map((d) => d.data() as SharedWeeklySummary)
+          .map((d) => {
+            const s = d.data() as SharedWeeklySummary;
+            return {
+              ...s,
+              maxAvailableMarks: 410,
+              percentage: Number(((s.totalScore / 410) * 100).toFixed(1)),
+            };
+          })
           .filter((s) => s && s.publicConsent !== false);
         await Promise.all(results.map((s) => localStorageService.saveSharedWeeklySummary(s)));
         await fastCache.set(`community_summaries_${weekId}`, results, 30);
@@ -321,7 +367,13 @@ export const reportService = {
     }
 
     const localSummaries = await localStorageService.getSharedWeeklySummaries(weekId);
-    return localSummaries.filter((s) => s.publicConsent !== false);
+    return localSummaries
+      .filter((s) => s.publicConsent !== false)
+      .map((s) => ({
+        ...s,
+        maxAvailableMarks: 410,
+        percentage: Number(((s.totalScore / 410) * 100).toFixed(1)),
+      }));
   },
 
   /**

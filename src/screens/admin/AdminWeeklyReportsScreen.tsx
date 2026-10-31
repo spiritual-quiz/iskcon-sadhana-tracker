@@ -70,7 +70,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
 
   const handleToggleAttendance = async (
     userId: string,
-    type: 'weekly_class' | 'morning_programme',
+    type: 'weekly_class' | 'morning_programme' | 'service',
     currentAttended: boolean
   ) => {
     setUpdatingId(`${userId}_${type}`);
@@ -115,7 +115,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
         >
           <View style={styles.infoBanner}>
             <Text style={styles.infoBannerText}>
-              Weekly Max Marks: 350 (Daily: 280, Online Reading Mon–Fri: 50, Weekly Class: 10, Morning Programme: 10).
+              Weekly Max Marks: 410 (7 Days Daily: 350, Morning Programme: 50, Weekly Service: 10).
               Tap attendance pills to mark devotee attendance.
             </Text>
           </View>
@@ -184,7 +184,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                       )}
                     </View>
                     <Text style={[styles.scoreText, isLowScore && styles.scoreTextAlert]}>
-                      Score: {rep.totalScore} / {rep.maxAvailableMarks} ({rep.percentage}%)
+                      Score: {rep.totalScore.toFixed(1)} / 410 ({rep.percentage}%)
                     </Text>
                   </View>
                   <StatusBadge type="grade" value={rep.grade} />
@@ -198,31 +198,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
 
                 {/* Attendance Toggles */}
                 <View style={styles.attendanceRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.attPill,
-                      rep.weeklyClassAttendance ? styles.attPillActive : styles.attPillInactive,
-                    ]}
-                    onPress={() =>
-                      handleToggleAttendance(rep.userId, 'weekly_class', rep.weeklyClassAttendance)
-                    }
-                    disabled={updatingId === `${rep.userId}_weekly_class`}
-                  >
-                    <Ionicons
-                      name={rep.weeklyClassAttendance ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={16}
-                      color={rep.weeklyClassAttendance ? THEME.colors.textInverse : THEME.colors.textMuted}
-                    />
-                    <Text
-                      style={[
-                        styles.attPillText,
-                        rep.weeklyClassAttendance && styles.attPillTextActive,
-                      ]}
-                    >
-                      Weekly Class ({rep.weeklyClassMarks}/10)
-                    </Text>
-                  </TouchableOpacity>
-
+                  {/* Morning Programme (50 Marks) */}
                   <TouchableOpacity
                     style={[
                       styles.attPill,
@@ -251,6 +227,32 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
                       ]}
                     >
                       Morning Prog ({rep.morningProgrammeMarks}/50)
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Weekly Service (10 Marks) */}
+                  <TouchableOpacity
+                    style={[
+                      styles.attPill,
+                      rep.weeklyServiceAttendance ? styles.attPillActive : styles.attPillInactive,
+                    ]}
+                    onPress={() =>
+                      handleToggleAttendance(rep.userId, 'service', rep.weeklyServiceAttendance)
+                    }
+                    disabled={updatingId === `${rep.userId}_service`}
+                  >
+                    <Ionicons
+                      name={rep.weeklyServiceAttendance ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={rep.weeklyServiceAttendance ? THEME.colors.textInverse : THEME.colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.attPillText,
+                        rep.weeklyServiceAttendance && styles.attPillTextActive,
+                      ]}
+                    >
+                      Weekly Service ({rep.weeklyServiceMarks}/10)
                     </Text>
                   </TouchableOpacity>
                 </View>

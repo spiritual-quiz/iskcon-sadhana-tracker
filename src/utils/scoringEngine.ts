@@ -294,15 +294,18 @@ export function evaluateDailySadhana(input: SadhanaInput): CalculatedSadhanaScor
 }
 
 /**
- * Calculates weekly total score and grade incorporating weekly programmes and online reading sessions
- * 7 days * 40 = 280, + 50 (morning) + 10 (class) + 10 (service) = 350 base (+ 50 online reading = 400 max available)
+ * Calculates weekly total score and grade:
+ * 7 days * 50 (Monday to Sunday daily score) = 350
+ * + Weekly Morning Programme (50 marks)
+ * + Weekly Service (10 marks)
+ * Calculation: 350 + 50 + 10 = strictly 410 max marks
  */
 export function calculateWeeklyScoreAndGrade(params: {
-  dailyScores: number[]; // up to 7 scores, max 40 each
-  weeklyClassAttended: boolean;
+  dailyScores: number[]; // up to 7 scores (0 to 50 each)
   morningProgrammeAttended: boolean;
   serviceAttended?: boolean;
-  onlineReadingMarks?: number; // 0 to 50 marks (Monday to Friday, 10 each)
+  weeklyClassAttended?: boolean; // backwards compatibility / weekly service alias
+  onlineReadingMarks?: number; // backwards compatibility
 }): {
   totalScore: number;
   maxAvailableMarks: number;
@@ -310,15 +313,11 @@ export function calculateWeeklyScoreAndGrade(params: {
   grade: Grade;
 } {
   const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
-  const classMarks = params.weeklyClassAttended ? 10 : 0;
   const morningMarks = params.morningProgrammeAttended ? 50 : 0;
-  const serviceMarks = params.serviceAttended ? 10 : 0;
-  const onlineReading = params.onlineReadingMarks ?? 0;
-  const hasOnlineReading = params.onlineReadingMarks !== undefined;
+  const serviceMarks = (params.serviceAttended || params.weeklyClassAttended) ? 10 : 0;
 
-  const totalScore = Number((dailyTotal + classMarks + morningMarks + serviceMarks + onlineReading).toFixed(2));
-  // 7 days core (280) + 50 (morning) + 10 (class) + 10 (service) = 350 base (+ 50 online reading = 400 max available)
-  const maxAvailableMarks = hasOnlineReading ? 400 : 350;
+  const totalScore = Number((dailyTotal + morningMarks + serviceMarks).toFixed(2));
+  const maxAvailableMarks = 410; // 7 * 50 (350) + 50 morning + 10 service = 410
   const percentage = Number(((totalScore / maxAvailableMarks) * 100).toFixed(1));
   const grade = calculateGrade(percentage);
 
@@ -331,17 +330,31 @@ export function calculateWeeklyScoreAndGrade(params: {
 }
 
 /**
- * Calculates monthly score and grade incorporating weekly programmes and dynamic monthly satsanga (50 marks)
+ * Calculates monthly score and grade dynamically based on calendar month:
+ * - Monday to Friday (weekdays): up to 50 marks daily (includes online reading)
+ * - Saturday & Sunday (weekends): up to 40 marks daily (online reading not held)
+ * - Weekly Morning Programme: 50 marks per week
+ * - Weekly Service: 10 marks per week
+ * - Monthly Satsanga: 50 marks
+ * - Monthly Counsellor Meeting: 50 marks
+ * Dynamic Max = (weekdays * 50) + (weekends * 40) + (weeklyCycles * 60) + 50 + 50
  */
 export function calculateMonthlyScoreAndGrade(params: {
-  dailyScores: number[]; // all days of the month
-  totalDaysInMonth: number;
-  weeklyClassesScheduled: number;
-  weeklyClassesAttended: number;
-  morningProgrammesScheduled: number;
+  dailyScores: number[]; // all days of the month (1st to last day)
+  weekdaysCount?: number; // Mon to Fri count
+  weekendDaysCount?: number; // Sat & Sun count
+  weeklyCyclesScheduled?: number;
   morningProgrammesAttended: number;
+  weeklyServicesAttended?: number;
   satsangaScheduled: boolean;
   satsangaAttended: boolean;
+  counsellorMeetingScheduled?: boolean;
+  counsellorMeetingAttended?: boolean;
+  // Legacy params for backwards compatibility
+  totalDaysInMonth?: number;
+  weeklyClassesScheduled?: number;
+  weeklyClassesAttended?: number;
+  morningProgrammesScheduled?: number;
   onlineReadingMarks?: number;
 }): {
   totalScore: number;
@@ -350,19 +363,28 @@ export function calculateMonthlyScoreAndGrade(params: {
   grade: Grade;
 } {
   const dailyTotal = params.dailyScores.reduce((sum, s) => sum + s, 0);
-  const classMarks = params.weeklyClassesAttended * 10;
   const morningMarks = params.morningProgrammesAttended * 50;
-  // Dynamic monthly satsang: 50 marks (0 if not scheduled/conducted)
+  const servicesAttended = params.weeklyServicesAttended ?? params.weeklyClassesAttended ?? 0;
+  const serviceMarks = servicesAttended * 10;
   const satsangaMarks = params.satsangaScheduled && params.satsangaAttended ? 50 : 0;
-  const onlineReading = params.onlineReadingMarks || 0;
+  const meetingScheduled = params.counsellorMeetingScheduled ?? false;
+  const meetingMarks = meetingScheduled && params.counsellorMeetingAttended ? 50 : 0;
 
-  const totalScore = Number((dailyTotal + classMarks + morningMarks + satsangaMarks + onlineReading).toFixed(2));
+  const totalScore = Number((dailyTotal + morningMarks + serviceMarks + satsangaMarks + meetingMarks).toFixed(2));
 
-  const maxAvailableMarks =
-    params.totalDaysInMonth * SCORING_RULES.maxDailyScore +
-    params.weeklyClassesScheduled * 10 +
-    params.morningProgrammesScheduled * 50 +
-    (params.satsangaScheduled ? 50 : 0);
+  let maxDailyMarks = 0;
+  if (params.weekdaysCount !== undefined && params.weekendDaysCount !== undefined) {
+    maxDailyMarks = (params.weekdaysCount * 50) + (params.weekendDaysCount * 40);
+  } else if (params.totalDaysInMonth !== undefined) {
+    maxDailyMarks = params.totalDaysInMonth * 50;
+  }
+
+  const cycles = params.weeklyCyclesScheduled ?? params.morningProgrammesScheduled ?? 0;
+  const maxWeeklyMarks = cycles * 60; // 50 morning + 10 service
+  const maxSatsangaMarks = params.satsangaScheduled ? 50 : 0;
+  const maxMeetingMarks = meetingScheduled ? 50 : 0;
+
+  const maxAvailableMarks = maxDailyMarks + maxWeeklyMarks + maxSatsangaMarks + maxMeetingMarks;
 
   const percentage = maxAvailableMarks > 0 ? Number(((totalScore / maxAvailableMarks) * 100).toFixed(1)) : 0;
   const grade = calculateGrade(percentage);
