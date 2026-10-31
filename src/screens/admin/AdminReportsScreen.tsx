@@ -672,9 +672,14 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                 if (!entry) {
                                   return (
                                     <View key={day.dateStr} style={[styles.missingDayRow, { backgroundColor: theme.liteColor }]}>
-                                      <Text style={[styles.missingDayDate, { color: theme.colors.textMuted }]}>
-                                        {day.label} ({day.dayName})
-                                      </Text>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Text style={[styles.missingDayDate, { color: theme.colors.textMuted }]}>
+                                          {day.label} ({day.dayName})
+                                        </Text>
+                                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.colors.textMuted }}>
+                                          0/50
+                                        </Text>
+                                      </View>
                                       <Text style={[styles.missingDayBadge, { color: theme.colors.danger }]}>
                                         Pending / Not Submitted
                                       </Text>
@@ -686,9 +691,24 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                 return (
                                   <View key={day.dateStr} style={[styles.entryDetailRow, { borderColor: theme.colors.borderLight }]}>
                                     <View style={styles.entryDetailHeader}>
-                                      <Text style={[styles.entryDetailDate, { color: theme.colors.text }]}>
-                                        {day.label} ({day.dayName})
-                                      </Text>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                                        <Text style={[styles.entryDetailDate, { color: theme.colors.text }]}>
+                                          {day.label} ({day.dayName})
+                                        </Text>
+                                        <View
+                                          style={[
+                                            styles.scorePillBadge,
+                                            {
+                                              backgroundColor: theme.liteColor,
+                                              borderColor: theme.thickColor,
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.scorePillBadgeText, { color: theme.thickColor }]}>
+                                            {entry.dailyTotalScore ?? 0}/50
+                                          </Text>
+                                        </View>
+                                      </View>
                                       <StatusBadge type="grade" value={entry.grade} />
                                     </View>
                                     <Text style={[styles.entryDetailStats, { color: theme.colors.textMuted }]}>
@@ -1517,6 +1537,16 @@ const styles = StyleSheet.create({
   },
   entryDetailDate: {
     fontSize: 11.5,
+    fontWeight: 'bold',
+  },
+  scorePillBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  scorePillBadgeText: {
+    fontSize: 11,
     fontWeight: 'bold',
   },
   entryDetailStats: {

@@ -633,7 +633,10 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                               if (!item) {
                                 return (
                                   <View key={d.dateStr} style={styles.expandedDayRowEmpty}>
-                                    <Text style={styles.expandedDayDate}>{d.dayName} ({d.label}):</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                      <Text style={styles.expandedDayDate}>{d.label} ({d.dayName}):</Text>
+                                      <Text style={{ fontSize: 11, fontWeight: 'bold', color: THEME.colors.textMuted }}>0/50</Text>
+                                    </View>
                                     <Text style={styles.expandedMissedText}>No Card Submitted</Text>
                                   </View>
                                 );
@@ -641,7 +644,14 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                               return (
                                 <View key={d.dateStr} style={styles.expandedDayRow}>
                                   <View style={styles.expandedDayLeft}>
-                                    <Text style={[styles.expandedDayDate, { color: theme.thickColor }]}>{d.dayName} ({d.label}):</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                      <Text style={[styles.expandedDayDate, { color: theme.thickColor }]}>{d.label} ({d.dayName}):</Text>
+                                      <View style={{ backgroundColor: theme.liteColor, borderColor: theme.thickColor, borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: theme.thickColor }}>
+                                          {item.dailyTotalScore ?? 0}/50
+                                        </Text>
+                                      </View>
+                                    </View>
                                     <Text style={styles.expandedDayDetails}>
                                       Japa: {item.completedRounds}/{item.declaredRounds} • Read: {item.readingMinutes}m • Hear: {item.hearingMinutes}m
                                     </Text>
