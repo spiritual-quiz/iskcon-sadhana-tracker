@@ -494,7 +494,7 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge with fast 1.0s timeout
+    // 2. Load from Firestore and merge with robust timeout
     try {
       const q = query(
         collection(db, 'users'),
@@ -503,12 +503,17 @@ export const authService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
-      snap.docs.forEach((d) => {
-        const u = d.data() as UserProfile;
-        map.set(u.uid, u);
-      });
+      if (!snap.empty) {
+        await Promise.all(
+          snap.docs.map(async (d) => {
+            const u = d.data() as UserProfile;
+            map.set(u.uid, u);
+            await localStorageService.saveUser(u).catch(() => {});
+          })
+        );
+      }
     } catch (e) {
       // Gracefully fall back to local storage
     }
@@ -523,11 +528,13 @@ export const authService = {
   /**
    * Get all counselees (approved, pending, and disabled)
    */
-  getAllCounselees: async (): Promise<UserProfile[]> => {
-    // 0. Instant memory cache check (0ms response)
-    const cached = await fastCache.get<UserProfile[]>('all_counselees');
-    if (cached) {
-      return cached;
+  getAllCounselees: async (forceRefresh = false): Promise<UserProfile[]> => {
+    // 0. Memory cache check
+    if (!forceRefresh) {
+      const cached = await fastCache.get<UserProfile[]>('all_counselees');
+      if (cached && cached.length > 0) {
+        return cached;
+      }
     }
 
     const map = new Map<string, UserProfile>();
@@ -540,34 +547,43 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge with fast 1.0s timeout
+    // 2. Load from Firestore and merge with robust 6.0s timeout
     try {
       const q = query(collection(db, 'users'), where('role', '==', 'counselee'));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
-      snap.docs.forEach((d) => {
-        const u = d.data() as UserProfile;
-        map.set(u.uid, u);
-      });
+      if (!snap.empty) {
+        await Promise.all(
+          snap.docs.map(async (d) => {
+            const u = d.data() as UserProfile;
+            map.set(u.uid, u);
+            await localStorageService.saveUser(u).catch(() => {});
+          })
+        );
+      }
     } catch (e) {
       // Gracefully fall back to local storage
     }
 
     const result = Array.from(map.values());
-    await fastCache.set('all_counselees', result, 90);
+    if (result.length > 0) {
+      await fastCache.set('all_counselees', result, 90);
+    }
     return result;
   },
 
   /**
    * Get all registered users
    */
-  getAllUsers: async (): Promise<UserProfile[]> => {
-    // 0. Instant memory cache check (0ms response)
-    const cached = await fastCache.get<UserProfile[]>('all_users');
-    if (cached) {
-      return cached;
+  getAllUsers: async (forceRefresh = false): Promise<UserProfile[]> => {
+    // 0. Memory cache check
+    if (!forceRefresh) {
+      const cached = await fastCache.get<UserProfile[]>('all_users');
+      if (cached && cached.length > 0) {
+        return cached;
+      }
     }
 
     const map = new Map<string, UserProfile>();
@@ -580,18 +596,25 @@ export const authService = {
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
-      snap.docs.forEach((d) => {
-        const u = d.data() as UserProfile;
-        map.set(u.uid, u);
-      });
+      if (!snap.empty) {
+        await Promise.all(
+          snap.docs.map(async (d) => {
+            const u = d.data() as UserProfile;
+            map.set(u.uid, u);
+            await localStorageService.saveUser(u).catch(() => {});
+          })
+        );
+      }
     } catch (e) {
       // Gracefully fall back to local storage
     }
 
     const result = Array.from(map.values());
-    await fastCache.set('all_users', result, 90);
+    if (result.length > 0) {
+      await fastCache.set('all_users', result, 90);
+    }
     return result;
   },
 

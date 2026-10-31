@@ -15,6 +15,8 @@ import { getTodayDateStringIST } from '../utils/dateUtils';
 import { monitoringService } from './monitoringService';
 import { localStorageService } from './localStorageService';
 import { fastCache } from './fastCacheService';
+import { authService } from './authService';
+import { UserProfile } from '../types/auth';
 
 export const sadhanaService = {
   /**
@@ -158,7 +160,7 @@ export const sadhanaService = {
     try {
       const snap = await Promise.race([
         getDoc(doc(db, 'sadhana_entries', entryId)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
       if (snap.exists()) {
         const data = snap.data() as SadhanaEntry;
@@ -259,49 +261,103 @@ export const sadhanaService = {
   /**
    * Admin: Get all counselees' entries for a specific date
    */
-  getAllEntriesForDate: async (dateStr: string): Promise<SadhanaEntry[]> => {
+  /**
+   * Admin: Get all counselees' entries for a specific date
+   */
+  getAllEntriesForDate: async (dateStr: string, forceRefresh = false): Promise<SadhanaEntry[]> => {
     const cacheKey = `daily_entries_${dateStr}`;
-    const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
-    if (cached) return cached;
-
-    const localEntries = await localStorageService.getAllEntriesForDate(dateStr);
-    if (localEntries && localEntries.length > 0) {
-      await fastCache.set(cacheKey, localEntries, 60);
-      return localEntries;
+    if (!forceRefresh) {
+      const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
+      if (cached && cached.length > 0) return cached;
     }
 
+    const entryMap = new Map<string, SadhanaEntry>();
+
+    // 1. Preload any cached local entries
+    try {
+      const localEntries = await localStorageService.getAllEntriesForDate(dateStr);
+      (localEntries || []).forEach((e) => {
+        if (e && e.userId) entryMap.set(e.userId, e);
+      });
+    } catch {}
+
+    // 2. Query Cloud Firestore with robust 6.0s timeout
     try {
       const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
       if (!snap.empty) {
-        const results = snap.docs.map((d) => d.data() as SadhanaEntry);
-        await fastCache.set(cacheKey, results, 60);
-        return results;
+        snap.docs.forEach((d) => {
+          const entry = d.data() as SadhanaEntry;
+          if (entry && entry.userId) {
+            entryMap.set(entry.userId, entry);
+          }
+        });
       }
     } catch (e) {
-      // Permission denied or offline fallback
+      // Query fallback
     }
 
-    return localEntries || [];
+    // 3. Fallback: If no entries found in collection query, do direct doc lookup for all approved counselees
+    if (entryMap.size === 0) {
+      try {
+        const counselees = await authService.getAllCounselees(forceRefresh);
+        const approved = counselees.filter((u: UserProfile) => u.status === 'approved');
+        if (approved.length > 0) {
+          const directSnaps = await Promise.all(
+            approved.map(async (c: UserProfile) => {
+              const entryId = `${c.uid}_${dateStr}`;
+              try {
+                const s = await getDoc(doc(db, 'sadhana_entries', entryId));
+                return s.exists() ? (s.data() as SadhanaEntry) : null;
+              } catch {
+                return null;
+              }
+            })
+          );
+          directSnaps.forEach((e: SadhanaEntry | null) => {
+            if (e && e.userId) entryMap.set(e.userId, e);
+          });
+        }
+      } catch (err) {}
+    }
+
+    const results = Array.from(entryMap.values());
+    if (results.length > 0) {
+      // Persist across app updates & offline restarts
+      await Promise.all(results.map((e) => localStorageService.saveSadhanaEntry(e)));
+      await fastCache.set(cacheKey, results, 60);
+    }
+
+    return results;
   },
 
   /**
    * Admin: Get all counselees' entries within a date range (e.g. past 1 week)
    */
-  getAllEntriesForDateRange: async (startDate: string, endDate: string): Promise<SadhanaEntry[]> => {
+  getAllEntriesForDateRange: async (startDate: string, endDate: string, forceRefresh = false): Promise<SadhanaEntry[]> => {
     const cacheKey = `range_entries_${startDate}_${endDate}`;
-    const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
-    if (cached) return cached;
-
-    const localEntries = await localStorageService.getAllEntriesForDateRange(startDate, endDate);
-    if (localEntries && localEntries.length > 0) {
-      await fastCache.set(cacheKey, localEntries, 60);
-      return localEntries;
+    if (!forceRefresh) {
+      const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
+      if (cached && cached.length > 0) return cached;
     }
 
+    const entryMap = new Map<string, SadhanaEntry>();
+
+    // 1. Preload any cached local entries
+    try {
+      const localEntries = await localStorageService.getAllEntriesForDateRange(startDate, endDate);
+      (localEntries || []).forEach((e) => {
+        if (e) {
+          const key = e.id || `${e.userId}_${e.date}`;
+          entryMap.set(key, e);
+        }
+      });
+    } catch {}
+
+    // 2. Query Cloud Firestore with robust 6.0s timeout
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
@@ -310,18 +366,46 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
       if (!snap.empty) {
-        const results = snap.docs.map((d) => d.data() as SadhanaEntry);
-        await fastCache.set(cacheKey, results, 60);
-        return results;
+        snap.docs.forEach((d) => {
+          const entry = d.data() as SadhanaEntry;
+          if (entry) {
+            const key = entry.id || `${entry.userId}_${entry.date}`;
+            entryMap.set(key, entry);
+          }
+        });
       }
     } catch (e) {
-      // Permission denied or offline fallback
+      // Query fallback
     }
 
-    return localEntries || [];
+    // 3. Fallback: If no entries found in collection range query, fetch per counselee using resilient getEntriesForDateRange
+    if (entryMap.size === 0) {
+      try {
+        const counselees = await authService.getAllCounselees(forceRefresh);
+        const approved = counselees.filter((u: UserProfile) => u.status === 'approved');
+        const userResults = await Promise.all(
+          approved.map((u: UserProfile) => sadhanaService.getEntriesForDateRange(u.uid, startDate, endDate))
+        );
+        userResults.flat().forEach((e: SadhanaEntry) => {
+          if (e) {
+            const key = e.id || `${e.userId}_${e.date}`;
+            entryMap.set(key, e);
+          }
+        });
+      } catch (err) {}
+    }
+
+    const results = Array.from(entryMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    if (results.length > 0) {
+      // Persist across app updates & offline restarts
+      await Promise.all(results.map((e) => localStorageService.saveSadhanaEntry(e)));
+      await fastCache.set(cacheKey, results, 60);
+    }
+
+    return results;
   },
 
   /**
@@ -341,7 +425,7 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
       if (!snap.empty) {
         return snap.docs[0].data() as SadhanaEntry;

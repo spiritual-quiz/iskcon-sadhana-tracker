@@ -78,28 +78,30 @@ export const AdminReportsScreen = ({ navigation }: any) => {
     return `${h12}:${m} ${period}`;
   };
 
-  // Helper for past 7 days
-  const getPast7Days = () => {
+  // Helper for past 7 days with offset support
+  const [dailyWeekOffset, setDailyWeekOffset] = useState<number>(0);
+  const getPast7Days = (offset = 0) => {
     const list: { dateStr: string; label: string; dayName: string }[] = [];
-    const today = new Date();
+    const base = new Date();
+    base.setDate(base.getDate() + offset * 7);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
+      const d = new Date(base);
       d.setDate(d.getDate() - i);
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${day}`;
-      const dayName = i === 0 ? 'Today' : i === 1 ? 'Yest' : dayNames[d.getDay()];
+      const dayName = (offset === 0 && i === 0) ? 'Today' : (offset === 0 && i === 1) ? 'Yest' : dayNames[d.getDay()];
       const label = `${d.getDate()} ${monthNames[d.getMonth()]}`;
       list.push({ dateStr, label, dayName });
     }
     return list;
   };
 
-  const past7Days = getPast7Days();
+  const past7Days = getPast7Days(dailyWeekOffset);
   const weekStartDate = past7Days[6].dateStr;
   const weekEndDate = past7Days[0].dateStr;
 
@@ -129,18 +131,18 @@ export const AdminReportsScreen = ({ navigation }: any) => {
     } else if (activeTab === 'monthly') {
       loadMonthlyData();
     }
-  }, [activeTab, dailyViewMode, selectedDailyDate, selectedYear, selectedMonth]);
+  }, [activeTab, dailyViewMode, selectedDailyDate, dailyWeekOffset, selectedYear, selectedMonth]);
 
   // -------------------------------------------------------------
   // DATA LOADERS
   // -------------------------------------------------------------
-  const loadDailyData = async () => {
+  const loadDailyData = async (forceRefresh = false) => {
     setIsLoading(true);
     try {
       const [devotees, sDay, wRange] = await Promise.all([
-        authService.getAllCounselees(),
-        sadhanaService.getAllEntriesForDate(selectedDailyDate),
-        sadhanaService.getAllEntriesForDateRange(weekStartDate, weekEndDate),
+        authService.getAllCounselees(forceRefresh),
+        sadhanaService.getAllEntriesForDate(selectedDailyDate, forceRefresh),
+        sadhanaService.getAllEntriesForDateRange(weekStartDate, weekEndDate, forceRefresh),
       ]);
       setAllCounselees(devotees.filter((u) => u.status === 'approved'));
       setSingleDayEntries(sDay);
@@ -209,7 +211,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
 
   const onRefresh = () => {
     setIsRefreshing(true);
-    if (activeTab === 'daily') loadDailyData();
+    if (activeTab === 'daily') loadDailyData(true);
     else if (activeTab === 'weekly') loadWeeklyData();
     else if (activeTab === 'monthly') loadMonthlyData();
   };
@@ -537,6 +539,42 @@ export const AdminReportsScreen = ({ navigation }: any) => {
               {/* 7-DAY MATRIX VIEW */}
               {dailyViewMode === 'week' && (
                 <View>
+                  {/* Week Navigation Selector Bar */}
+                  <View
+                    style={[
+                      styles.dateSelectorBar,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border,
+                        marginBottom: 10,
+                      },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => setDailyWeekOffset((prev) => prev - 1)}
+                      style={styles.dateArrowBtn}
+                    >
+                      <Ionicons name="chevron-back" size={20} color={theme.thickColor} />
+                    </TouchableOpacity>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[styles.dateSelectorTitle, { color: theme.colors.text }]}>
+                        {dailyWeekOffset === 0
+                          ? 'Current 7 Days'
+                          : `${past7Days[6].label} — ${past7Days[0].label}`}
+                      </Text>
+                      <Text style={[styles.dateSelectorSubtitle, { color: theme.colors.textMuted }]}>
+                        {past7Days[6].dateStr} to {past7Days[0].dateStr}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setDailyWeekOffset((prev) => Math.min(0, prev + 1))}
+                      style={[styles.dateArrowBtn, dailyWeekOffset >= 0 && { opacity: 0.3 }]}
+                      disabled={dailyWeekOffset >= 0}
+                    >
+                      <Ionicons name="chevron-forward" size={20} color={theme.thickColor} />
+                    </TouchableOpacity>
+                  </View>
+
                   <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted }]}>
                     Past 7 Days Audit: {past7Days[6].label} to {past7Days[0].label} ({devoteeWeekSummaries.length} devotees)
                   </Text>
