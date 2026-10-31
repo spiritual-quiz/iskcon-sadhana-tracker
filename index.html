@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Bhakti Unnati — Sadhana Tracker</title>
+
+    <!-- PWA & Mobile Web App Manifest -->
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#EA580C" />
+
+    <!-- Apple iOS / iPhone Safari Capabilities -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bhakti Unnati" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+
+    <!-- Web Splash / Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png" />
+
+    <!-- React Native Web recommended reset & iOS safe area support -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #FFFFFF;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+      body {
+        overflow: hidden;
+        /* iOS Safe Area Insets for iPhone notch and home indicator */
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-left: env(safe-area-inset-left, 0px);
+        padding-right: env(safe-area-inset-right, 0px);
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* Prevent elastic bounce on iOS Safari */
+      html {
+        overscroll-behavior: none;
+      }
+    </style>
+  <link rel="icon" href="/iskcon-sadhana-tracker/favicon.ico"/></head>
+
+  <body>
+    <noscript>
+      <div style="padding: 24px; font-family: sans-serif; text-align: center;">
+        <h2>Hare Krishna!</h2>
+        <p>You need to enable JavaScript to run Bhakti Unnati.</p>
+      </div>
+    </noscript>
+
+    <!-- The root element for Expo app -->
+    <div id="root"></div>
+
+    <!-- Service Worker Registration for PWA caching & offline support -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('./sw.js').then(
+            function(registration) {
+              console.log('Bhakti Unnati PWA ServiceWorker registered with scope:', registration.scope);
+            },
+            function(err) {
+              console.log('Bhakti Unnati PWA ServiceWorker registration failed:', err);
+            }
+          );
+        });
+      }
+    </script>
+  <script src="/iskcon-sadhana-tracker/_expo/static/js/web/index-903d0c92b292a466ed8bd2fd8ff132fd.js" defer></script>
+</body>
+</html>
