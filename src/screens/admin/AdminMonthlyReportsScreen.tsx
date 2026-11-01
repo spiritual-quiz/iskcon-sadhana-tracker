@@ -133,8 +133,8 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Compiling monthly devotional reports...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Compiling monthly devotional reports...</Text>
         </View>
       ) : (
         <ScrollView
@@ -144,7 +144,7 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
           {/* Quick Filter Bar */}
           <View style={styles.filterBar}>
             <TouchableOpacity
-              style={[styles.filterPill, filterMode === 'all' && styles.filterPillActive]}
+              style={[styles.filterPill, filterMode === 'all' && [styles.filterPillActive, { backgroundColor: theme.thickColor }]]}
               onPress={() => setFilterMode('all')}
             >
               <Text style={[styles.filterPillText, filterMode === 'all' && styles.filterPillTextActive]}>

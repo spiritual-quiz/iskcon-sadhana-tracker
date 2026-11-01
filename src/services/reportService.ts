@@ -338,7 +338,13 @@ export const reportService = {
   getCommunityWeeklySummaries: async (weekId: string, forceRefresh = false): Promise<SharedWeeklySummary[]> => {
     if (!forceRefresh) {
       const cached = await fastCache.get<SharedWeeklySummary[]>(`community_summaries_${weekId}`);
-      if (cached && cached.length > 0) return cached;
+      if (cached && cached.length > 0) {
+        return cached.map((s) => ({
+          ...s,
+          maxAvailableMarks: 410,
+          percentage: Number(((s.totalScore / 410) * 100).toFixed(1)),
+        }));
+      }
     }
 
     try {

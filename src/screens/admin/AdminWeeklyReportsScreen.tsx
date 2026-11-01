@@ -105,16 +105,16 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Compiling weekly reports & attendance...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Compiling weekly reports & attendance...</Text>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadWeeklyData(); }} />}
         >
-          <View style={styles.infoBanner}>
-            <Text style={styles.infoBannerText}>
+          <View style={[styles.infoBanner, { borderLeftColor: theme.thickColor, backgroundColor: theme.liteColor }]}>
+            <Text style={[styles.infoBannerText, { color: theme.colors.text }]}>
               Weekly Max Marks: 410 (7 Days Daily: 350, Morning Programme: 50, Weekly Service: 10).
               Tap attendance pills to mark devotee attendance.
             </Text>
@@ -123,7 +123,7 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
           {/* Quick Filter Bar */}
           <View style={styles.filterBar}>
             <TouchableOpacity
-              style={[styles.filterPill, filterMode === 'all' && styles.filterPillActive]}
+              style={[styles.filterPill, filterMode === 'all' && [styles.filterPillActive, { backgroundColor: theme.thickColor }]]}
               onPress={() => setFilterMode('all')}
             >
               <Text style={[styles.filterPillText, filterMode === 'all' && styles.filterPillTextActive]}>

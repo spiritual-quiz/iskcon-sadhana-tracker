@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -18,6 +19,7 @@ import { UserProfile } from '../../types/auth';
 import { authService } from '../../services/authService';
 
 export const PendingRegistrationsScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -56,7 +58,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Pending Registrations"
         subtitle="Review & Approve New Counselees"
@@ -66,8 +68,8 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Fetching pending registrations...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Fetching pending registrations...</Text>
         </View>
       ) : (
         <ScrollView
@@ -77,35 +79,37 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
           {pendingUsers.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="checkmark-done-circle-outline" size={54} color={THEME.colors.success} />
-              <Text style={styles.emptyTitle}>All Caught Up!</Text>
-              <Text style={styles.emptySubtitle}>No pending devotee registrations awaiting approval.</Text>
+              <Text style={[styles.emptyTitle, { color: theme.thickColor }]}>All Caught Up!</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>No pending devotee registrations awaiting approval.</Text>
             </View>
           ) : (
             pendingUsers.map((devotee) => (
-              <View key={devotee.uid} style={styles.card}>
+              <View key={devotee.uid} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.name}>{devotee.displayName}</Text>
-                  <Text style={styles.codeBadge}>Code: {devotee.invitationCode || 'N/A'}</Text>
+                  <Text style={[styles.name, { color: theme.thickColor }]}>{devotee.displayName}</Text>
+                  <Text style={[styles.codeBadge, { backgroundColor: theme.liteColor, color: theme.thickColor }]}>
+                    Code: {devotee.invitationCode || 'N/A'}
+                  </Text>
                 </View>
 
                 <View style={styles.detailsRow}>
-                  <Text style={styles.detailLabel}>Email:</Text>
-                  <Text style={styles.detailValue}>{devotee.email}</Text>
+                  <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Email:</Text>
+                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{devotee.email}</Text>
                 </View>
 
                 <View style={styles.detailsRow}>
-                  <Text style={styles.detailLabel}>Phone:</Text>
-                  <Text style={styles.detailValue}>{devotee.phoneNumber}</Text>
+                  <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Phone:</Text>
+                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{devotee.phoneNumber}</Text>
                 </View>
 
                 <View style={styles.detailsRow}>
-                  <Text style={styles.detailLabel}>Chanting Commitment:</Text>
-                  <Text style={styles.detailValueBold}>{devotee.declaredRounds || 16} Rounds</Text>
+                  <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Chanting Commitment:</Text>
+                  <Text style={[styles.detailValueBold, { color: theme.thickColor }]}>{devotee.declaredRounds || 16} Rounds</Text>
                 </View>
 
                 <View style={styles.detailsRow}>
-                  <Text style={styles.detailLabel}>Registered On:</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Registered On:</Text>
+                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>
                     {devotee.createdAt ? new Date(devotee.createdAt).toLocaleDateString() : 'Recent'}
                   </Text>
                 </View>
@@ -120,7 +124,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.btn, styles.approveBtn]}
+                    style={[styles.btn, styles.approveBtn, { backgroundColor: theme.thickColor }]}
                     onPress={() => handleAction(devotee.uid, devotee.displayName, true)}
                     disabled={processingUid === devotee.uid}
                   >

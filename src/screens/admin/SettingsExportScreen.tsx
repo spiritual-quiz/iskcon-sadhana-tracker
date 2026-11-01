@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { SCORING_RULES } from '../../constants/scoring';
 import { collection, getDocs } from 'firebase/firestore';
@@ -21,6 +22,7 @@ import { authService } from '../../services/authService';
 import { localStorageService } from '../../services/localStorageService';
 
 export const SettingsExportScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [minA, setMinA] = useState<string>('90');
   const [minB, setMinB] = useState<string>('80');
   const [minC, setMinC] = useState<string>('70');
@@ -78,7 +80,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Settings & Export"
         subtitle="Grade Scales, Monitoring & Data Backup"
@@ -88,14 +90,14 @@ export const SettingsExportScreen = ({ navigation }: any) => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Grade Thresholds */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Grade Scale Thresholds (%)</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Grade Scale Thresholds (%)</Text>
           <Text style={styles.helperText}>Configure minimum percentage boundaries for grades:</Text>
 
           <View style={styles.row}>
             <Text style={styles.gradeLabel}>Grade A (Excellent)</Text>
             <TextInput
-              style={styles.gradeInput}
+              style={[styles.gradeInput, { borderColor: theme.colors.border }]}
               value={minA}
               onChangeText={setMinA}
               keyboardType="number-pad"
@@ -106,7 +108,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
           <View style={styles.row}>
             <Text style={styles.gradeLabel}>Grade B (Very Good)</Text>
             <TextInput
-              style={styles.gradeInput}
+              style={[styles.gradeInput, { borderColor: theme.colors.border }]}
               value={minB}
               onChangeText={setMinB}
               keyboardType="number-pad"
@@ -117,7 +119,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
           <View style={styles.row}>
             <Text style={styles.gradeLabel}>Grade C (Good)</Text>
             <TextInput
-              style={styles.gradeInput}
+              style={[styles.gradeInput, { borderColor: theme.colors.border }]}
               value={minC}
               onChangeText={setMinC}
               keyboardType="number-pad"
@@ -128,7 +130,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
           <View style={styles.row}>
             <Text style={styles.gradeLabel}>Grade D (Fair)</Text>
             <TextInput
-              style={styles.gradeInput}
+              style={[styles.gradeInput, { borderColor: theme.colors.border }]}
               value={minD}
               onChangeText={setMinD}
               keyboardType="number-pad"
@@ -143,13 +145,13 @@ export const SettingsExportScreen = ({ navigation }: any) => {
         </View>
 
         {/* Monitoring Inactivity Rules */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Sadhana Monitoring Rules</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Sadhana Monitoring Rules</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Missing Card Inactivity Threshold (Days)</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { borderColor: theme.colors.border }]}
               value={inactivityDays}
               onChangeText={setInactivityDays}
               keyboardType="number-pad"
@@ -162,7 +164,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>"Needs Encouragement" Score Threshold (%)</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { borderColor: theme.colors.border }]}
               value={lowScoreThreshold}
               onChangeText={setLowScoreThreshold}
               keyboardType="number-pad"
@@ -172,20 +174,20 @@ export const SettingsExportScreen = ({ navigation }: any) => {
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSaveSettings}>
+          <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.thickColor }]} onPress={handleSaveSettings}>
             <Text style={styles.saveBtnText}>Save Configurations</Text>
           </TouchableOpacity>
         </View>
 
         {/* Data Export & Backup */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Data Export & Backup</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>Data Export & Backup</Text>
           <Text style={styles.helperText}>
             Export full sadhana history and counselee records for offline backup or spreadsheets:
           </Text>
 
           <TouchableOpacity
-            style={styles.exportBtn}
+            style={[styles.exportBtn, { backgroundColor: theme.thickColor }]}
             onPress={handleExportData}
             disabled={isExporting}
           >

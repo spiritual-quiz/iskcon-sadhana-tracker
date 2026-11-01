@@ -240,36 +240,36 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
       />
 
       {/* Top 2 Tabs: All Devotees | By Invitation */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'all' && styles.tabButtonActive]}
+          style={[styles.tabButton, activeTab === 'all' && [styles.tabButtonActive, { backgroundColor: theme.thickColor }]]}
           onPress={() => setActiveTab('all')}
         >
           <Ionicons
             name="people"
             size={16}
-            color={activeTab === 'all' ? '#FFFFFF' : THEME.colors.primary}
+            color={activeTab === 'all' ? '#FFFFFF' : theme.thickColor}
           />
           <Text
-            style={[styles.tabButtonText, activeTab === 'all' && styles.tabButtonTextActive]}
+            style={[styles.tabButtonText, activeTab === 'all' ? styles.tabButtonTextActive : { color: theme.thickColor }]}
           >
             All Devotees ({counselees.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'byInvitation' && styles.tabButtonActive]}
+          style={[styles.tabButton, activeTab === 'byInvitation' && [styles.tabButtonActive, { backgroundColor: theme.thickColor }]]}
           onPress={() => setActiveTab('byInvitation')}
         >
           <Ionicons
             name="pricetags"
             size={16}
-            color={activeTab === 'byInvitation' ? '#FFFFFF' : THEME.colors.primary}
+            color={activeTab === 'byInvitation' ? '#FFFFFF' : theme.thickColor}
           />
           <Text
             style={[
               styles.tabButtonText,
-              activeTab === 'byInvitation' && styles.tabButtonTextActive,
+              activeTab === 'byInvitation' ? styles.tabButtonTextActive : { color: theme.thickColor },
             ]}
           >
             By Invitation ({Object.keys(groupedByInvitation).length})
@@ -313,15 +313,15 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading counselees...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading counselees...</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {activeTab === 'all' ? (
             filtered.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No counselees found matching your search.</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No counselees found matching your search.</Text>
             </View>
           ) : (
             filtered.map((devotee) => {
@@ -329,11 +329,11 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
               const connection = calculateConnectionDuration(devotee.iskconConnectDate);
 
               return (
-                <View key={devotee.uid} style={styles.card}>
+                <View key={devotee.uid} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                   <View style={styles.cardHeader}>
                     <View>
-                      <Text style={styles.name}>{devotee.displayName}</Text>
-                      <Text style={styles.email}>{devotee.email}</Text>
+                      <Text style={[styles.name, { color: theme.thickColor }]}>{devotee.displayName}</Text>
+                      <Text style={[styles.email, { color: theme.colors.textMuted }]}>{devotee.email}</Text>
                     </View>
                     <StatusBadge type="status" value={devotee.status} />
                   </View>
@@ -356,7 +356,7 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                           <Ionicons name="pencil" size={12} color={THEME.colors.goldDark} />
                         </TouchableOpacity>
                       </View>
-                      <Text style={styles.detailValueBold}>{devotee.declaredRounds || 16} Rounds</Text>
+                      <Text style={[styles.detailValueBold, { color: theme.thickColor }]}>{devotee.declaredRounds || 16} Rounds</Text>
                     </View>
                     <View style={styles.detailItem}>
                       <Text style={styles.detailLabel}>Age</Text>

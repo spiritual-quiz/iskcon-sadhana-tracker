@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { FollowUpModal } from '../../components/FollowUpModal';
 import { monitoringService } from '../../services/monitoringService';
 import { MonitoringAlert } from '../../types/monitoring';
 
 export const SadhanaMonitoringScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [alerts, setAlerts] = useState<MonitoringAlert[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -60,7 +62,7 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Sadhana Monitoring"
         subtitle="Low-Progress & Inactivity Detection"
@@ -70,8 +72,8 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Scanning sadhana logs for alerts...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Scanning sadhana logs for alerts...</Text>
         </View>
       ) : (
         <ScrollView
@@ -79,12 +81,12 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadAlerts(); }} />}
         >
           {/* Legend Banner */}
-          <View style={styles.legendBanner}>
-            <Text style={styles.legendTitle}>Devotional Monitoring Guidelines:</Text>
-            <Text style={styles.legendText}>
+          <View style={[styles.legendBanner, { backgroundColor: theme.liteColor, borderLeftColor: theme.thickColor }]}>
+            <Text style={[styles.legendTitle, { color: theme.thickColor }]}>Devotional Monitoring Guidelines:</Text>
+            <Text style={[styles.legendText, { color: theme.colors.text }]}>
               • <Text style={styles.bold}>Missing Daily Card</Text>: More than 3 days without a submission.
             </Text>
-            <Text style={styles.legendText}>
+            <Text style={[styles.legendText, { color: theme.colors.text }]}>
               • <Text style={styles.bold}>Needs Encouragement</Text>: Weekly score below 60%. Always use supportive, inspiring words.
             </Text>
           </View>
@@ -92,8 +94,8 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
           {alerts.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="shield-checkmark" size={54} color={THEME.colors.success} />
-              <Text style={styles.emptyTitle}>All Devotees Practicing Steadiy!</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptyTitle, { color: theme.thickColor }]}>All Devotees Practicing Steadily!</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
                 No inactive submissions (&gt;3 days) or low-progress alerts detected.
               </Text>
             </View>
@@ -101,7 +103,7 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
             alerts.map((al) => {
               const isMissingCard = al.alertType === 'missing_card';
               return (
-                <View key={al.id} style={styles.alertCard}>
+                <View key={al.id} style={[styles.alertCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                   <View style={styles.cardHeader}>
                     <View style={styles.headerTitleRow}>
                       <Ionicons
@@ -109,7 +111,7 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
                         size={20}
                         color={isMissingCard ? THEME.colors.danger : THEME.colors.warning}
                       />
-                      <Text style={styles.alertTitle}>{al.title}</Text>
+                      <Text style={[styles.alertTitle, { color: theme.thickColor }]}>{al.title}</Text>
                     </View>
                     <View
                       style={[
@@ -134,8 +136,8 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
                     </View>
                   </View>
 
-                  <Text style={styles.counseleeName}>{al.counseleeName}</Text>
-                  <Text style={styles.description}>{al.description}</Text>
+                  <Text style={[styles.counseleeName, { color: theme.thickColor }]}>{al.counseleeName}</Text>
+                  <Text style={[styles.description, { color: theme.colors.textMuted }]}>{al.description}</Text>
 
                   {al.lastSubmissionDate && (
                     <Text style={styles.metaText}>
@@ -151,7 +153,7 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
 
                   <View style={styles.actionRow}>
                     <TouchableOpacity
-                      style={styles.contactBtn}
+                      style={[styles.contactBtn, { backgroundColor: theme.thickColor }]}
                       onPress={() =>
                         handleOpenFollowUp(
                           al,

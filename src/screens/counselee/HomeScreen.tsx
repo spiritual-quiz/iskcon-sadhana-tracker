@@ -157,7 +157,7 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
             <View style={styles.bannerTextContainer}>
               <Text style={[styles.bannerTitle, { color: theme.thickColor }]}>
-                {todayEntry ? 'Today’s Card Submitted' : 'Daily Card Pending'}
+                {todayEntry ? "Today's Sadhana Filled" : 'Daily Sadhana Pending'}
               </Text>
               <Text style={[styles.bannerSubtitle, { color: theme.colors.textMuted }]}>
                 {todayEntry

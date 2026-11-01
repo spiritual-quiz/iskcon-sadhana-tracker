@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { FollowUpModal } from '../../components/FollowUpModal';
 import { UserProfile } from '../../types/auth';
@@ -27,6 +28,7 @@ import {
 } from '../../utils/dateUtils';
 
 export const BirthdayRemindersScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming'>('all');
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
   const [reminders, setReminders] = useState<BirthdayReminder[]>([]);
@@ -142,7 +144,7 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
   const missingDobCount = counselees.length - registeredDobCount;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Birthday Reminders"
         subtitle={
@@ -155,31 +157,31 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
       />
 
       {/* 2-Tab Segmented Selector */}
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'all' && styles.tabButtonActive]}
+          style={[styles.tabButton, activeTab === 'all' && [styles.tabButtonActive, { backgroundColor: theme.thickColor }]]}
           onPress={() => setActiveTab('all')}
         >
           <Ionicons
             name="people"
             size={16}
-            color={activeTab === 'all' ? '#FFFFFF' : THEME.colors.primaryDark}
+            color={activeTab === 'all' ? '#FFFFFF' : theme.colors.textMuted}
           />
-          <Text style={[styles.tabButtonText, activeTab === 'all' && styles.tabButtonTextActive]}>
+          <Text style={[styles.tabButtonText, activeTab === 'all' ? styles.tabButtonTextActive : { color: theme.colors.textMuted }]}>
             All Counselees ({counselees.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'upcoming' && styles.tabButtonActive]}
+          style={[styles.tabButton, activeTab === 'upcoming' && [styles.tabButtonActive, { backgroundColor: theme.thickColor }]]}
           onPress={() => setActiveTab('upcoming')}
         >
           <Ionicons
             name="gift"
             size={16}
-            color={activeTab === 'upcoming' ? '#FFFFFF' : THEME.colors.primaryDark}
+            color={activeTab === 'upcoming' ? '#FFFFFF' : theme.colors.textMuted}
           />
-          <Text style={[styles.tabButtonText, activeTab === 'upcoming' && styles.tabButtonTextActive]}>
+          <Text style={[styles.tabButtonText, activeTab === 'upcoming' ? styles.tabButtonTextActive : { color: theme.colors.textMuted }]}>
             Upcoming ({reminders.length})
           </Text>
           {reminders.length > 0 && (
@@ -194,8 +196,8 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading devotee birthday records...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading devotee birthday records...</Text>
         </View>
       ) : activeTab === 'all' ? (
         /* Tab 1: All Counselees Birthday Details */
@@ -274,7 +276,7 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
               const age = calculateAge(devotee.dateOfBirth);
 
               return (
-                <View key={devotee.uid} style={styles.devoteeCard}>
+                <View key={devotee.uid} style={[styles.devoteeCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                   <View style={styles.devoteeCardHeader}>
                     <View style={styles.avatarCircle}>
                       <Ionicons
@@ -284,8 +286,8 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
                       />
                     </View>
                     <View style={styles.devoteeInfoBlock}>
-                      <Text style={styles.devoteeName}>{devotee.displayName}</Text>
-                      <Text style={styles.devoteePhone}>
+                      <Text style={[styles.devoteeName, { color: theme.thickColor }]}>{devotee.displayName}</Text>
+                      <Text style={[styles.devoteePhone, { color: theme.colors.textMuted }]}>
                         {devotee.phoneNumber ? `📞 ${devotee.phoneNumber}` : 'No phone registered'}
                       </Text>
                     </View>
@@ -380,20 +382,20 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
             </View>
           ) : (
             reminders.map((rem) => (
-              <View key={rem.id} style={styles.card}>
+              <View key={rem.id} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.cardHeader}>
-                  <View style={styles.iconCircle}>
-                    <Ionicons name="gift" size={22} color={THEME.colors.gold} />
+                  <View style={[styles.iconCircle, { backgroundColor: theme.liteColor }]}>
+                    <Ionicons name="gift" size={22} color={theme.thickColor} />
                   </View>
                   <View style={styles.nameBlock}>
-                    <Text style={styles.name}>{rem.counseleeName}</Text>
+                    <Text style={[styles.name, { color: theme.thickColor }]}>{rem.counseleeName}</Text>
                     <Text style={styles.ageText}>Turning {rem.turningAge} years old</Text>
                     {rem.counseleePhone ? (
                       <Text style={styles.phoneSubText}>📞 {rem.counseleePhone}</Text>
                     ) : null}
                   </View>
-                  <View style={styles.dateBadge}>
-                    <Text style={styles.dateBadgeText}>{rem.reminderDate}</Text>
+                  <View style={[styles.dateBadge, { backgroundColor: theme.liteColor }]}>
+                    <Text style={[styles.dateBadgeText, { color: theme.thickColor }]}>{rem.reminderDate}</Text>
                   </View>
                 </View>
 
@@ -412,7 +414,7 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    style={styles.greetBtn}
+                    style={[styles.greetBtn, { backgroundColor: theme.thickColor }]}
                     onPress={() => handleSendGreeting(rem)}
                   >
                     <Ionicons name="send" size={15} color={THEME.colors.textInverse} />

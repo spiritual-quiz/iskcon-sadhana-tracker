@@ -13,7 +13,17 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ type, value, label }) 
   let backgroundColor = THEME.colors.primaryUltraLight;
   let textColor = THEME.colors.primary;
 
-  if (type === 'grade') {
+  if (value === 'Daily Sadhana Pending' || value === 'Daily Card Pending' || value === 'Card Pending') {
+    backgroundColor = '#FEF3C7';
+    textColor = '#B45309';
+  } else if (
+    value === "Today's Sadhana Filled" ||
+    value === "Today's Card Filled" ||
+    value === "Today's Card Submitted"
+  ) {
+    backgroundColor = '#DCFCE7';
+    textColor = '#15803D';
+  } else if (type === 'grade') {
     switch (value as Grade) {
       case 'Advancing':
       case 'A':

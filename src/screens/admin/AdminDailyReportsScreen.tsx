@@ -185,31 +185,31 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
       />
 
       {/* Top View Mode Selector */}
-      <View style={styles.viewModeBar}>
+      <View style={[styles.viewModeBar, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.viewModeTab, viewMode === 'week' && styles.viewModeTabActive]}
+          style={[styles.viewModeTab, viewMode === 'week' && [styles.viewModeTabActive, { backgroundColor: theme.thickColor }]]}
           onPress={() => setViewMode('week')}
         >
           <Ionicons
             name="calendar"
             size={16}
-            color={viewMode === 'week' ? '#FFFFFF' : THEME.colors.primaryDark}
+            color={viewMode === 'week' ? '#FFFFFF' : theme.thickColor}
           />
-          <Text style={[styles.viewModeTabText, viewMode === 'week' && styles.viewModeTabTextActive]}>
+          <Text style={[styles.viewModeTabText, viewMode === 'week' ? styles.viewModeTabTextActive : { color: theme.thickColor }]}>
             Recent 1 Week
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.viewModeTab, viewMode === 'single' && styles.viewModeTabActive]}
+          style={[styles.viewModeTab, viewMode === 'single' && [styles.viewModeTabActive, { backgroundColor: theme.thickColor }]]}
           onPress={() => setViewMode('single')}
         >
           <Ionicons
             name="today-outline"
             size={16}
-            color={viewMode === 'single' ? '#FFFFFF' : THEME.colors.primaryDark}
+            color={viewMode === 'single' ? '#FFFFFF' : theme.thickColor}
           />
-          <Text style={[styles.viewModeTabText, viewMode === 'single' && styles.viewModeTabTextActive]}>
+          <Text style={[styles.viewModeTabText, viewMode === 'single' ? styles.viewModeTabTextActive : { color: theme.thickColor }]}>
             Single Day Audit
           </Text>
         </TouchableOpacity>
@@ -221,22 +221,22 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
           {/* Date Navigation Bar */}
           <View style={styles.dateBar}>
             <TouchableOpacity style={styles.dateNavBtn} onPress={() => shiftDate(-1)}>
-              <Ionicons name="chevron-back" size={20} color={THEME.colors.primary} />
-              <Text style={styles.dateNavBtnText}>Previous</Text>
+              <Ionicons name="chevron-back" size={20} color={theme.thickColor} />
+              <Text style={[styles.dateNavBtnText, { color: theme.thickColor }]}>Previous</Text>
             </TouchableOpacity>
 
             <Text style={styles.currentDateText}>{selectedDate}</Text>
 
             <TouchableOpacity style={styles.dateNavBtn} onPress={() => shiftDate(1)}>
-              <Text style={styles.dateNavBtnText}>Next</Text>
-              <Ionicons name="chevron-forward" size={20} color={THEME.colors.primary} />
+              <Text style={[styles.dateNavBtnText, { color: theme.thickColor }]}>Next</Text>
+              <Ionicons name="chevron-forward" size={20} color={theme.thickColor} />
             </TouchableOpacity>
           </View>
 
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={THEME.colors.primary} />
-              <Text style={styles.loadingText}>Fetching reports for {selectedDate}...</Text>
+              <ActivityIndicator size="large" color={theme.thickColor} />
+              <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Fetching reports for {selectedDate}...</Text>
             </View>
           ) : (
             <ScrollView
@@ -310,7 +310,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                       <View style={styles.cardHeader}>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                            <Text style={[styles.devoteeName, isLowScore && styles.devoteeNameAlert]}>
+                            <Text style={[styles.devoteeName, { color: theme.thickColor }, isLowScore && styles.devoteeNameAlert]}>
                               {item.counseleeName || 'Devotee'}
                             </Text>
                             {isLowScore && (
@@ -557,7 +557,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                         >
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={styles.matrixDevoteeName}>{ds.user.displayName}</Text>
+                              <Text style={[styles.matrixDevoteeName, { color: theme.thickColor }]}>{ds.user.displayName}</Text>
                               {needsAttention && (
                                 <View style={styles.lowScoreAlertBadge}>
                                   <Ionicons name="alert-circle" size={11} color="#DC2626" />

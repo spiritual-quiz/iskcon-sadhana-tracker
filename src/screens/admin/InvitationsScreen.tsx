@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { QRCodeDisplay } from '../../components/QRCodeDisplay';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +30,7 @@ import { InvitationCode } from '../../types/monitoring';
 
 export const InvitationsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [invitations, setInvitations] = useState<InvitationCode[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedInv, setSelectedInv] = useState<InvitationCode | null>(null);
@@ -168,7 +170,7 @@ export const InvitationsScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Invitations & QR Codes"
         subtitle="Generate & Share Access for Devotees"
@@ -182,8 +184,8 @@ export const InvitationsScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading invitations...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading invitations...</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -201,14 +203,14 @@ export const InvitationsScreen = ({ navigation }: any) => {
                 style={styles.closePreviewBtn}
                 onPress={() => setSelectedInv(null)}
               >
-                <Text style={styles.closePreviewText}>Hide QR Preview</Text>
+                <Text style={[styles.closePreviewText, { color: theme.thickColor }]}>Hide QR Preview</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {/* Create Button Banner */}
           <TouchableOpacity
-            style={styles.createBanner}
+            style={[styles.createBanner, { backgroundColor: theme.thickColor }]}
             onPress={() => setShowCreateModal(true)}
           >
             <Ionicons name="qr-code" size={24} color={THEME.colors.textInverse} />
@@ -220,11 +222,11 @@ export const InvitationsScreen = ({ navigation }: any) => {
           </TouchableOpacity>
 
           {/* Past Invitations List */}
-          <Text style={styles.sectionHeaderTitle}>Issued Invitation Codes</Text>
+          <Text style={[styles.sectionHeaderTitle, { color: theme.thickColor }]}>Issued Invitation Codes</Text>
 
           {invitations.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No invitation codes generated yet.</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No invitation codes generated yet.</Text>
             </View>
           ) : (
             invitations.map((inv) => {
@@ -232,20 +234,24 @@ export const InvitationsScreen = ({ navigation }: any) => {
               return (
                 <TouchableOpacity
                   key={inv.code}
-                  style={[styles.invCard, isSelected && styles.invCardActive]}
+                  style={[
+                    styles.invCard,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                    isSelected && { borderColor: theme.thickColor, backgroundColor: theme.liteColor },
+                  ]}
                   onPress={() => setSelectedInv(inv)}
                   activeOpacity={0.85}
                 >
                   {isSelected && (
                     <View style={styles.viewingBadge}>
-                      <Ionicons name="checkmark-circle" size={13} color={THEME.colors.primaryDark} />
-                      <Text style={styles.viewingBadgeText}>Currently Displayed in QR Above</Text>
+                      <Ionicons name="checkmark-circle" size={13} color={theme.thickColor} />
+                      <Text style={[styles.viewingBadgeText, { color: theme.thickColor }]}>Currently Displayed in QR Above</Text>
                     </View>
                   )}
 
                   <View style={styles.invCardHeader}>
-                    <View style={[styles.codeBadge, isSelected && styles.codeBadgeActive]}>
-                      <Text style={[styles.codeText, isSelected && styles.codeTextActive]}>{inv.code}</Text>
+                    <View style={[styles.codeBadge, { backgroundColor: theme.liteColor }, isSelected && { backgroundColor: '#FFFFFF' }]}>
+                      <Text style={[styles.codeText, { color: theme.thickColor }]}>{inv.code}</Text>
                     </View>
                     <View style={styles.statusRow}>
                       {inv.isRevoked ? (
@@ -256,13 +262,13 @@ export const InvitationsScreen = ({ navigation }: any) => {
                     </View>
                   </View>
 
-                  {inv.notes ? <Text style={styles.notesText}>{inv.notes}</Text> : null}
+                  {inv.notes ? <Text style={[styles.notesText, { color: theme.colors.text }]}>{inv.notes}</Text> : null}
 
                   <View style={styles.metaRow}>
-                    <Text style={styles.metaText}>
+                    <Text style={[styles.metaText, { color: theme.colors.textMuted }]}>
                       Used: {inv.usedCount} / {inv.maxUses} devotees
                     </Text>
-                    <Text style={styles.metaText}>
+                    <Text style={[styles.metaText, { color: theme.colors.textMuted }]}>
                       Expires: {new Date(inv.expiresAt).toLocaleDateString()}
                     </Text>
                   </View>
@@ -325,7 +331,7 @@ export const InvitationsScreen = ({ navigation }: any) => {
                   ]}
                 >
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Generate Devotee Invitation</Text>
+                    <Text style={[styles.modalTitle, { color: theme.thickColor }]}>Generate Devotee Invitation</Text>
                     <TouchableOpacity
                       onPress={() => setShowCreateModal(false)}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -367,7 +373,7 @@ export const InvitationsScreen = ({ navigation }: any) => {
                     />
 
                     <TouchableOpacity
-                      style={styles.submitModalBtn}
+                      style={[styles.submitModalBtn, { backgroundColor: theme.thickColor }]}
                       onPress={handleCreate}
                       disabled={isCreating}
                     >

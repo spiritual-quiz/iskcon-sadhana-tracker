@@ -625,7 +625,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                           >
                             <View style={{ flex: 1 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                                <Text style={[styles.devoteeName, { color: theme.thickColor }]}>
                                   {item.user.displayName || 'Devotee'}
                                 </Text>
                                 <View style={[styles.targetPill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
@@ -776,7 +776,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                         >
                           <View style={styles.singleCardHeader}>
                             <View>
-                              <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                              <Text style={[styles.devoteeName, { color: theme.thickColor }]}>
                                 {entry.counseleeName || 'Devotee'}
                               </Text>
                               <Text style={[styles.devoteePhone, { color: theme.colors.textMuted }]}>
@@ -956,7 +956,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                       <View style={styles.reportCardHeader}>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                            <Text style={[styles.devoteeName, { color: theme.thickColor }]}>
                               {report.counseleeName || 'Devotee'}
                             </Text>
                             <View style={[styles.targetPill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
@@ -1174,7 +1174,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                                   <Text style={[styles.weeklyDailyScore, { color: theme.colors.textMuted }]}>
                                     0/50
                                   </Text>
-                                  <StatusBadge type="custom" value="Card Pending" label="Pending" />
+                                  <StatusBadge type="custom" value="Daily Sadhana Pending" label="Daily Sadhana Pending" />
                                 </View>
                               </View>
                             );
@@ -1265,7 +1265,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                       <View style={styles.reportCardHeader}>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                            <Text style={[styles.devoteeName, { color: theme.thickColor }]}>
                               {report.counseleeName || 'Devotee'}
                             </Text>
                             <View style={[styles.targetPill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>

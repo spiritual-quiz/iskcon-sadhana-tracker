@@ -127,7 +127,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       icon: 'people-outline',
       badge: (reminderRequestsCount + targetRequestsCount) > 0 ? `${reminderRequestsCount + targetRequestsCount} Req` : null,
       badgeColor: THEME.colors.warning,
-      color: THEME.colors.primary,
+      color: theme.thickColor,
     },
     {
       id: 'PendingRegistrations',
@@ -136,7 +136,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       icon: 'person-add-outline',
       badge: pendingCount > 0 ? String(pendingCount) : null,
       badgeColor: THEME.colors.warning,
-      color: THEME.colors.goldDark,
+      color: theme.thickColor,
     },
     {
       id: 'Invitations',
@@ -144,7 +144,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       subtitle: 'Generate & share codes',
       icon: 'qr-code-outline',
       badge: null,
-      color: THEME.colors.primaryLight,
+      color: theme.thickColor,
     },
     {
       id: 'SadhanaMonitoring',
@@ -153,7 +153,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       icon: 'pulse-outline',
       badge: missingAlertsCount > 0 ? String(missingAlertsCount) : null,
       badgeColor: THEME.colors.danger,
-      color: THEME.colors.danger,
+      color: theme.thickColor,
     },
     {
       id: 'AdminReports',
@@ -175,7 +175,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       icon: 'gift-outline',
       badge: upcomingBirthdaysCount > 0 ? String(upcomingBirthdaysCount) : null,
       badgeColor: THEME.colors.goldDark,
-      color: THEME.colors.goldDark,
+      color: theme.thickColor,
     },
     {
       id: 'FollowUpHistory',
@@ -183,7 +183,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       subtitle: 'Audit logs & messages',
       icon: 'chatbubbles-outline',
       badge: null,
-      color: THEME.colors.primaryDark,
+      color: theme.thickColor,
     },
     {
       id: 'SadhanaAppreciation',
@@ -191,7 +191,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       subtitle: 'Inspire sincere effort',
       icon: 'sparkles-outline',
       badge: null,
-      color: THEME.colors.gold,
+      color: theme.thickColor,
     },
     {
       id: 'SettingsExport',
@@ -199,7 +199,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       subtitle: 'Grades, rules & export',
       icon: 'settings-outline',
       badge: null,
-      color: THEME.colors.textMuted,
+      color: theme.thickColor,
     },
   ];
 
@@ -328,8 +328,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                 onPress={() => navigation.navigate(sec.id)}
               >
                 <View style={styles.cardTopRow}>
-                  <View style={[styles.iconContainer, { backgroundColor: `${sec.color}15` }]}>
-                    <Ionicons name={sec.icon as any} size={22} color={sec.color} />
+                  <View style={[styles.iconContainer, { backgroundColor: theme.liteColor }]}>
+                    <Ionicons name={sec.icon as any} size={22} color={theme.thickColor} />
                   </View>
                   {sec.badge && (
                     <View style={[styles.badge, { backgroundColor: sec.badgeColor || theme.thickColor }]}>
@@ -337,7 +337,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                     </View>
                   )}
                 </View>
-                <Text style={[styles.cardTitle, { color: theme.colors.text }]}>{sec.title}</Text>
+                <Text style={[styles.cardTitle, { color: theme.thickColor }]}>{sec.title}</Text>
                 <Text style={[styles.cardSubtitle, { color: theme.colors.textMuted }]}>{sec.subtitle}</Text>
               </TouchableOpacity>
             ))}

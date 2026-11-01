@@ -114,8 +114,31 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const isWeekday = () => {
     if (!selectedDate) return true;
     const [y, m, d] = selectedDate.split('-').map(Number);
-    const dayOfWeek = new Date(y, m - 1, d).getDay();
+    const dayOfWeek = new Date(y, m - 1, d, 12, 0, 0).getDay();
     return dayOfWeek >= 1 && dayOfWeek <= 5; // 1=Mon, 5=Fri
+  };
+
+  // Helper to check if selectedDate is Saturday or Sunday
+  const isWeekend = () => {
+    if (!selectedDate) return false;
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dayOfWeek = new Date(y, m - 1, d, 12, 0, 0).getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6; // 0=Sun, 6=Sat
+  };
+
+  // Helper to check if selectedDate is during the last three days of the month
+  const isMonthEnd = () => {
+    if (!selectedDate) return false;
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (daysInMonth === 31) {
+      return d >= 29; // 29, 30, 31 (last 3 days)
+    } else if (daysInMonth === 30) {
+      return d >= 27; // 27th through 30th (per specification)
+    } else {
+      // February: calculates last 3 days based on actual days (including leap years)
+      return d >= daysInMonth - 2;
+    }
   };
 
   // Load entry, week reading attendance, and monthly satsanga for selected date
@@ -310,9 +333,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         wakeUpTimeStr: wakeUpTime.trim(),
         restMinutes: numRest,
         onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
-        morningProgrammeAttended: morningProgrammeAttended,
-        serviceAttended: serviceAttended,
-        monthlyMeetingAttended: monthlyMeetingAttended,
+        morningProgrammeAttended: isWeekend() ? morningProgrammeAttended : false,
+        serviceAttended: isWeekend() ? serviceAttended : false,
+        monthlyMeetingAttended: isMonthEnd() ? monthlyMeetingAttended : false,
       })
     : {
         japaMarks: 0,
@@ -322,7 +345,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         onlineReadingMarks: 0,
         dailyTotalScore: 0,
         percentage: 0,
-        grade: 'Daily Card Pending',
+        grade: 'Daily Sadhana Pending',
         breakdown: {
           japa: { marks: 0, maxMarks: 10, details: 'Not entered' },
           reading: { marks: 0, maxMarks: 10, details: 'Not entered' },
@@ -344,7 +367,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       )
     : 0;
   const dailyPercentage50 = hasUserEnteredData ? Number(((dailyScore50 / 50) * 100).toFixed(1)) : 0;
-  const dailyGrade50 = hasUserEnteredData ? calculateGrade(dailyPercentage50) : 'Daily Card Pending';
+  const dailyGrade50 = hasUserEnteredData ? calculateGrade(dailyPercentage50) : 'Daily Sadhana Pending';
 
   const sleepDurationMins = calculateSleepDurationMinutes(sleepTime.trim(), wakeUpTime.trim());
   const totalRestDurationMins = sleepDurationMins + numRest;
@@ -433,9 +456,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           wakeUpTimeStr: wakeUpTime.trim(),
           restMinutes: numRest,
           onlineReadingAttended: isWeekday() ? onlineReadingAttended : false,
-          morningProgrammeAttended,
-          serviceAttended,
-          monthlyMeetingAttended,
+          morningProgrammeAttended: isWeekend() ? morningProgrammeAttended : false,
+          serviceAttended: isWeekend() ? serviceAttended : false,
+          monthlyMeetingAttended: isMonthEnd() ? monthlyMeetingAttended : false,
         },
         modifiedBy: user.uid,
         correctionReason: correctionReason.trim() || undefined,
@@ -714,7 +737,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.sectionIcon}>
                 <Ionicons name="disc-outline" size={18} color={theme.thickColor} />
               </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>A. Japa - Chanting</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>A. Japa</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#FFEDD5', borderColor: '#FDBA74' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#EA580C' }]}>{liveEvaluation.japaMarks}/10 M</Text>
               </View>
@@ -892,7 +915,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.sectionIcon}>
                 <Ionicons name="book-outline" size={18} color="#15803D" />
               </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>B. Reading Prabhupada's Books</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>B. Reading Śrīla Prabhupāda's Books</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#15803D' }]}>{liveEvaluation.readingMarks}/10 M</Text>
               </View>
@@ -985,7 +1008,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               <View style={styles.sectionIcon}>
                 <Ionicons name="moon-outline" size={18} color="#7C3AED" />
               </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>D. Sleep & Rest Routine</Text>
+              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>D. Sleep & Rest</Text>
               <View style={[styles.marksBadge, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
                 <Text style={[styles.marksBadgeText, { color: '#7C3AED' }]}>{liveEvaluation.sleepMarks}/10 M</Text>
               </View>
@@ -1064,41 +1087,41 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Section E: Online Reading Session (Monday to Friday, 10 Marks each day) */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="laptop-outline" size={18} color="#2563EB" />
-              </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>E. Online Reading Session (Mon–Fri)</Text>
-              <View
-                style={[
-                  styles.marksBadge,
-                  totalWeekReadingMarks > 0
-                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                    : { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
-                ]}
-              >
-                <Text
+          {/* Section E: Online Reading Session (Monday to Friday only; hidden on weekends) */}
+          {isWeekday() && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="laptop-outline" size={18} color="#2563EB" />
+                </View>
+                <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>E. Online Reading Session</Text>
+                <View
                   style={[
-                    styles.marksBadgeText,
-                    totalWeekReadingMarks > 0 ? { color: '#15803D' } : { color: '#6B7280' },
+                    styles.marksBadge,
+                    totalWeekReadingMarks > 0
+                      ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                      : { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
                   ]}
                 >
-                  {`${totalWeekReadingMarks}/50 M (${attendedCount}/5 Days)`}
+                  <Text
+                    style={[
+                      styles.marksBadgeText,
+                      totalWeekReadingMarks > 0 ? { color: '#15803D' } : { color: '#6B7280' },
+                    ]}
+                  >
+                    {`${totalWeekReadingMarks}/50 M (${attendedCount}/5 Days)`}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.highlightBadge, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                <Ionicons name="laptop-outline" size={15} color="#2563EB" />
+                <Text style={[styles.highlightBadgeText, { color: '#1E40AF' }]}>
+                  Daily 30-min reading with Counsellor • Monday to Friday: 10 marks each day (Total 50 marks in Weekly Report)
                 </Text>
               </View>
-            </View>
 
-            <View style={[styles.highlightBadge, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-              <Ionicons name="laptop-outline" size={15} color="#2563EB" />
-              <Text style={[styles.highlightBadgeText, { color: '#1E40AF' }]}>
-                Daily 30-min reading with Counsellor • Monday to Friday: 10 marks each day (Total 50 marks in Weekly Report)
-              </Text>
-            </View>
-
-            {/* Selected Date Session Controls (When viewing a weekday) */}
-            {isWeekday() ? (
+              {/* Selected Date Session Controls (When viewing a weekday) */}
               <View style={styles.selectedDayReadingBox}>
                 <View style={styles.selectedDayReadingHeader}>
                   <Text style={styles.selectedDayReadingTitle}>
@@ -1172,459 +1195,468 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : null}
 
-            {/* Monday to Friday Quick Table with Present/Absent Buttons for Each Day */}
-            <View style={styles.weekdayTableContainer}>
-              <View style={styles.weekdayTableHeaderRow}>
-                <Text style={styles.weekdayTableHeaderText}>
-                  Monday to Friday Sessions ({formatDateToDevoteeFormat(currentWeek.startDate)} to {formatDateToDevoteeFormat(currentWeek.dates[4])}):
-                </Text>
+              {/* Monday to Friday Quick Table with Present/Absent Buttons for Each Day */}
+              <View style={styles.weekdayTableContainer}>
+                <View style={styles.weekdayTableHeaderRow}>
+                  <Text style={styles.weekdayTableHeaderText}>
+                    Monday to Friday Sessions ({formatDateToDevoteeFormat(currentWeek.startDate)} to {formatDateToDevoteeFormat(currentWeek.dates[4])}):
+                  </Text>
+                </View>
+
+                {weekdayInfoList.map((day) => {
+                  const isAttended = weekReadingMap[day.date] ?? false;
+                  const isSelected = day.date === selectedDate;
+                  const dateParts = formatDateToDevoteeFormat(day.date).split('-');
+                  const displayDate = `${dateParts[0]} ${dateParts[1]}`;
+
+                  return (
+                    <View
+                      key={day.date}
+                      style={[
+                        styles.weekdayRow,
+                        isSelected && styles.weekdayRowSelected,
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={styles.weekdayInfo}
+                        onPress={() => setSelectedDate(day.date)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={[styles.weekdayDayName, isSelected && styles.weekdayDayNameSelected]}>
+                            {day.label}
+                          </Text>
+                          <Text style={styles.weekdayDayDate}> ({displayDate})</Text>
+                        </View>
+                        {isSelected && (
+                          <View style={styles.selectedDayBadge}>
+                            <Text style={styles.selectedDayBadgeText}>Selected</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+
+                      <View style={styles.weekdayButtonGroup}>
+                        {/* Present Button */}
+                        <TouchableOpacity
+                          style={[
+                            styles.tablePaButton,
+                            isAttended ? styles.tablePaButtonPresent : styles.tablePaButtonDim,
+                          ]}
+                          onPress={() => handleSetWeekdayAttendance(day.date, true)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={15}
+                            color={isAttended ? '#FFFFFF' : '#15803D'}
+                          />
+                          <Text
+                            style={[
+                              styles.tablePaButtonText,
+                              isAttended ? styles.tablePaButtonTextActive : { color: '#15803D' },
+                            ]}
+                          >
+                            Present
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* Absent Button */}
+                        <TouchableOpacity
+                          style={[
+                            styles.tablePaButton,
+                            !isAttended ? styles.tablePaButtonAbsent : styles.tablePaButtonDim,
+                          ]}
+                          onPress={() => handleSetWeekdayAttendance(day.date, false)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={15}
+                            color={!isAttended ? '#FFFFFF' : '#DC2626'}
+                          />
+                          <Text
+                            style={[
+                              styles.tablePaButtonText,
+                              !isAttended ? styles.tablePaButtonTextActive : { color: '#DC2626' },
+                            ]}
+                          >
+                            Absent
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
+            </View>
+          )}
 
-              {weekdayInfoList.map((day) => {
-                const isAttended = weekReadingMap[day.date] ?? false;
-                const isSelected = day.date === selectedDate;
-                const dateParts = formatDateToDevoteeFormat(day.date).split('-');
-                const displayDate = `${dateParts[0]} ${dateParts[1]}`;
-
-                return (
-                  <View
-                    key={day.date}
+          {/* Section F: Weekly Morning Programme (Saturdays & Sundays only) */}
+          {isWeekend() && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="sunny-outline" size={18} color="#D97706" />
+                </View>
+                <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>
+                  F. Weekly Morning Programme (50 Marks)
+                </Text>
+                <View
+                  style={[
+                    styles.marksBadge,
+                    morningProgrammeAttended
+                      ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                      : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.weekdayRow,
-                      isSelected && styles.weekdayRowSelected,
+                      styles.marksBadgeText,
+                      morningProgrammeAttended ? { color: '#15803D' } : { color: '#B91C1C' },
                     ]}
                   >
-                    <TouchableOpacity
-                      style={styles.weekdayInfo}
-                      onPress={() => setSelectedDate(day.date)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={[styles.weekdayDayName, isSelected && styles.weekdayDayNameSelected]}>
-                          {day.label}
-                        </Text>
-                        <Text style={styles.weekdayDayDate}> ({displayDate})</Text>
-                      </View>
-                      {isSelected && (
-                        <View style={styles.selectedDayBadge}>
-                          <Text style={styles.selectedDayBadgeText}>Selected</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                    {morningProgrammeAttended ? '50/50 W' : '0/50 W'}
+                  </Text>
+                </View>
+              </View>
 
-                    <View style={styles.weekdayButtonGroup}>
-                      {/* Present Button */}
-                      <TouchableOpacity
-                        style={[
-                          styles.tablePaButton,
-                          isAttended ? styles.tablePaButtonPresent : styles.tablePaButtonDim,
-                        ]}
-                        onPress={() => handleSetWeekdayAttendance(day.date, true)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={15}
-                          color={isAttended ? '#FFFFFF' : '#15803D'}
-                        />
-                        <Text
-                          style={[
-                            styles.tablePaButtonText,
-                            isAttended ? styles.tablePaButtonTextActive : { color: '#15803D' },
-                          ]}
-                        >
-                          Present
-                        </Text>
-                      </TouchableOpacity>
+              <View style={[styles.highlightBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                <Ionicons name="sunny-outline" size={15} color="#D97706" />
+                <Text style={[styles.highlightBadgeText, { color: '#92400E' }]}>
+                  Weekly morning programme & Maṅgala-ārati • Attended: 50 marks • Absent: 0 marks (counted towards Weekly Report)
+                </Text>
+              </View>
 
-                      {/* Absent Button */}
-                      <TouchableOpacity
-                        style={[
-                          styles.tablePaButton,
-                          !isAttended ? styles.tablePaButtonAbsent : styles.tablePaButtonDim,
-                        ]}
-                        onPress={() => handleSetWeekdayAttendance(day.date, false)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name="close-circle"
-                          size={15}
-                          color={!isAttended ? '#FFFFFF' : '#DC2626'}
-                        />
-                        <Text
-                          style={[
-                            styles.tablePaButtonText,
-                            !isAttended ? styles.tablePaButtonTextActive : { color: '#DC2626' },
-                          ]}
-                        >
-                          Absent
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+              <View style={styles.satsangPillsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.satsangPill,
+                    morningProgrammeAttended && styles.satsangPillAttended,
+                  ]}
+                  onPress={() => setMorningProgrammeAttended(true)}
+                >
+                  <Ionicons
+                    name={morningProgrammeAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={16}
+                    color={morningProgrammeAttended ? '#FFFFFF' : '#15803D'}
+                  />
+                  <Text
+                    style={[
+                      styles.satsangPillText,
+                      morningProgrammeAttended && styles.satsangPillTextActive,
+                    ]}
+                  >
+                    Attended (50M)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.satsangPill,
+                    !morningProgrammeAttended && styles.satsangPillAbsent,
+                  ]}
+                  onPress={() => setMorningProgrammeAttended(false)}
+                >
+                  <Ionicons
+                    name={!morningProgrammeAttended ? 'close-circle' : 'ellipse-outline'}
+                    size={16}
+                    color={!morningProgrammeAttended ? '#FFFFFF' : '#DC2626'}
+                  />
+                  <Text
+                    style={[
+                      styles.satsangPillText,
+                      !morningProgrammeAttended && styles.satsangPillTextActive,
+                    ]}
+                  >
+                    Absent (0M)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Section G: Service (Saturdays & Sundays only) */}
+          {isWeekend() && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
+                  <Ionicons name="hand-left-outline" size={18} color="#EA580C" />
+                </View>
+                <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>G. Service (Weekly, 10 Marks)</Text>
+                <View
+                  style={[
+                    styles.marksBadge,
+                    serviceAttended
+                      ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                      : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.marksBadgeText,
+                      serviceAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                    ]}
+                  >
+                    {serviceAttended ? '10/10 W' : '0/10 W'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.highlightBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
+                <Ionicons name="hand-left-outline" size={15} color="#EA580C" />
+                <Text style={[styles.highlightBadgeText, { color: '#9A3412' }]}>
+                  Weekly service activity • Attended: 10 marks • Absent: 0 marks (counted towards Weekly Report)
+                </Text>
+              </View>
+
+              <View style={styles.satsangPillsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.satsangPill,
+                    serviceAttended && styles.satsangPillAttended,
+                  ]}
+                  onPress={() => setServiceAttended(true)}
+                >
+                  <Ionicons
+                    name={serviceAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={16}
+                    color={serviceAttended ? '#FFFFFF' : '#15803D'}
+                  />
+                  <Text
+                    style={[
+                      styles.satsangPillText,
+                      serviceAttended && styles.satsangPillTextActive,
+                    ]}
+                  >
+                    Attended (10M)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.satsangPill,
+                    !serviceAttended && styles.satsangPillAbsent,
+                  ]}
+                  onPress={() => setServiceAttended(false)}
+                >
+                  <Ionicons
+                    name={!serviceAttended ? 'close-circle' : 'ellipse-outline'}
+                    size={16}
+                    color={!serviceAttended ? '#FFFFFF' : '#DC2626'}
+                  />
+                  <Text
+                    style={[
+                      styles.satsangPillText,
+                      !serviceAttended && styles.satsangPillTextActive,
+                    ]}
+                  >
+                    Absent (0M)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Month-End Activities: Displayed only during the last 3 days of the month */}
+          {isMonthEnd() && (
+            <>
+              {/* Monthly Satsang */}
+              <View style={styles.card}>
+                <View style={styles.sectionHeader}>
+                  <View style={[styles.sectionIcon, { backgroundColor: '#FAF5FF' }]}>
+                    <Ionicons name="people-outline" size={18} color="#9333EA" />
                   </View>
-                );
-              })}
-            </View>
-          </View>
+                  <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>Monthly Satsang (Monthly Programme)</Text>
+                  <View
+                    style={[
+                      styles.marksBadge,
+                      monthlySatsangStatus === 'attended'
+                        ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                        : monthlySatsangStatus === 'not_conducted'
+                        ? { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }
+                        : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.marksBadgeText,
+                        monthlySatsangStatus === 'attended'
+                          ? { color: '#15803D' }
+                          : monthlySatsangStatus === 'not_conducted'
+                          ? { color: '#B45309' }
+                          : { color: '#B91C1C' },
+                      ]}
+                    >
+                      {monthlySatsangStatus === 'attended'
+                        ? '50/50 M'
+                        : monthlySatsangStatus === 'not_conducted'
+                        ? 'No Class Held'
+                        : '0/50 M'}
+                    </Text>
+                  </View>
+                </View>
 
-          {/* Weekly Morning Programme Session (Weekly, 50 Marks) */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="sunny-outline" size={18} color="#D97706" />
+                <View style={[styles.highlightBadge, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}>
+                  <Ionicons name="people-outline" size={15} color="#9333EA" />
+                  <Text style={[styles.highlightBadgeText, { color: '#6B21A8' }]}>
+                    Special monthly Satsang class • Attended: 50 marks • Absent: 0 marks • Dynamic: no marks deducted if not held this month
+                  </Text>
+                </View>
+
+                <View style={styles.satsangPillsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.satsangPill,
+                      monthlySatsangStatus === 'attended' && styles.satsangPillAttended,
+                    ]}
+                    onPress={() => handleSelectMonthlySatsang('attended')}
+                    disabled={isUpdatingSatsang}
+                  >
+                    <Ionicons
+                      name={monthlySatsangStatus === 'attended' ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={monthlySatsangStatus === 'attended' ? '#FFFFFF' : '#15803D'}
+                    />
+                    <Text
+                      style={[
+                        styles.satsangPillText,
+                        monthlySatsangStatus === 'attended' && styles.satsangPillTextActive,
+                      ]}
+                    >
+                      Attended (50M)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.satsangPill,
+                      monthlySatsangStatus === 'absent' && styles.satsangPillAbsent,
+                    ]}
+                    onPress={() => handleSelectMonthlySatsang('absent')}
+                    disabled={isUpdatingSatsang}
+                  >
+                    <Ionicons
+                      name={monthlySatsangStatus === 'absent' ? 'close-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={monthlySatsangStatus === 'absent' ? '#FFFFFF' : '#DC2626'}
+                    />
+                    <Text
+                      style={[
+                        styles.satsangPillText,
+                        monthlySatsangStatus === 'absent' && styles.satsangPillTextActive,
+                      ]}
+                    >
+                      Absent (0M)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.satsangPill,
+                      monthlySatsangStatus === 'not_conducted' && styles.satsangPillNotHeld,
+                    ]}
+                    onPress={() => handleSelectMonthlySatsang('not_conducted')}
+                    disabled={isUpdatingSatsang}
+                  >
+                    <Ionicons
+                      name={monthlySatsangStatus === 'not_conducted' ? 'pause-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={monthlySatsangStatus === 'not_conducted' ? '#FFFFFF' : '#D97706'}
+                    />
+                    <Text
+                      style={[
+                        styles.satsangPillText,
+                        monthlySatsangStatus === 'not_conducted' && styles.satsangPillTextActive,
+                      ]}
+                    >
+                      No Satsang This Month
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>
-                Weekly Morning Programme (50 Marks)
-              </Text>
-              <View
-                style={[
-                  styles.marksBadge,
-                  morningProgrammeAttended
-                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.marksBadgeText,
-                    morningProgrammeAttended ? { color: '#15803D' } : { color: '#B91C1C' },
-                  ]}
-                >
-                  {morningProgrammeAttended ? '50/50 W' : '0/50 W'}
-                </Text>
+
+              {/* Monthly Counsellor Meeting */}
+              <View style={styles.card}>
+                <View style={styles.sectionHeader}>
+                  <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
+                    <Ionicons name="chatbubbles-outline" size={18} color="#16A34A" />
+                  </View>
+                  <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>Monthly Counsellor Meeting (50 Marks)</Text>
+                  <View
+                    style={[
+                      styles.marksBadge,
+                      monthlyMeetingAttended
+                        ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                        : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.marksBadgeText,
+                        monthlyMeetingAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                      ]}
+                    >
+                      {monthlyMeetingAttended ? '50/50 M' : '0/50 M'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={[styles.highlightBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                  <Ionicons name="chatbubbles-outline" size={15} color="#16A34A" />
+                  <Text style={[styles.highlightBadgeText, { color: '#14532D' }]}>
+                    Monthly one-on-one meeting with Counsellor • Attended: 50 marks • Absent: 0 marks (counted towards Monthly Report)
+                  </Text>
+                </View>
+
+                <View style={styles.satsangPillsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.satsangPill,
+                      monthlyMeetingAttended && styles.satsangPillAttended,
+                    ]}
+                    onPress={() => setMonthlyMeetingAttended(true)}
+                  >
+                    <Ionicons
+                      name={monthlyMeetingAttended ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={monthlyMeetingAttended ? '#FFFFFF' : '#15803D'}
+                    />
+                    <Text
+                      style={[
+                        styles.satsangPillText,
+                        monthlyMeetingAttended && styles.satsangPillTextActive,
+                      ]}
+                    >
+                      Attended (50M)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.satsangPill,
+                      !monthlyMeetingAttended && styles.satsangPillAbsent,
+                    ]}
+                    onPress={() => setMonthlyMeetingAttended(false)}
+                  >
+                    <Ionicons
+                      name={!monthlyMeetingAttended ? 'close-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={!monthlyMeetingAttended ? '#FFFFFF' : '#DC2626'}
+                    />
+                    <Text
+                      style={[
+                        styles.satsangPillText,
+                        !monthlyMeetingAttended && styles.satsangPillTextActive,
+                      ]}
+                    >
+                      Absent (0M)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-
-            <View style={[styles.highlightBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-              <Ionicons name="sunny-outline" size={15} color="#D97706" />
-              <Text style={[styles.highlightBadgeText, { color: '#92400E' }]}>
-                Weekly morning programme & Maṅgala-ārati • Attended: 50 marks • Absent: 0 marks (counted towards Weekly Report)
-              </Text>
-            </View>
-
-            <View style={styles.satsangPillsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  morningProgrammeAttended && styles.satsangPillAttended,
-                ]}
-                onPress={() => setMorningProgrammeAttended(true)}
-              >
-                <Ionicons
-                  name={morningProgrammeAttended ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={morningProgrammeAttended ? '#FFFFFF' : '#15803D'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    morningProgrammeAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Attended (50M)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  !morningProgrammeAttended && styles.satsangPillAbsent,
-                ]}
-                onPress={() => setMorningProgrammeAttended(false)}
-              >
-                <Ionicons
-                  name={!morningProgrammeAttended ? 'close-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={!morningProgrammeAttended ? '#FFFFFF' : '#DC2626'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    !morningProgrammeAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Absent (0M)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Section F: Service (Weekly, 10 Marks) */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
-                <Ionicons name="hand-left-outline" size={18} color="#EA580C" />
-              </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>F. Service (Weekly, 10 Marks)</Text>
-              <View
-                style={[
-                  styles.marksBadge,
-                  serviceAttended
-                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.marksBadgeText,
-                    serviceAttended ? { color: '#15803D' } : { color: '#B91C1C' },
-                  ]}
-                >
-                  {serviceAttended ? '10/10 W' : '0/10 W'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.highlightBadge, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-              <Ionicons name="hand-left-outline" size={15} color="#EA580C" />
-              <Text style={[styles.highlightBadgeText, { color: '#9A3412' }]}>
-                Weekly service activity • Attended: 10 marks • Absent: 0 marks (counted towards Weekly Report)
-              </Text>
-            </View>
-
-            <View style={styles.satsangPillsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  serviceAttended && styles.satsangPillAttended,
-                ]}
-                onPress={() => setServiceAttended(true)}
-              >
-                <Ionicons
-                  name={serviceAttended ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={serviceAttended ? '#FFFFFF' : '#15803D'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    serviceAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Attended (10M)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  !serviceAttended && styles.satsangPillAbsent,
-                ]}
-                onPress={() => setServiceAttended(false)}
-              >
-                <Ionicons
-                  name={!serviceAttended ? 'close-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={!serviceAttended ? '#FFFFFF' : '#DC2626'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    !serviceAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Absent (0M)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Section G: Monthly Satsang (Dynamic, 50 Marks) */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#FAF5FF' }]}>
-                <Ionicons name="people-outline" size={18} color="#9333EA" />
-              </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>G. Monthly Satsang (Monthly Programme)</Text>
-              <View
-                style={[
-                  styles.marksBadge,
-                  monthlySatsangStatus === 'attended'
-                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                    : monthlySatsangStatus === 'not_conducted'
-                    ? { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }
-                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.marksBadgeText,
-                    monthlySatsangStatus === 'attended'
-                      ? { color: '#15803D' }
-                      : monthlySatsangStatus === 'not_conducted'
-                      ? { color: '#B45309' }
-                      : { color: '#B91C1C' },
-                  ]}
-                >
-                  {monthlySatsangStatus === 'attended'
-                    ? '50/50 M'
-                    : monthlySatsangStatus === 'not_conducted'
-                    ? 'No Class Held'
-                    : '0/50 M'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.highlightBadge, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]}>
-              <Ionicons name="people-outline" size={15} color="#9333EA" />
-              <Text style={[styles.highlightBadgeText, { color: '#6B21A8' }]}>
-                Special monthly Satsang class • Attended: 50 marks • Absent: 0 marks • Dynamic: no marks deducted if not held this month
-              </Text>
-            </View>
-
-            <View style={styles.satsangPillsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  monthlySatsangStatus === 'attended' && styles.satsangPillAttended,
-                ]}
-                onPress={() => handleSelectMonthlySatsang('attended')}
-                disabled={isUpdatingSatsang}
-              >
-                <Ionicons
-                  name={monthlySatsangStatus === 'attended' ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={monthlySatsangStatus === 'attended' ? '#FFFFFF' : '#15803D'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    monthlySatsangStatus === 'attended' && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Attended (50M)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  monthlySatsangStatus === 'absent' && styles.satsangPillAbsent,
-                ]}
-                onPress={() => handleSelectMonthlySatsang('absent')}
-                disabled={isUpdatingSatsang}
-              >
-                <Ionicons
-                  name={monthlySatsangStatus === 'absent' ? 'close-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={monthlySatsangStatus === 'absent' ? '#FFFFFF' : '#DC2626'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    monthlySatsangStatus === 'absent' && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Absent (0M)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  monthlySatsangStatus === 'not_conducted' && styles.satsangPillNotHeld,
-                ]}
-                onPress={() => handleSelectMonthlySatsang('not_conducted')}
-                disabled={isUpdatingSatsang}
-              >
-                <Ionicons
-                  name={monthlySatsangStatus === 'not_conducted' ? 'pause-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={monthlySatsangStatus === 'not_conducted' ? '#FFFFFF' : '#D97706'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    monthlySatsangStatus === 'not_conducted' && styles.satsangPillTextActive,
-                  ]}
-                >
-                  No Satsang This Month
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Section H: Monthly Meeting with Counsellor (Monthly, 50 Marks) */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
-                <Ionicons name="chatbubbles-outline" size={18} color="#16A34A" />
-              </View>
-              <Text style={[styles.sectionTitle, { color: theme.thickColor }]}>H. Monthly Counsellor Meeting (50 Marks)</Text>
-              <View
-                style={[
-                  styles.marksBadge,
-                  monthlyMeetingAttended
-                    ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                    : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.marksBadgeText,
-                    monthlyMeetingAttended ? { color: '#15803D' } : { color: '#B91C1C' },
-                  ]}
-                >
-                  {monthlyMeetingAttended ? '50/50 M' : '0/50 M'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.highlightBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-              <Ionicons name="chatbubbles-outline" size={15} color="#16A34A" />
-              <Text style={[styles.highlightBadgeText, { color: '#14532D' }]}>
-                Monthly one-on-one meeting with Counsellor • Attended: 50 marks • Absent: 0 marks (counted towards Monthly Report)
-              </Text>
-            </View>
-
-            <View style={styles.satsangPillsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  monthlyMeetingAttended && styles.satsangPillAttended,
-                ]}
-                onPress={() => setMonthlyMeetingAttended(true)}
-              >
-                <Ionicons
-                  name={monthlyMeetingAttended ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={monthlyMeetingAttended ? '#FFFFFF' : '#15803D'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    monthlyMeetingAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Attended (50M)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.satsangPill,
-                  !monthlyMeetingAttended && styles.satsangPillAbsent,
-                ]}
-                onPress={() => setMonthlyMeetingAttended(false)}
-              >
-                <Ionicons
-                  name={!monthlyMeetingAttended ? 'close-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={!monthlyMeetingAttended ? '#FFFFFF' : '#DC2626'}
-                />
-                <Text
-                  style={[
-                    styles.satsangPillText,
-                    !monthlyMeetingAttended && styles.satsangPillTextActive,
-                  ]}
-                >
-                  Absent (0M)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            </>
+          )}
 
           {/* Audit Reason if Editing Existing */}
           {existingEntry && (

@@ -201,7 +201,8 @@ export const CommunityReportsScreen = () => {
                       summary.totalRounds === 0 &&
                       summary.totalReadingMinutes === 0 &&
                       summary.totalHearingMinutes === 0) ||
-                      (summary.grade as any) === 'Card Pending');
+                      (summary.grade as any) === 'Card Pending' ||
+                      (summary.grade as any) === 'Daily Sadhana Pending');
 
                   return (
                     <View
@@ -222,8 +223,8 @@ export const CommunityReportsScreen = () => {
                         </View>
                         <StatusBadge
                           type={isUnsubmitted ? 'custom' : 'grade'}
-                          value={isUnsubmitted ? 'Card Pending' : summary.grade}
-                          label={isUnsubmitted ? 'Card Pending' : undefined}
+                          value={isUnsubmitted ? 'Daily Sadhana Pending' : summary.grade}
+                          label={isUnsubmitted ? 'Daily Sadhana Pending' : undefined}
                         />
                       </View>
 
@@ -241,7 +242,7 @@ export const CommunityReportsScreen = () => {
                             Total Score
                           </Text>
                           <Text style={[styles.metricValue, { color: theme.thickColor }]}>
-                            {summary.totalScore.toFixed(1)} / {summary.maxAvailableMarks || 410}
+                            {summary.totalScore.toFixed(1)} / 410
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
@@ -249,7 +250,7 @@ export const CommunityReportsScreen = () => {
                             Percentage
                           </Text>
                           <Text style={[styles.metricValue, { color: theme.thickColor }]}>
-                            {summary.percentage.toFixed(1)}%
+                            {((summary.totalScore / 410) * 100).toFixed(1)}%
                           </Text>
                         </View>
                         <View style={styles.metricItem}>

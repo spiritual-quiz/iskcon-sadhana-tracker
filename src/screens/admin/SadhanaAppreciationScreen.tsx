@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { appreciationService } from '../../services/appreciationService';
 import { AppreciationCard, AppreciationCategory } from '../../types/appreciation';
 
 export const SadhanaAppreciationScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [cards, setCards] = useState<AppreciationCard[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -64,7 +66,7 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Sadhana Appreciation"
         subtitle="Recognize Sincere Devotional Effort"
@@ -74,8 +76,8 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Fetching appreciation records...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Fetching appreciation records...</Text>
         </View>
       ) : (
         <ScrollView
@@ -93,14 +95,14 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
           {cards.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="flower-outline" size={54} color={THEME.colors.gold} />
-              <Text style={styles.emptyTitle}>No Appreciation Cards</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptyTitle, { color: theme.thickColor }]}>No Appreciation Cards</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
                 As counselees complete steady chanting, reading, and morning programmes, milestone suggestions will appear here.
               </Text>
             </View>
           ) : (
             cards.map((card) => (
-              <View key={card.id} style={styles.card}>
+              <View key={card.id} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.cardHeader}>
                   <View style={styles.categoryBadge}>
                     <Ionicons name="sparkles" size={12} color={THEME.colors.goldDark} />
@@ -111,16 +113,16 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
                   </Text>
                 </View>
 
-                <Text style={styles.counseleeName}>{card.counseleeName}</Text>
+                <Text style={[styles.counseleeName, { color: theme.thickColor }]}>{card.counseleeName}</Text>
                 <Text style={styles.achievementText}>{card.achievement}</Text>
-                <Text style={styles.messageText}>"{card.message}"</Text>
+                <Text style={[styles.messageText, { color: theme.colors.text }]}>"{card.message}"</Text>
 
                 <View style={styles.footerRow}>
-                  <Text style={styles.periodText}>{card.period}</Text>
+                  <Text style={[styles.periodText, { color: theme.colors.textMuted }]}>{card.period}</Text>
 
                   {!card.isPublished && (
                     <TouchableOpacity
-                      style={styles.publishBtn}
+                      style={[styles.publishBtn, { backgroundColor: theme.thickColor }]}
                       onPress={() => handleOpenPublish(card)}
                     >
                       <Ionicons name="checkmark-done" size={14} color={THEME.colors.textInverse} />
@@ -138,11 +140,11 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
       {selectedCard && (
         <Modal visible={!!selectedCard} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
+            <View style={[styles.modalContainer, { backgroundColor: theme.colors.card }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Review & Publish Recognition</Text>
+                <Text style={[styles.modalTitle, { color: theme.thickColor }]}>Review & Publish Recognition</Text>
                 <TouchableOpacity onPress={() => setSelectedCard(null)}>
-                  <Ionicons name="close" size={24} color={THEME.colors.textMuted} />
+                  <Ionicons name="close" size={24} color={theme.colors.textMuted} />
                 </TouchableOpacity>
               </View>
 
@@ -156,7 +158,7 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
 
                 <Text style={styles.label}>Encouraging Message (Edit as needed):</Text>
                 <TextInput
-                  style={styles.textArea}
+                  style={[styles.textArea, { borderColor: theme.colors.border, color: theme.colors.text }]}
                   value={customMsg}
                   onChangeText={setCustomMsg}
                   multiline
@@ -165,7 +167,7 @@ export const SadhanaAppreciationScreen = ({ navigation }: any) => {
                 />
 
                 <TouchableOpacity
-                  style={styles.submitBtn}
+                  style={[styles.submitBtn, { backgroundColor: theme.thickColor }]}
                   onPress={handlePublish}
                   disabled={isPublishing}
                 >

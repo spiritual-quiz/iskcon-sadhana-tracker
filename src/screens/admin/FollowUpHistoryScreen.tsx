@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { followUpService } from '../../services/followUpService';
 import { FollowUpRecord } from '../../types/monitoring';
 
 export const FollowUpHistoryScreen = ({ navigation }: any) => {
+  const { theme } = useTheme();
   const [history, setHistory] = useState<FollowUpRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -36,7 +38,7 @@ export const FollowUpHistoryScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Follow-up History"
         subtitle="Audit Log of Counsellor Outreach"
@@ -46,8 +48,8 @@ export const FollowUpHistoryScreen = ({ navigation }: any) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Fetching outreach history...</Text>
+          <ActivityIndicator size="large" color={theme.thickColor} />
+          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Fetching outreach history...</Text>
         </View>
       ) : (
         <ScrollView
@@ -57,14 +59,14 @@ export const FollowUpHistoryScreen = ({ navigation }: any) => {
           {history.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="chatbubbles-outline" size={54} color={THEME.colors.gold} />
-              <Text style={styles.emptyTitle}>No Outreach Records</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptyTitle, { color: theme.thickColor }]}>No Outreach Records</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
                 Follow-ups dispatched via WhatsApp, SMS, Email, or In-App will be logged here.
               </Text>
             </View>
           ) : (
             history.map((item) => (
-              <View key={item.id} style={styles.card}>
+              <View key={item.id} style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
                 <View style={styles.cardHeader}>
                   <View style={styles.headerTitleRow}>
                     <Ionicons
@@ -78,24 +80,26 @@ export const FollowUpHistoryScreen = ({ navigation }: any) => {
                           : 'notifications-outline'
                       }
                       size={18}
-                      color={THEME.colors.primary}
+                      color={theme.thickColor}
                     />
-                    <Text style={styles.counseleeName}>{item.counseleeName}</Text>
+                    <Text style={[styles.counseleeName, { color: theme.thickColor }]}>{item.counseleeName}</Text>
                   </View>
-                  <Text style={styles.channelBadge}>{item.channel.toUpperCase()}</Text>
+                  <Text style={[styles.channelBadge, { backgroundColor: theme.liteColor, color: theme.thickColor }]}>
+                    {item.channel.toUpperCase()}
+                  </Text>
                 </View>
 
                 {item.messageSubject ? (
-                  <Text style={styles.subjectText}>{item.messageSubject}</Text>
+                  <Text style={[styles.subjectText, { color: theme.colors.text }]}>{item.messageSubject}</Text>
                 ) : null}
 
-                <Text style={styles.bodyText}>"{item.messageContent}"</Text>
+                <Text style={[styles.bodyText, { color: theme.colors.text }]}>"{item.messageContent}"</Text>
 
                 <View style={styles.footerRow}>
-                  <Text style={styles.timestamp}>
+                  <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>
                     {new Date(item.createdAt).toLocaleString()}
                   </Text>
-                  <Text style={styles.statusBadge}>Status: {item.deliveryStatus}</Text>
+                  <Text style={[styles.statusBadge, { color: theme.thickColor }]}>Status: {item.deliveryStatus}</Text>
                 </View>
               </View>
             ))
