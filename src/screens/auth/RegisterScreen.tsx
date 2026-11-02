@@ -98,6 +98,7 @@ export const RegisterScreen = ({ navigation }: any) => {
   };
 
   const handleFieldFocus = (key: string) => {
+    if (Platform.OS === 'web') return; // on Web/iOS Safari, native scrolling handles focus; programmatic scroll causes iOS keyboard blur
     const y = fieldPositions.current[key];
     if (y !== undefined && scrollViewRef.current) {
       setTimeout(() => {
@@ -246,7 +247,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
           <View style={styles.invitationRow}>
             <View style={styles.inputBoxWithIcon}>
-              <Ionicons name="key-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <Ionicons pointerEvents="none" name="key-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
                 style={[styles.boxTextInput, styles.invitationInput]}
                 placeholder="e.g. INVIT-XXXX"
@@ -315,7 +316,7 @@ export const RegisterScreen = ({ navigation }: any) => {
           >
             <Text style={styles.inputLabel}>Name / Initiated Name *</Text>
             <View style={styles.inputBoxWithIcon}>
-              <Ionicons name="person-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <Ionicons pointerEvents="none" name="person-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
                 style={styles.boxTextInput}
                 placeholder="e.g. Radheshyam Das / Ramesh Kumar"
@@ -334,7 +335,7 @@ export const RegisterScreen = ({ navigation }: any) => {
           >
             <Text style={styles.inputLabel}>Email Address *</Text>
             <View style={styles.inputBoxWithIcon}>
-              <Ionicons name="mail-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <Ionicons pointerEvents="none" name="mail-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
                 style={styles.boxTextInput}
                 placeholder="devotee@example.com"
@@ -343,6 +344,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 onChangeText={setEmail}
                 onFocus={() => handleFieldFocus('email')}
                 keyboardType="email-address"
+                inputMode="email"
                 autoCapitalize="none"
               />
             </View>
@@ -355,7 +357,7 @@ export const RegisterScreen = ({ navigation }: any) => {
           >
             <Text style={styles.inputLabel}>Create Password *</Text>
             <View style={styles.inputBoxWithIcon}>
-              <Ionicons name="lock-closed-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <Ionicons pointerEvents="none" name="lock-closed-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
                 style={[styles.boxTextInput, { flex: 1 }]}
                 placeholder="Minimum 6 characters"
@@ -386,15 +388,21 @@ export const RegisterScreen = ({ navigation }: any) => {
           >
             <Text style={styles.inputLabel}>WhatsApp / Mobile Number *</Text>
             <View style={styles.inputBoxWithIcon}>
-              <Ionicons name="logo-whatsapp" size={18} color="#16A34A" style={styles.inputLeadingIcon} />
+              <Ionicons pointerEvents="none" name="logo-whatsapp" size={18} color="#16A34A" style={styles.inputLeadingIcon} />
               <TextInput
                 style={styles.boxTextInput}
                 placeholder="10-digit WhatsApp mobile number"
                 placeholderTextColor="#9CA3AF"
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^\d+]/g, '');
+                  setPhoneNumber(cleaned);
+                }}
                 onFocus={() => handleFieldFocus('phone')}
                 keyboardType="phone-pad"
+                inputMode="tel"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
                 maxLength={15}
               />
             </View>
@@ -407,7 +415,7 @@ export const RegisterScreen = ({ navigation }: any) => {
           >
             <Text style={styles.inputLabel}>Daily Japa Commitment (Rounds) *</Text>
             <View style={styles.inputBoxWithIcon}>
-              <Ionicons name="disc-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
+              <Ionicons pointerEvents="none" name="disc-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
                 style={styles.boxTextInput}
                 placeholder="e.g. 16"
@@ -416,6 +424,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 onChangeText={setDeclaredRounds}
                 onFocus={() => handleFieldFocus('rounds')}
                 keyboardType="numeric"
+                inputMode="numeric"
                 maxLength={3}
               />
             </View>
@@ -663,8 +672,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inputBoxWithIcon: {
+    width: '100%',
     flex: 1,
-    height: 40,
+    height: 44,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -678,8 +688,8 @@ const styles = StyleSheet.create({
   },
   boxTextInput: {
     flex: 1,
-    height: 40,
-    fontSize: 12.5,
+    height: '100%',
+    fontSize: Platform.OS === 'web' ? 16 : 13,
     color: '#1F2937',
   },
   invitationInput: {
