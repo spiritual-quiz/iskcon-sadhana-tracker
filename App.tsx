@@ -15,14 +15,16 @@ const AppContent: React.FC = () => {
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const isUpdatePendingRef = useRef<boolean>(false);
   const isCheckingRef = useRef<boolean>(false);
+  const lastCheckTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     notificationService.setupNotifications();
 
-    // Check for updates via Expo Updates service
+    // Check for updates via Expo Updates service (battery-efficient: checks on launch and throttled on resume)
     const checkAppUpdates = async () => {
       if (isCheckingRef.current) return;
       isCheckingRef.current = true;
+      lastCheckTimeRef.current = Date.now();
       try {
         if (!__DEV__ && Updates?.checkForUpdateAsync) {
           const update = await Updates.checkForUpdateAsync();
@@ -42,25 +44,19 @@ const AppContent: React.FC = () => {
     // 1. Initial check on cold mount
     checkAppUpdates();
 
-    // 2. Periodic background check every 90 seconds while app is kept open
-    const intervalId = setInterval(() => {
-      checkAppUpdates();
-    }, 90000);
-
-    // 3. AppState listener: whenever user switches back into the app, re-prompt if update pending or re-check
+    // 2. AppState listener: whenever user switches back into the app, re-prompt if update pending,
+    // or re-check if at least 30 minutes have elapsed (zero background battery drain).
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
         if (isUpdatePendingRef.current) {
-          // If user previously tapped "Later", ask them again upon returning to the app!
           setShowUpdateModal(true);
-        } else {
+        } else if (Date.now() - lastCheckTimeRef.current > 30 * 60 * 1000) {
           checkAppUpdates();
         }
       }
     });
 
     return () => {
-      clearInterval(intervalId);
       subscription.remove();
     };
   }, []);

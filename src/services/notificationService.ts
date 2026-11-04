@@ -262,9 +262,9 @@ export const notificationService = {
   },
 
   /**
-   * Schedules standard daily reminders for 6:00 PM (18:00) and 9:00 PM (21:00) IST.
-   * Uses both daily repeating alarms and exact timestamp triggers for the next 7 days
-   * to guarantee notifications fire reliably even when the app is completely closed.
+   * Schedules standard daily reminders for 6:00 PM (18:00) and 9:00 PM (21:00) IST,
+   * plus a continuous 3-day inactivity alert that triggers even if the app remains closed.
+   * Optimized for zero battery drain (no repetitive wakelocks or loop thrashing).
    */
   scheduleDailyReminders: async (user: UserProfile | null): Promise<void> => {
     if (!user || !user.uid || !Notifications) return;
@@ -276,12 +276,12 @@ export const notificationService = {
       const todayStr = getTodayDateStringIST();
       const todayEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);
 
-      // If today is already filled, dismiss any active notifications
+      // If today is already filled, dismiss today's reminders
       if (todayEntry) {
         await notificationService.cancelTodayReminders();
       }
 
-      // 1. Repeating 6:00 PM Daily Reminder (18:00 IST)
+      // 1. Repeating 6:00 PM Daily Reminder (18:00 IST) - fires even when app is closed
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_6pm',
         content: {
@@ -300,7 +300,7 @@ export const notificationService = {
         },
       });
 
-      // 2. Repeating 9:00 PM Daily Reminder (21:00 IST)
+      // 2. Repeating 9:00 PM Daily Reminder (21:00 IST) - fires even when app is closed
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_9pm',
         content: {
@@ -319,56 +319,26 @@ export const notificationService = {
         },
       });
 
-      // 3. Exact alarms for the upcoming 7 days to pierce through Android Doze & OEM battery killers
-      const now = new Date();
-      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-        const targetDate6pm = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
-        targetDate6pm.setHours(18, 0, 0, 0);
+      // 3. Continuous 3-Day Inactivity Alert (triggers on Day 3 at 7:00 PM IST if app was not filled)
+      const day3Target = new Date();
+      day3Target.setDate(day3Target.getDate() + 3);
+      day3Target.setHours(19, 0, 0, 0); // 7:00 PM IST 3 days from now
 
-        const targetDate9pm = new Date(now.getTime() + dayOffset * 24 * 60 * 60 * 1000);
-        targetDate9pm.setHours(21, 0, 0, 0);
-
-        const dateStr = targetDate6pm.toISOString().split('T')[0];
-
-        // Only schedule if the alarm time is still in the future
-        if (targetDate6pm.getTime() > Date.now()) {
-          const id6 = `sadhana_exact_6pm_${dateStr}`;
-          await Notifications.scheduleNotificationAsync({
-            identifier: id6,
-            content: {
-              title: 'Sadhana Reminder',
-              body: 'Hare Krishna! Please remember to fill your daily sadhana card for today.',
-              sound: 'default',
-              vibrate: [0, 250, 250, 250],
-              priority: Notifications.AndroidNotificationPriority.MAX,
-              channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
-              data: { screen: 'DailySadhana', date: dateStr },
-            },
-            trigger: {
-              date: targetDate6pm,
-            },
-          });
-        }
-
-        if (targetDate9pm.getTime() > Date.now()) {
-          const id9 = `sadhana_exact_9pm_${dateStr}`;
-          await Notifications.scheduleNotificationAsync({
-            identifier: id9,
-            content: {
-              title: 'Sadhana Reminder (Final Call)',
-              body: 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is pending. Please fill it before taking rest.',
-              sound: 'default',
-              vibrate: [0, 250, 250, 250],
-              priority: Notifications.AndroidNotificationPriority.MAX,
-              channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
-              data: { screen: 'DailySadhana', date: dateStr },
-            },
-            trigger: {
-              date: targetDate9pm,
-            },
-          });
-        }
-      }
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'sadhana_inactivity_3days',
+        content: {
+          title: 'Sadhana Inactivity Alert (3 Days) ⚠️',
+          body: 'Hare Krishna! You have not submitted your daily sadhana card for 3 consecutive days. Please log your sadhana to maintain your devotional vows.',
+          sound: 'default',
+          vibrate: [0, 250, 250, 250],
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
+          data: { screen: 'DailySadhana' },
+        },
+        trigger: {
+          date: day3Target,
+        },
+      });
     } catch (e) {
       console.warn('Error scheduling daily reminders:', e);
     }
@@ -390,6 +360,7 @@ export const notificationService = {
         await Notifications.cancelScheduledNotificationAsync(reminderId);
         await Notifications.cancelScheduledNotificationAsync(exact6Id);
         await Notifications.cancelScheduledNotificationAsync(exact9Id);
+        await Notifications.cancelScheduledNotificationAsync('sadhana_inactivity_3days');
       }
       if (Notifications.dismissNotificationAsync) {
         await Notifications.dismissNotificationAsync(reminderId);
@@ -397,6 +368,7 @@ export const notificationService = {
         await Notifications.dismissNotificationAsync(exact9Id);
         await Notifications.dismissNotificationAsync('sadhana_scheduled_6pm');
         await Notifications.dismissNotificationAsync('sadhana_scheduled_9pm');
+        await Notifications.dismissNotificationAsync('sadhana_inactivity_3days');
       }
     } catch (e) {
       console.warn('Error cancelling today reminder:', e);
@@ -488,18 +460,23 @@ export const notificationService = {
         }
       }
 
-      // 4. Devotees Missing Sadhana for 3+ Days
+      // 4. Devotees Missing Sadhana for 3+ Continuous Days
       const openAlerts = await monitoringService.getOpenAlerts();
       const missingAlerts = openAlerts.filter((a) => a.alertType === 'missing_card');
       if (missingAlerts.length > 0) {
         const key = `admin_missing_sadhana_${todayStr}_${missingAlerts.length}`;
+        const devoteeSummary =
+          missingAlerts.length === 1
+            ? `${missingAlerts[0].counseleeName} has not submitted sadhana for ${missingAlerts[0].consecutiveMissingDays || 3} consecutive days.`
+            : `${missingAlerts[0].counseleeName} and ${missingAlerts.length - 1} other devotee(s) have not submitted sadhana for 3+ consecutive days.`;
+
         if (!dispatchedAlertKeys.has(key)) {
           dispatchedAlertKeys.add(key);
           await Notifications.scheduleNotificationAsync({
             identifier: key,
             content: {
-              title: 'Sadhana Pending (3+ Days)',
-              body: `${missingAlerts[0].counseleeName} has not submitted sadhana for 3+ consecutive days.`,
+              title: 'Sadhana Pending (3+ Days) ⚠️',
+              body: devoteeSummary,
               sound: 'default',
               vibrate: [0, 250, 250, 250],
               priority: Notifications.AndroidNotificationPriority.MAX,
@@ -508,6 +485,30 @@ export const notificationService = {
             },
             trigger: null,
           });
+        }
+
+        // Schedule repeating morning notification for counsellor at 9:30 AM IST (fires even when app is closed)
+        await Notifications.scheduleNotificationAsync({
+          identifier: 'counsellor_scheduled_3day_alert',
+          content: {
+            title: 'Sadhana Inactivity Alert (3+ Days) ⚠️',
+            body: devoteeSummary,
+            sound: 'default',
+            vibrate: [0, 250, 250, 250],
+            priority: Notifications.AndroidNotificationPriority.MAX,
+            channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+            data: { screen: 'MonitoringAlerts' },
+          },
+          trigger: {
+            hour: 9,
+            minute: 30,
+            repeats: true,
+          },
+        });
+      } else {
+        // Cancel the 3-day inactivity alarm for counsellor if everyone is active
+        if (Notifications.cancelScheduledNotificationAsync) {
+          await Notifications.cancelScheduledNotificationAsync('counsellor_scheduled_3day_alert');
         }
       }
 

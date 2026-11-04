@@ -71,7 +71,7 @@ export const HomeScreen = ({ navigation }: any) => {
     if (!user?.uid) return;
     const nowMs = Date.now();
     // Battery optimization: Avoid refetching full reports within 45s unless explicitly pulled to refresh
-    if (!force && nowMs - lastLoadedAtRef.current < 45000 && todayEntry) {
+    if (!force && nowMs - lastLoadedAtRef.current < 45000) {
       return;
     }
     lastLoadedAtRef.current = nowMs;

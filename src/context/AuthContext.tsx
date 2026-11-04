@@ -27,7 +27,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setFirebaseUser(fbUser);
       setIsLoading(false);
       if (profile) {
-        notificationService.scheduleDailyReminders(profile).catch(() => {});
+        if (profile.role === 'counsellor') {
+          notificationService.checkAndDispatchAdminAlerts(profile).catch(() => {});
+        } else {
+          notificationService.scheduleDailyReminders(profile).catch(() => {});
+        }
       }
     });
 
