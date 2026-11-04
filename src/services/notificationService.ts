@@ -4,6 +4,7 @@ import { getTodayDateStringIST, getNowInIST, getDaysDifference } from '../utils/
 import { authService } from './authService';
 import { monitoringService } from './monitoringService';
 import { birthdayService } from './birthdayService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Safely require Platform and expo-notifications for cross-platform and jest test environments
 let Platform: any = { OS: 'android' };
@@ -26,8 +27,41 @@ export const NOTIFICATION_CHANNELS = {
   APP_UPDATES: 'app_updates_channel',
 };
 
-// Track dispatched notification keys in the current session to prevent duplicate sounds
-const dispatchedAlertKeys = new Set<string>();
+// Persistent storage key so notifications fire ONLY ONCE and never pop up repeatedly on app open
+const NOTIFIED_KEYS_STORAGE = 'bhakti_notified_alert_keys_v2';
+const inMemoryDispatched = new Set<string>();
+
+const hasAlertBeenNotified = async (key: string): Promise<boolean> => {
+  if (inMemoryDispatched.has(key)) return true;
+  try {
+    const raw = await AsyncStorage.getItem(NOTIFIED_KEYS_STORAGE);
+    if (raw) {
+      const parsed: string[] = JSON.parse(raw);
+      if (parsed.includes(key)) {
+        inMemoryDispatched.add(key);
+        return true;
+      }
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return false;
+};
+
+const markAlertAsNotified = async (key: string): Promise<void> => {
+  inMemoryDispatched.add(key);
+  try {
+    const raw = await AsyncStorage.getItem(NOTIFIED_KEYS_STORAGE);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    if (!list.includes(key)) {
+      list.push(key);
+      if (list.length > 200) list.splice(0, list.length - 200);
+      await AsyncStorage.setItem(NOTIFIED_KEYS_STORAGE, JSON.stringify(list));
+    }
+  } catch (e) {
+    // Ignore
+  }
+};
 
 // Set foreground notification presentation handler with sound enabled
 if (Notifications?.setNotificationHandler) {
@@ -179,8 +213,8 @@ export const notificationService = {
     try {
       const todayStr = getTodayDateStringIST();
       const identifier = `app_update_available_${todayStr}`;
-      if (dispatchedAlertKeys.has(identifier)) return false;
-      dispatchedAlertKeys.add(identifier);
+      if (await hasAlertBeenNotified(identifier)) return false;
+      await markAlertAsNotified(identifier);
 
       await Notifications.scheduleNotificationAsync({
         identifier,
@@ -392,12 +426,12 @@ export const notificationService = {
       const allUsers = await authService.getAllUsers();
       const counselees = allUsers.filter((u) => u.role === 'counselee');
 
-      // 1. New Counselees joined / pending approval
+      // 1. New Counselees joined / pending approval (Notified ONCE, then tracked in tab)
       const pendingUsers = counselees.filter((u) => u.status === 'pending');
       if (pendingUsers.length > 0) {
-        const key = `admin_pending_${todayStr}_${pendingUsers.length}`;
-        if (!dispatchedAlertKeys.has(key)) {
-          dispatchedAlertKeys.add(key);
+        const key = `admin_pending_${pendingUsers.map((u) => u.uid).sort().join('_')}`;
+        if (!(await hasAlertBeenNotified(key))) {
+          await markAlertAsNotified(key);
           await Notifications.scheduleNotificationAsync({
             identifier: key,
             content: {
@@ -407,19 +441,19 @@ export const notificationService = {
               vibrate: [0, 250, 250, 250],
               priority: Notifications.AndroidNotificationPriority.MAX,
               channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
-              data: { screen: 'CounseleeApproval' },
+              data: { screen: 'PendingRegistrations' },
             },
             trigger: null,
           });
         }
       }
 
-      // 2. Reminder Switch-Off Requests
+      // 2. Reminder Switch-Off Requests (Notified ONCE, then tracked in Manage Counselees tab)
       const reminderReqs = counselees.filter((u) => u.reminderOptOutRequested === true);
       if (reminderReqs.length > 0) {
-        const key = `admin_reminder_optout_${todayStr}_${reminderReqs.length}`;
-        if (!dispatchedAlertKeys.has(key)) {
-          dispatchedAlertKeys.add(key);
+        const key = `admin_reminder_optout_${reminderReqs.map((u) => u.uid).sort().join('_')}`;
+        if (!(await hasAlertBeenNotified(key))) {
+          await markAlertAsNotified(key);
           await Notifications.scheduleNotificationAsync({
             identifier: key,
             content: {
@@ -436,14 +470,14 @@ export const notificationService = {
         }
       }
 
-      // 3. Target Rounds Change Requests
+      // 3. Target Rounds Change Requests (Notified ONCE, then tracked in Manage Counselees tab)
       const targetReqs = counselees.filter(
         (u) => u.targetRoundsRequested && u.targetRoundsRequested > 0
       );
       if (targetReqs.length > 0) {
-        const key = `admin_rounds_req_${todayStr}_${targetReqs.length}`;
-        if (!dispatchedAlertKeys.has(key)) {
-          dispatchedAlertKeys.add(key);
+        const key = `admin_rounds_req_${targetReqs.map((u) => `${u.uid}_${u.targetRoundsRequested}`).sort().join('_')}`;
+        if (!(await hasAlertBeenNotified(key))) {
+          await markAlertAsNotified(key);
           await Notifications.scheduleNotificationAsync({
             identifier: key,
             content: {
@@ -461,19 +495,22 @@ export const notificationService = {
       }
 
       // 4. Devotees Missing Sadhana for 3+ Continuous Days
+      // DOES NOT pop up repeatedly inside the app. Listed in "Sadhana Monitoring" tab.
+      // Schedules a native repeating alarm at 9:30 AM IST that fires when the app is CLOSED.
       const openAlerts = await monitoringService.getOpenAlerts();
       const missingAlerts = openAlerts.filter((a) => a.alertType === 'missing_card');
       if (missingAlerts.length > 0) {
-        const key = `admin_missing_sadhana_${todayStr}_${missingAlerts.length}`;
         const devoteeSummary =
           missingAlerts.length === 1
             ? `${missingAlerts[0].counseleeName} has not submitted sadhana for ${missingAlerts[0].consecutiveMissingDays || 3} consecutive days.`
             : `${missingAlerts[0].counseleeName} and ${missingAlerts.length - 1} other devotee(s) have not submitted sadhana for 3+ consecutive days.`;
 
-        if (!dispatchedAlertKeys.has(key)) {
-          dispatchedAlertKeys.add(key);
+        // If a new devotee entered 3+ day missing state today, notify ONCE only
+        const missingKey = `admin_missing_${todayStr}_${missingAlerts.map((a) => a.userId).sort().join('_')}`;
+        if (!(await hasAlertBeenNotified(missingKey))) {
+          await markAlertAsNotified(missingKey);
           await Notifications.scheduleNotificationAsync({
-            identifier: key,
+            identifier: missingKey,
             content: {
               title: 'Sadhana Pending (3+ Days) ⚠️',
               body: devoteeSummary,
@@ -487,7 +524,7 @@ export const notificationService = {
           });
         }
 
-        // Schedule repeating morning notification for counsellor at 9:30 AM IST (fires even when app is closed)
+        // Schedule repeating morning notification for counsellor at 9:30 AM IST (fires when app is CLOSED)
         await Notifications.scheduleNotificationAsync({
           identifier: 'counsellor_scheduled_3day_alert',
           content: {
@@ -506,19 +543,19 @@ export const notificationService = {
           },
         });
       } else {
-        // Cancel the 3-day inactivity alarm for counsellor if everyone is active
+        // Cancel the closed-app 3-day inactivity alarm for counsellor if everyone is active
         if (Notifications.cancelScheduledNotificationAsync) {
           await Notifications.cancelScheduledNotificationAsync('counsellor_scheduled_3day_alert');
         }
       }
 
-      // 5. Devotee Birthdays Today
+      // 5. Devotee Birthdays Today (Notified ONCE on birthday)
       const upcomingBdays = birthdayService.getUpcomingBirthdays(counselees, 1);
       const todayBdays = upcomingBdays.filter((b) => b.reminderDate === todayStr);
       if (todayBdays.length > 0) {
-        const key = `admin_birthday_${todayStr}_${todayBdays.length}`;
-        if (!dispatchedAlertKeys.has(key)) {
-          dispatchedAlertKeys.add(key);
+        const key = `admin_birthday_${todayStr}_${todayBdays.map((b) => b.userId).sort().join('_')}`;
+        if (!(await hasAlertBeenNotified(key))) {
+          await markAlertAsNotified(key);
           await Notifications.scheduleNotificationAsync({
             identifier: key,
             content: {

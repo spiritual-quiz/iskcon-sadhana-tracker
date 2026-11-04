@@ -20,9 +20,11 @@ import { db } from '../../config/firebase';
 
 import { authService } from '../../services/authService';
 import { localStorageService } from '../../services/localStorageService';
+import { updateService } from '../../services/updateService';
 
 export const SettingsExportScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
+  const currentAppVersion = updateService.getCurrentVersion();
   const [minA, setMinA] = useState<string>('90');
   const [minB, setMinB] = useState<string>('80');
   const [minC, setMinC] = useState<string>('70');
@@ -32,6 +34,13 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   const [lowScoreThreshold, setLowScoreThreshold] = useState<string>('60');
 
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [broadcastVersion, setBroadcastVersion] = useState<string>(currentAppVersion.version);
+  const [broadcastCode, setBroadcastCode] = useState<string>(String(currentAppVersion.versionCode));
+  const [broadcastTitle, setBroadcastTitle] = useState<string>('New Devotional Update Available');
+  const [broadcastNotes, setBroadcastNotes] = useState<string>(
+    'Sadhana monitoring notification updates, battery drain fixes, and WhatsApp number fix for iPhone.'
+  );
+  const [isPublishingUpgrade, setIsPublishingUpgrade] = useState<boolean>(false);
 
   const handleSaveSettings = () => {
     Alert.alert('Settings Updated', 'Grading thresholds and monitoring rules saved successfully.');
@@ -76,6 +85,28 @@ export const SettingsExportScreen = ({ navigation }: any) => {
       Alert.alert('Export Error', err.message || 'Failed to export database records.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handlePublishUpgrade = async () => {
+    setIsPublishingUpgrade(true);
+    try {
+      await updateService.publishSoftwareUpgrade({
+        version: broadcastVersion.trim() || currentAppVersion.version,
+        versionCode: parseInt(broadcastCode, 10) || currentAppVersion.versionCode,
+        title: broadcastTitle.trim() || 'New Devotional Update Available',
+        releaseNotes: broadcastNotes.trim(),
+        apkDownloadUrl: 'https://expo.dev/artifacts/eas/1ibgUrrK89ERZl2Mz4GOSd0DjHACyoD4BH7ljT9ckfk.apk',
+        isMandatory: false,
+      });
+      Alert.alert(
+        'Software Upgrade Broadcasted! 🚀',
+        `Version ${broadcastVersion} (code: ${broadcastCode}) is now live in Firestore. Devotees and counsellors will immediately see the update pop-up with the progress bar when they open the app.`
+      );
+    } catch (e: any) {
+      Alert.alert('Broadcast Error', e?.message || 'Could not publish update broadcast.');
+    } finally {
+      setIsPublishingUpgrade(false);
     }
   };
 
@@ -198,6 +229,81 @@ export const SettingsExportScreen = ({ navigation }: any) => {
                 <Ionicons name="cloud-download-outline" size={20} color={THEME.colors.textInverse} />
                 <Text style={styles.exportBtnText}>Export All Sadhana Records (JSON)</Text>
               </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Software Version & Upgrade Broadcast */}
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Ionicons name="cloud-upload-outline" size={20} color={theme.thickColor} />
+            <Text style={[styles.cardTitle, { color: theme.thickColor, marginBottom: 0 }]}>
+              Software Version & Upgrade Broadcast
+            </Text>
+          </View>
+          <Text style={styles.helperText}>
+            Currently Installed: <Text style={{ fontWeight: 'bold' }}>v{currentAppVersion.version} (Build #{currentAppVersion.versionCode})</Text>.
+            Publish an update broadcast to notify all counselees and counsellors with a pop-up when they open the app:
+          </Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Broadcast Version Number</Text>
+            <TextInput
+              style={[styles.textInput, { borderColor: theme.colors.border }]}
+              value={broadcastVersion}
+              onChangeText={setBroadcastVersion}
+              placeholder="e.g. 1.0.28"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Version Code (Integer)</Text>
+            <TextInput
+              style={[styles.textInput, { borderColor: theme.colors.border }]}
+              value={broadcastCode}
+              onChangeText={setBroadcastCode}
+              keyboardType="number-pad"
+              placeholder="e.g. 29"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Update Title</Text>
+            <TextInput
+              style={[styles.textInput, { borderColor: theme.colors.border }]}
+              value={broadcastTitle}
+              onChangeText={setBroadcastTitle}
+              placeholder="e.g. New Devotional Update Available"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Release Notes / Highlights</Text>
+            <TextInput
+              style={[
+                styles.textInput,
+                { borderColor: theme.colors.border, height: 70, textAlignVertical: 'top' },
+              ]}
+              value={broadcastNotes}
+              onChangeText={setBroadcastNotes}
+              multiline
+              numberOfLines={3}
+              placeholder="Describe key features or bugfixes included in this release..."
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.saveBtn, { backgroundColor: theme.thickColor, marginTop: 8 }]}
+            onPress={handlePublishUpgrade}
+            disabled={isPublishingUpgrade}
+          >
+            {isPublishingUpgrade ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Ionicons name="megaphone-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.saveBtnText}>Publish Software Upgrade to All Users</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>

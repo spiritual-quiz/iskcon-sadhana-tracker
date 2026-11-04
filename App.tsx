@@ -8,11 +8,13 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { notificationService } from './src/services/notificationService';
+import { updateService, AppVersionInfo } from './src/services/updateService';
 import { AppUpdateModal } from './src/components/AppUpdateModal';
 
 const AppContent: React.FC = () => {
   const { theme, currentThemeId } = useTheme();
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [pendingUpdateInfo, setPendingUpdateInfo] = useState<AppVersionInfo | undefined>(undefined);
   const isUpdatePendingRef = useRef<boolean>(false);
   const isCheckingRef = useRef<boolean>(false);
   const lastCheckTimeRef = useRef<number>(Date.now());
@@ -20,22 +22,21 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     notificationService.setupNotifications();
 
-    // Check for updates via Expo Updates service (battery-efficient: checks on launch and throttled on resume)
+    // Check for updates via updateService (handles both Firestore broadcast & native OTA)
     const checkAppUpdates = async () => {
       if (isCheckingRef.current) return;
       isCheckingRef.current = true;
       lastCheckTimeRef.current = Date.now();
       try {
-        if (!__DEV__ && Updates?.checkForUpdateAsync) {
-          const update = await Updates.checkForUpdateAsync();
-          if (update.isAvailable) {
-            isUpdatePendingRef.current = true;
-            setShowUpdateModal(true);
-            await notificationService.triggerAppUpdateNotification();
-          }
+        const result = await updateService.checkForUpdate();
+        if (result.isAvailable) {
+          isUpdatePendingRef.current = true;
+          setPendingUpdateInfo(result.versionInfo);
+          setShowUpdateModal(true);
+          await notificationService.triggerAppUpdateNotification();
         }
       } catch (e) {
-        // Offline or dev mode fallback
+        // Offline fallback
       } finally {
         isCheckingRef.current = false;
       }
@@ -44,7 +45,7 @@ const AppContent: React.FC = () => {
     // 1. Initial check on cold mount
     checkAppUpdates();
 
-    // 2. AppState listener: whenever user switches back into the app, re-prompt if update pending,
+    // 2. AppState listener: whenever user returns to the app, re-prompt if update pending,
     // or re-check if at least 30 minutes have elapsed (zero background battery drain).
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
@@ -62,20 +63,15 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleApplyUpdate = async () => {
-    if (Updates?.fetchUpdateAsync) {
-      await Updates.fetchUpdateAsync();
-      isUpdatePendingRef.current = false;
-    }
+    await updateService.fetchAndApplyUpdate(pendingUpdateInfo);
+    isUpdatePendingRef.current = false;
   };
 
   const handleRestartApp = async () => {
-    if (Updates?.reloadAsync) {
-      await Updates.reloadAsync();
-    }
+    await updateService.reloadApp();
   };
 
   const handleDismissModal = () => {
-    // Dismiss modal for current session; will re-prompt when user returns to app
     setShowUpdateModal(false);
   };
 
@@ -97,6 +93,8 @@ const AppContent: React.FC = () => {
           onUpdate={handleApplyUpdate}
           onRestart={handleRestartApp}
           onDismiss={handleDismissModal}
+          updateMessage={pendingUpdateInfo?.releaseNotes}
+          isMandatory={pendingUpdateInfo?.isMandatory}
         />
       </AuthProvider>
     </NavigationContainer>

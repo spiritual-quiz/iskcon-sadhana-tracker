@@ -160,30 +160,35 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                       },
                     ]}
                   >
-                    <View style={styles.featureItem}>
-                      <Ionicons name="people-outline" size={16} color={theme.thickColor} />
-                      <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Sanga weekly calculation Monday–Sunday live sync with pull-to-refresh
-                      </Text>
-                    </View>
-                    <View style={styles.featureItem}>
-                      <Ionicons name="notifications-outline" size={16} color={theme.thickColor} />
-                      <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Reliable 6 PM & 9 PM sadhana alarms fire even when app is completely closed
-                      </Text>
-                    </View>
-                    <View style={styles.featureItem}>
-                      <Ionicons name="phone-portrait-outline" size={16} color={theme.thickColor} />
-                      <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Official iPhone & Web PWA support with Add-to-Home-Screen
-                      </Text>
-                    </View>
-                    <View style={styles.featureItem}>
-                      <Ionicons name="calculator-outline" size={16} color={theme.thickColor} />
-                      <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                        Sadhana marks calculate only after entry (0/50 initially for pending)
-                      </Text>
-                    </View>
+                    {updateMessage ? (
+                      <View style={styles.featureItem}>
+                        <Ionicons name="sparkles" size={16} color={theme.thickColor} />
+                        <Text style={[styles.featureText, { color: theme.colors.text, fontWeight: '600' }]}>
+                          {updateMessage}
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.featureItem}>
+                          <Ionicons name="notifications-outline" size={16} color={theme.thickColor} />
+                          <Text style={[styles.featureText, { color: theme.colors.text }]}>
+                            Single notification pop-up with persistent Sadhana Monitoring status
+                          </Text>
+                        </View>
+                        <View style={styles.featureItem}>
+                          <Ionicons name="battery-charging-outline" size={16} color={theme.thickColor} />
+                          <Text style={[styles.featureText, { color: theme.colors.text }]}>
+                            Zero background battery drain: eliminated wakelocks & redundant loops
+                          </Text>
+                        </View>
+                        <View style={styles.featureItem}>
+                          <Ionicons name="alarm-outline" size={16} color={theme.thickColor} />
+                          <Text style={[styles.featureText, { color: theme.colors.text }]}>
+                            Closed-app alerts: 3-day inactivity notifications & 6 PM / 9 PM reminders
+                          </Text>
+                        </View>
+                      </>
+                    )}
                   </View>
 
                   {/* Buttons */}
