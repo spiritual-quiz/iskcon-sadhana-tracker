@@ -11,6 +11,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
@@ -32,8 +33,9 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
   const [counselees, setCounselees] = useState<UserProfile[]>([]);
   const [invitations, setInvitations] = useState<InvitationCode[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'disabled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'disabled'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Follow-up modal
   const [contactDevotee, setContactDevotee] = useState<UserProfile | null>(null);
@@ -46,10 +48,10 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
     loadCounselees();
   }, []);
 
-  const loadCounselees = async () => {
+  const loadCounselees = async (force = false) => {
     try {
       const [data, invs] = await Promise.all([
-        authService.getAllCounselees(),
+        authService.getAllCounselees(force),
         getAllInvitations().catch(() => []),
       ]);
       setCounselees(data);
@@ -58,6 +60,20 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
       console.warn('Error loading counselees:', e);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleApproveCounselee = async (user: UserProfile) => {
+    try {
+      await authService.updateCounseleeStatus(user.uid, 'approved');
+      Alert.alert(
+        'Devotee Approved! 🙏',
+        `${user.displayName} is now approved. They can now immediately log in and submit their daily sadhana.`
+      );
+      loadCounselees(true);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not approve devotee.');
     }
   };
 
@@ -291,22 +307,28 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
           </View>
 
           <View style={styles.filterRow}>
-            {(['all', 'approved', 'disabled'] as const).map((filter) => (
-              <TouchableOpacity
-                key={filter}
-                style={[styles.filterChip, statusFilter === filter && styles.filterChipActive]}
-                onPress={() => setStatusFilter(filter)}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    statusFilter === filter && styles.filterChipTextActive,
-                  ]}
+            {(['all', 'pending', 'approved', 'disabled'] as const).map((filter) => {
+              const count =
+                filter === 'all'
+                  ? counselees.length
+                  : counselees.filter((c) => c.status === filter).length;
+              return (
+                <TouchableOpacity
+                  key={filter}
+                  style={[styles.filterChip, statusFilter === filter && styles.filterChipActive]}
+                  onPress={() => setStatusFilter(filter)}
                 >
-                  {filter.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      statusFilter === filter && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {filter.toUpperCase()} ({count})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       )}
@@ -317,7 +339,10 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
           <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading counselees...</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadCounselees(true); }} />}
+        >
           {activeTab === 'all' ? (
             filtered.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -337,6 +362,31 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                     </View>
                     <StatusBadge type="status" value={devotee.status} />
                   </View>
+
+                  {/* High-Visibility Approval Banner for Pending Registrations */}
+                  {devotee.status === 'pending' && (
+                    <View style={styles.pendingCardBanner}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <Ionicons name="time" size={18} color="#D97706" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pendingCardBannerTitle}>
+                            New Registration • Awaiting Approval
+                          </Text>
+                          <Text style={styles.pendingCardBannerSub}>
+                            Registered {devotee.createdAt ? new Date(devotee.createdAt).toLocaleDateString('en-IN') : 'Recently'} • Tap to approve devotee
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.cardApproveBtn}
+                        onPress={() => handleApproveCounselee(devotee)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                        <Text style={styles.cardApproveBtnText}>Approve</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   <View style={styles.detailsGrid}>
                     <View style={styles.detailItem}>
@@ -536,7 +586,19 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                             }}
                           >
                             <Text style={styles.invDevoteeName}>{devotee.displayName}</Text>
-                            <StatusBadge type="status" value={devotee.status} />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <StatusBadge type="status" value={devotee.status} />
+                              {devotee.status === 'pending' && (
+                                <TouchableOpacity
+                                  style={styles.invApproveBtn}
+                                  onPress={() => handleApproveCounselee(devotee)}
+                                  activeOpacity={0.8}
+                                >
+                                  <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
+                                  <Text style={styles.invApproveBtnText}>Approve</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           </View>
                           <Text style={styles.invDevoteePhone}>
                             {devotee.phoneNumber || devotee.email}
@@ -1201,5 +1263,57 @@ const styles = StyleSheet.create({
   invMetaText: {
     fontSize: 11,
     color: '#9CA3AF',
+  },
+  pendingCardBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 6,
+    gap: 8,
+  },
+  pendingCardBannerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  pendingCardBannerSub: {
+    fontSize: 10,
+    color: '#B45309',
+    marginTop: 1,
+  },
+  cardApproveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 6,
+    gap: 4,
+    elevation: 2,
+  },
+  cardApproveBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  invApproveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    gap: 3,
+  },
+  invApproveBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 11,
   },
 });

@@ -22,10 +22,13 @@ import { authService } from '../../services/authService';
 import { validateInvitationCode } from '../../services/invitationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
+import { updateService } from '../../services/updateService';
 
 export const ProfileScreen = () => {
   const { user, reloadUser, signOut } = useAuth();
   const { theme, openThemePicker } = useTheme();
+  const currentAppVersion = updateService.getCurrentVersion();
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState<boolean>(false);
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
@@ -80,6 +83,41 @@ export const ProfileScreen = () => {
         },
       ]
     );
+  };
+
+  const handleCheckUpdates = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const res = await updateService.checkForUpdate();
+      if (res.isAvailable) {
+        Alert.alert(
+          'Update Available',
+          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.`,
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Download & Apply',
+              onPress: async () => {
+                await updateService.fetchAndApplyUpdate(res.versionInfo);
+                Alert.alert('Update Applied', 'Update package downloaded. Restart app to apply?', [
+                  { text: 'Restart Now', onPress: () => updateService.reloadApp() },
+                  { text: 'Later' },
+                ]);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Software Up to Date',
+          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+    } finally {
+      setIsCheckingUpdates(false);
+    }
   };
 
   useEffect(() => {
@@ -410,6 +448,40 @@ export const ProfileScreen = () => {
           onClose={() => setShowBioEnrollModal(false)}
           onSuccess={() => setIsBiometricEnrolled(true)}
         />
+
+        {/* Current Software Version & Check Updates */}
+        <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View style={[styles.bioIconBox, { backgroundColor: theme.liteColor, width: 36, height: 36, borderRadius: 18 }]}>
+                <Ionicons name="sparkles" size={17} color={theme.thickColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: theme.thickColor }}>
+                  Software Version: v{currentAppVersion.version}
+                </Text>
+                <Text style={{ fontSize: 11, color: theme.colors.textMuted }}>
+                  Build #{currentAppVersion.versionCode} • Cloud Sync Active
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.bioTestBtn, { borderColor: theme.thickColor, backgroundColor: theme.liteColor }]}
+              onPress={handleCheckUpdates}
+              disabled={isCheckingUpdates}
+              activeOpacity={0.8}
+            >
+              {isCheckingUpdates ? (
+                <ActivityIndicator size="small" color={theme.thickColor} />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={13} color={theme.thickColor} />
+                  <Text style={[styles.bioTestBtnText, { color: theme.thickColor }]}>Check Updates</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Sign Out - Thick Orange Colour */}
         <TouchableOpacity style={styles.signOutBtn} onPress={signOut} activeOpacity={0.85}>

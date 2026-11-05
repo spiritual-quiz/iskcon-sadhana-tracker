@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../../services/authService';
 import { biometricService, BiometricAccount } from '../../services/biometricService';
 import { UserProfile } from '../../types/auth';
@@ -68,6 +69,12 @@ export const LoginScreen = ({ navigation }: any) => {
   // Check biometric availability and existing devotee enrollment on load
   useEffect(() => {
     loadBiometrics();
+    // Restore last entered email/username so user never has to re-type it
+    AsyncStorage.getItem('bhakti_last_entered_email').then((savedEmail: string | null) => {
+      if (savedEmail && !email) {
+        setEmail(savedEmail);
+      }
+    }).catch(() => {});
   }, []);
 
   const loadBiometrics = async () => {
@@ -162,6 +169,7 @@ export const LoginScreen = ({ navigation }: any) => {
     setIsSubmitting(true);
     try {
       const cleanEmail = email.trim().toLowerCase();
+      await AsyncStorage.setItem('bhakti_last_entered_email', cleanEmail).catch(() => {});
       const userProfile = await signIn(cleanEmail, password);
 
       // Check if this specific user already has fingerprint enrolled on this phone
@@ -187,6 +195,8 @@ export const LoginScreen = ({ navigation }: any) => {
         }
       }
     } catch (err: any) {
+      // Clear ONLY password so devotee can re-type correct password without email being wiped out
+      setPassword('');
       const msg = err.message || 'Could not verify credentials.';
       const isIncorrectPass = msg.toLowerCase().includes('incorrect password');
       Alert.alert(
@@ -473,7 +483,10 @@ export const LoginScreen = ({ navigation }: any) => {
                   placeholder="devotee@example.com"
                   placeholderTextColor={THEME.colors.textLight}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    AsyncStorage.setItem('bhakti_last_entered_email', text.trim().toLowerCase()).catch(() => {});
+                  }}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />

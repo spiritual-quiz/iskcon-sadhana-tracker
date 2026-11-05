@@ -39,14 +39,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const signIn = async (email: string, pass: string): Promise<UserProfile> => {
-    setIsLoading(true);
-    try {
-      const profile = await authService.signIn(email, pass);
-      setUser(profile);
-      return profile;
-    } finally {
-      setIsLoading(false);
-    }
+    // Note: Do NOT toggle global isLoading here. LoginScreen manages its own localized
+    // isSubmitting state. Setting global isLoading causes RootNavigator to unmount LoginScreen,
+    // which resets user-typed form inputs (email/username) on invalid password errors.
+    const profile = await authService.signIn(email, pass);
+    setUser(profile);
+    return profile;
   };
 
   const register = async (params: RegisterParams) => {

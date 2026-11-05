@@ -29,12 +29,15 @@ import { localStorageService } from '../../services/localStorageService';
 import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
+import { updateService } from '../../services/updateService';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const { theme, openThemePicker } = useTheme();
   const todayStr = getTodayDateStringIST();
+  const currentAppVersion = updateService.getCurrentVersion();
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState<boolean>(false);
 
   const [approvedCount, setApprovedCount] = useState<number>(0);
   const [pendingCount, setPendingCount] = useState<number>(0);
@@ -68,14 +71,15 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
     try {
       const q = query(
         collection(db, 'users'),
-        where('role', '==', 'counselee'),
         where('status', '==', 'pending')
       );
       const unsubscribe = onSnapshot(
         q,
         (snap) => {
           if (!snap.empty) {
-            const pendingDevotees = snap.docs.map((d) => d.data() as UserProfile);
+            const pendingDevotees = snap.docs
+              .map((d) => d.data() as UserProfile)
+              .filter((u) => u.role !== 'counsellor' && u.status === 'pending');
             setPendingCount(pendingDevotees.length);
 
             // Find any newly arrived pending devotee who has not been popped up yet
@@ -183,6 +187,41 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const onRefresh = () => {
     setIsRefreshing(true);
     loadDashboardMetrics(true);
+  };
+
+  const handleCheckUpdates = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const res = await updateService.checkForUpdate();
+      if (res.isAvailable) {
+        Alert.alert(
+          'Update Available',
+          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.`,
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Download & Apply',
+              onPress: async () => {
+                await updateService.fetchAndApplyUpdate(res.versionInfo);
+                Alert.alert('Update Applied', 'Update package downloaded. Restart app to apply?', [
+                  { text: 'Restart Now', onPress: () => updateService.reloadApp() },
+                  { text: 'Later' },
+                ]);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Software Up to Date',
+          `You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+    } finally {
+      setIsCheckingUpdates(false);
+    }
   };
 
   const adminSections = [
@@ -326,17 +365,25 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
           {/* Executive Metrics Overview Strip */}
           <View style={[styles.metricsStrip, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            <View style={styles.metricBox}>
+            <TouchableOpacity
+              style={styles.metricBox}
+              onPress={() => navigation.navigate('ManageCounselees')}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.metricValue, { color: theme.thickColor }]}>{approvedCount}</Text>
               <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Counselees</Text>
-            </View>
+            </TouchableOpacity>
             <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderLight }]} />
-            <View style={styles.metricBox}>
+            <TouchableOpacity
+              style={styles.metricBox}
+              onPress={() => navigation.navigate('PendingRegistrations')}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.metricValue, { color: theme.thickColor }, pendingCount > 0 && styles.textWarning]}>
                 {pendingCount}
               </Text>
               <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>Pending</Text>
-            </View>
+            </TouchableOpacity>
             <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderLight }]} />
             <View style={styles.metricBox}>
               <Text style={[styles.metricValue, { color: theme.thickColor }]}>{todaySubmissionsCount}</Text>
@@ -407,6 +454,38 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                 <Text style={[styles.cardSubtitle, { color: theme.colors.textMuted }]}>{sec.subtitle}</Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Software Version & Updates Banner */}
+          <View style={[styles.versionStripCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View style={[styles.versionIconCircle, { backgroundColor: theme.liteColor }]}>
+                <Ionicons name="sparkles" size={16} color={theme.thickColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.versionTitle, { color: theme.colors.text }]}>
+                  Software Version: <Text style={{ color: theme.thickColor, fontWeight: 'bold' }}>v{currentAppVersion.version}</Text> (Build #{currentAppVersion.versionCode})
+                </Text>
+                <Text style={[styles.versionSubtitle, { color: theme.colors.textMuted }]}>
+                  Asia/Kolkata (IST) • Real-time cloud sync active
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.versionCheckBtn, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}
+              onPress={handleCheckUpdates}
+              disabled={isCheckingUpdates}
+              activeOpacity={0.8}
+            >
+              {isCheckingUpdates ? (
+                <ActivityIndicator size="small" color={theme.thickColor} />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={13} color={theme.thickColor} />
+                  <Text style={[styles.versionCheckBtnText, { color: theme.thickColor }]}>Check Updates</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </ScrollView>
       )}
@@ -590,5 +669,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: THEME.colors.textMuted,
     marginTop: 2,
+  },
+  versionStripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 14,
+    gap: 8,
+  },
+  versionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  versionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  versionSubtitle: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  versionCheckBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+  },
+  versionCheckBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

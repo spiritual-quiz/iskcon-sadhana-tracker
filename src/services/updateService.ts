@@ -23,9 +23,28 @@ export const updateService = {
    */
   getCurrentVersion: () => {
     return {
-      version: Constants.expoConfig?.version || '1.0.29',
-      versionCode: Constants.expoConfig?.android?.versionCode || 30,
+      version: Constants.expoConfig?.version || '1.0.30',
+      versionCode: Constants.expoConfig?.android?.versionCode || 31,
     };
+  },
+
+  /**
+   * Fetch the current remote upgrade broadcast from Firestore 'app_settings/version_control'
+   */
+  getLatestBroadcast: async (): Promise<AppVersionInfo | null> => {
+    try {
+      const docRef = doc(db, 'app_settings', 'version_control');
+      const snap = await Promise.race([
+        getDoc(docRef),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+      ]);
+      if (snap && snap.exists()) {
+        return snap.data() as AppVersionInfo;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch remote broadcast:', e);
+    }
+    return null;
   },
 
   /**

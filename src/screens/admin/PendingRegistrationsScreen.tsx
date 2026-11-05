@@ -37,22 +37,22 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
     try {
       const q = query(
         collection(db, 'users'),
-        where('role', '==', 'counselee'),
         where('status', '==', 'pending')
       );
       const unsubscribe = onSnapshot(
         q,
         (snap) => {
           if (!snap.empty) {
-            const list = snap.docs.map((d) => d.data() as UserProfile);
+            const list = snap.docs
+              .map((d) => d.data() as UserProfile)
+              .filter((u) => u.role !== 'counsellor' && u.status === 'pending');
             list.sort(
               (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
             );
             setPendingUsers(list);
             setIsLoading(false);
           } else {
-            setPendingUsers([]);
-            setIsLoading(false);
+            loadPending(false);
           }
         },
         () => {
@@ -100,6 +100,13 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
         subtitle="Review & Approve New Counselees"
         showBack
         onBackPress={() => navigation.goBack()}
+        rightAction={{
+          iconName: 'refresh-outline',
+          onPress: () => {
+            setIsRefreshing(true);
+            loadPending(true);
+          },
+        }}
       />
 
       {isLoading ? (
@@ -110,13 +117,20 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadPending(); }} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadPending(true); }} />}
         >
           {pendingUsers.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="checkmark-done-circle-outline" size={54} color={THEME.colors.success} />
               <Text style={[styles.emptyTitle, { color: theme.thickColor }]}>All Caught Up!</Text>
               <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>No pending devotee registrations awaiting approval.</Text>
+              <TouchableOpacity
+                style={[styles.manageCounseleesBtn, { backgroundColor: theme.thickColor }]}
+                onPress={() => navigation.navigate('ManageCounselees')}
+              >
+                <Ionicons name="people-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.manageCounseleesBtnText}>View Devotees in Manage Counselees</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             pendingUsers.map((devotee) => (
@@ -301,5 +315,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: THEME.typography.sizes.xs,
     marginLeft: 4,
+  },
+  manageCounseleesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: THEME.borderRadius.md,
+    elevation: 2,
+  },
+  manageCounseleesBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 });

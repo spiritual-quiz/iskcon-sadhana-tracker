@@ -570,7 +570,7 @@ export const authService = {
     // 0. Check in-memory fast cache (0ms instant response)
     if (!forceRefresh) {
       const cached = await fastCache.get<UserProfile[]>('pending_counselees');
-      if (cached) {
+      if (cached && cached.length > 0) {
         return cached;
       }
     }
@@ -580,16 +580,16 @@ export const authService = {
     // 1. Load from local persistent storage first
     const localUsers = await localStorageService.getAllUsers();
     for (const u of localUsers) {
-      if (u.role === 'counselee' && u.status === 'pending') {
+      if (u.role !== 'counsellor' && u.status === 'pending') {
         map.set(u.uid, u);
       }
     }
 
     // 2. Load from Firestore and merge with robust timeout
+    // Using single-field filter where('status', '==', 'pending') avoids composite indexing requirements
     try {
       const q = query(
         collection(db, 'users'),
-        where('role', '==', 'counselee'),
         where('status', '==', 'pending')
       );
       const snap = await Promise.race([
@@ -600,8 +600,10 @@ export const authService = {
         await Promise.all(
           snap.docs.map(async (d) => {
             const u = d.data() as UserProfile;
-            map.set(u.uid, u);
-            await localStorageService.saveUser(u).catch(() => {});
+            if (u.role !== 'counsellor') {
+              map.set(u.uid, u);
+              await localStorageService.saveUser(u).catch(() => {});
+            }
           })
         );
       }
@@ -612,7 +614,7 @@ export const authService = {
     const result = Array.from(map.values()).sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
-    await fastCache.set('pending_counselees', result, 30);
+    await fastCache.set('pending_counselees', result, 15);
     return result;
   },
 
@@ -633,24 +635,25 @@ export const authService = {
     // 1. Load from local persistent storage
     const localUsers = await localStorageService.getAllUsers();
     for (const u of localUsers) {
-      if (u.role === 'counselee') {
+      if (u.role !== 'counsellor') {
         map.set(u.uid, u);
       }
     }
 
     // 2. Load from Firestore and merge with robust 6.0s timeout
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'counselee'));
       const snap = await Promise.race([
-        getDocs(q),
+        getDocs(collection(db, 'users')),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
       ]);
       if (!snap.empty) {
         await Promise.all(
           snap.docs.map(async (d) => {
             const u = d.data() as UserProfile;
-            map.set(u.uid, u);
-            await localStorageService.saveUser(u).catch(() => {});
+            if (u.role !== 'counsellor') {
+              map.set(u.uid, u);
+              await localStorageService.saveUser(u).catch(() => {});
+            }
           })
         );
       }
@@ -658,10 +661,10 @@ export const authService = {
       // Gracefully fall back to local storage
     }
 
-    const result = Array.from(map.values());
-    if (result.length > 0) {
-      await fastCache.set('all_counselees', result, 90);
-    }
+    const result = Array.from(map.values()).sort(
+      (a, b) => (a.displayName || '').localeCompare(b.displayName || '')
+    );
+    await fastCache.set('all_counselees', result, 30);
     return result;
   },
 

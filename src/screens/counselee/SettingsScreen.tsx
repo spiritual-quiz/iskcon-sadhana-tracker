@@ -1,14 +1,52 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
+import { updateService } from '../../services/updateService';
 
 export const SettingsScreen = () => {
   const { user, signOut } = useAuth();
   const { theme, openThemePicker } = useTheme();
+  const currentAppVersion = updateService.getCurrentVersion();
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState<boolean>(false);
+
+  const handleCheckUpdates = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const res = await updateService.checkForUpdate();
+      if (res.isAvailable) {
+        Alert.alert(
+          'Update Available',
+          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.`,
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Download & Apply',
+              onPress: async () => {
+                await updateService.fetchAndApplyUpdate(res.versionInfo);
+                Alert.alert('Update Applied', 'Update downloaded successfully. Restart app to apply?', [
+                  { text: 'Restart Now', onPress: () => updateService.reloadApp() },
+                  { text: 'Later' },
+                ]);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Software Up to Date',
+          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
+        );
+      }
+    } catch (e: any) {
+      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -111,16 +149,40 @@ export const SettingsScreen = () => {
 
         {/* Application Build Info */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Application Details</Text>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Application Name:</Text>
-            <Text style={styles.value}>ISKCON Sadhana Tracker</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Text style={styles.cardTitle}>Application Details</Text>
+            <TouchableOpacity
+              style={[styles.checkUpdateBtn, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}
+              onPress={handleCheckUpdates}
+              disabled={isCheckingUpdates}
+              activeOpacity={0.8}
+            >
+              {isCheckingUpdates ? (
+                <ActivityIndicator size="small" color={theme.thickColor} />
+              ) : (
+                <>
+                  <Ionicons name="refresh-circle-outline" size={15} color={theme.thickColor} />
+                  <Text style={[styles.checkUpdateBtnText, { color: theme.thickColor }]}>Check Updates</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Version:</Text>
-            <Text style={styles.value}>1.0.0 (Production APK)</Text>
+            <Text style={styles.label}>Application Name:</Text>
+            <Text style={styles.value}>Bhakti Unnati (Sadhana Tracker)</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Current Software Version:</Text>
+            <Text style={[styles.valueHighlight, { color: theme.thickColor, fontWeight: 'bold' }]}>
+              v{currentAppVersion.version} (Build #{currentAppVersion.versionCode})
+            </Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Update Channel:</Text>
+            <Text style={styles.value}>Production Live OTA & APK</Text>
           </View>
 
           <View style={styles.row}>
@@ -243,5 +305,18 @@ const styles = StyleSheet.create({
     fontSize: THEME.typography.sizes.base,
     marginLeft: 8,
     letterSpacing: 0.3,
+  },
+  checkUpdateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+  },
+  checkUpdateBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
