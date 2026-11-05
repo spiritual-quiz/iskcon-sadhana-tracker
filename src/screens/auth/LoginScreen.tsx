@@ -56,10 +56,14 @@ export const LoginScreen = ({ navigation }: any) => {
   // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
   const [resetEmail, setResetEmail] = useState<string>('');
+  const [resetNewPassword, setResetNewPassword] = useState<string>('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState<string>('');
+  const [showResetNewPassword, setShowResetNewPassword] = useState<boolean>(false);
   const [isSendingReset, setIsSendingReset] = useState<boolean>(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const hasAutoTriggeredBioRef = useRef<boolean>(false);
 
   // Check biometric availability and existing devotee enrollment on load
   useEffect(() => {
@@ -82,10 +86,13 @@ export const LoginScreen = ({ navigation }: any) => {
           setActiveAccount(active);
           setViewMode('biometric'); // Banking app: start in biometric mode for remembered devotee
 
-          // Trigger biometric sensor prompt shortly after screen appears
-          setTimeout(() => {
-            triggerBiometricAuth(active);
-          }, 450);
+          // Trigger biometric sensor prompt ONLY ONCE on cold screen appearance
+          if (!hasAutoTriggeredBioRef.current) {
+            hasAutoTriggeredBioRef.current = true;
+            setTimeout(() => {
+              triggerBiometricAuth(active);
+            }, 450);
+          }
         } else {
           setViewMode('credentials');
         }
@@ -126,8 +133,18 @@ export const LoginScreen = ({ navigation }: any) => {
         await signIn(authenticated.email, authenticated.password);
       }
     } catch (err: any) {
-      // User cancelled or biometric error
       console.log('Biometric sign-in dismissed/failed:', err?.message);
+      // If error indicates invalid/incorrect credentials, smoothly switch to credentials mode
+      if (
+        err?.message?.toLowerCase().includes('password') ||
+        err?.message?.toLowerCase().includes('credential') ||
+        err?.message?.toLowerCase().includes('incorrect')
+      ) {
+        setEmail(acc.email);
+        setPassword('');
+        setViewMode('credentials');
+        Alert.alert('Sign In with Password', 'Please enter your password to sign in and update your biometric credentials.');
+      }
     } finally {
       setIsBiometricAuthenticating(false);
     }
@@ -222,25 +239,64 @@ export const LoginScreen = ({ navigation }: any) => {
   };
 
   const handleSendPasswordReset = async () => {
-    const targetEmail = resetEmail.trim();
+    const targetEmail = resetEmail.trim().toLowerCase();
     if (!targetEmail) {
       Alert.alert('Missing Email', 'Please enter your registered email address.');
       return;
     }
 
+    // 1. If devotee entered a new password directly in the recovery modal
+    if (resetNewPassword) {
+      if (resetNewPassword.length < 6) {
+        Alert.alert('Password Too Short', 'Password must be at least 6 characters long.');
+        return;
+      }
+      if (resetNewPassword !== resetConfirmPassword) {
+        Alert.alert('Password Mismatch', 'The passwords you entered do not match. Please re-enter them.');
+        return;
+      }
+
+      setIsSendingReset(true);
+      try {
+        const res = await authService.resetPasswordDirectly(targetEmail, resetNewPassword);
+        setShowForgotModal(false);
+        setEmail(targetEmail);
+        setPassword(resetNewPassword);
+        setResetNewPassword('');
+        setResetConfirmPassword('');
+        setViewMode('credentials');
+        Alert.alert('Password Updated', res.message);
+      } catch (err: any) {
+        Alert.alert('Reset Failed', err.message || 'Could not reset password.');
+      } finally {
+        setIsSendingReset(false);
+      }
+      return;
+    }
+
+    // 2. Otherwise, perform standard reset or restore default counsellor credentials (Sadhana@108)
     Alert.alert(
       'Confirm Password Reset',
-      `Are you sure you want to send a password reset link to ${targetEmail}?`,
+      targetEmail === 'madhavcarandas@gmail.com'
+        ? 'Reset counsellor password to default "Sadhana@108"?'
+        : `Send password reset link to ${targetEmail}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Send Reset Link',
+          text: targetEmail === 'madhavcarandas@gmail.com' ? 'Reset to Sadhana@108' : 'Send Reset Link',
           onPress: async () => {
             setIsSendingReset(true);
             try {
               const res = await authService.sendPasswordReset(targetEmail);
               setShowForgotModal(false);
-              Alert.alert('Reset Link Sent', res.message);
+              setEmail(targetEmail);
+              if (targetEmail === 'madhavcarandas@gmail.com' || res.isDemoMode) {
+                setPassword('Sadhana@108');
+              }
+              setResetNewPassword('');
+              setResetConfirmPassword('');
+              setViewMode('credentials');
+              Alert.alert('Password Recovery', res.message);
             } catch (err: any) {
               Alert.alert('Recovery Request Failed', err.message || 'Could not send password reset email.');
             } finally {
@@ -369,6 +425,37 @@ export const LoginScreen = ({ navigation }: any) => {
               <Ionicons name="key-outline" size={18} color={theme.colors.text} style={{ marginRight: 8 }} />
               <Text style={[styles.usePasswordBtnText, { color: theme.colors.text }]}>
                 Sign in with Password / Different Devotee
+              </Text>
+            </TouchableOpacity>
+
+            {/* Remove / Reset Saved Fingerprint Button */}
+            <TouchableOpacity
+              style={styles.removeBioBtn}
+              onPress={() => {
+                Alert.alert(
+                  'Remove Saved Fingerprint',
+                  `Do you want to remove the saved fingerprint for ${activeAccount.displayName}? You will sign in using email and password.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Remove',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await biometricService.removeUserBiometric(activeAccount.email);
+                        setActiveAccount(null);
+                        setEmail(activeAccount.email);
+                        setPassword('');
+                        setViewMode('credentials');
+                      },
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+              <Text style={styles.removeBioBtnText}>
+                Remove Saved Fingerprint
               </Text>
             </TouchableOpacity>
           </View>
@@ -608,7 +695,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 </View>
 
                 <Text style={styles.modalSubtitle}>
-                  Enter your registered email address below. We will send a secure password reset link directly to your email inbox.
+                  Enter your registered email address. You can set a new password directly below, or tap Reset to restore default credentials.
                 </Text>
 
                 <View style={styles.modalInputGroup}>
@@ -632,6 +719,58 @@ export const LoginScreen = ({ navigation }: any) => {
                   </View>
                 </View>
 
+                <View style={styles.modalInputGroup}>
+                  <Text style={styles.modalInputLabel}>New Password (Optional)</Text>
+                  <View style={styles.modalInputWrapper}>
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={18}
+                      color={THEME.colors.textMuted}
+                      style={styles.modalInputIcon}
+                    />
+                    <TextInput
+                      style={styles.modalTextInput}
+                      placeholder="Leave blank for default Sadhana@108"
+                      value={resetNewPassword}
+                      onChangeText={setResetNewPassword}
+                      secureTextEntry={!showResetNewPassword}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowResetNewPassword(!showResetNewPassword)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons
+                        name={showResetNewPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={18}
+                        color={THEME.colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {resetNewPassword.length > 0 && (
+                  <View style={styles.modalInputGroup}>
+                    <Text style={styles.modalInputLabel}>Confirm New Password</Text>
+                    <View style={styles.modalInputWrapper}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={18}
+                        color={THEME.colors.textMuted}
+                        style={styles.modalInputIcon}
+                      />
+                      <TextInput
+                        style={styles.modalTextInput}
+                        placeholder="Re-enter new password"
+                        value={resetConfirmPassword}
+                        onChangeText={setResetConfirmPassword}
+                        secureTextEntry={!showResetNewPassword}
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   style={[
                     styles.sendResetButton,
@@ -645,8 +784,10 @@ export const LoginScreen = ({ navigation }: any) => {
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Ionicons name="paper-plane-outline" size={18} color="#FFFFFF" />
-                      <Text style={styles.sendResetButtonText}>Send Reset Link to Email</Text>
+                      <Ionicons name="key-outline" size={18} color="#FFFFFF" />
+                      <Text style={styles.sendResetButtonText}>
+                        {resetNewPassword ? 'Update & Save New Password' : 'Reset Password'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -834,6 +975,18 @@ const styles = StyleSheet.create({
   },
   usePasswordBtnText: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  removeBioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  removeBioBtnText: {
+    fontSize: 12,
+    color: '#DC2626',
     fontWeight: '600',
   },
   // Standard credentials inputs

@@ -188,6 +188,12 @@ describe('Service Logic and Integration Verification', () => {
       expect(counsellor.role).toBe('counsellor');
     });
 
+    test('rejects counsellor Madhav Charan Das when given wrong password', async () => {
+      await expect(
+        authService.signIn('madhavcarandas@gmail.com', 'WrongPassword123')
+      ).rejects.toThrow('Incorrect password');
+    });
+
     test('rejects password reset for unknown unregistered emails', async () => {
       await expect(authService.sendPasswordReset('unknown999@domain.org')).rejects.toThrow(
         'No registered account was found'
