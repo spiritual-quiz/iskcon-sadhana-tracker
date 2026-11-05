@@ -141,6 +141,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     }
   };
 
+  const [hasLoadedInitial, setHasLoadedInitial] = useState<boolean>(false);
+
   // Load entry, week reading attendance, and monthly satsanga for selected date
   useEffect(() => {
     loadDateEntry(selectedDate);
@@ -148,7 +150,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const loadDateEntry = async (date: string) => {
     if (!user?.uid) return;
-    setIsLoading(true);
+    if (!hasLoadedInitial) setIsLoading(true);
     try {
       const entry = await sadhanaService.getDailyEntry(user.uid, date);
       setExistingEntry(entry);
@@ -182,6 +184,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setMonthlyMeetingAttended(false);
         setCorrectionReason('');
       }
+
+      setHasLoadedInitial(true);
 
       // Load weekly reading attendance for Monday through Friday
       const week = getWeekDetails(date);

@@ -28,7 +28,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadPending(true);
+      loadPending(false);
     }, [])
   );
 

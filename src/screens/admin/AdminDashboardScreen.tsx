@@ -59,7 +59,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadDashboardMetrics(true);
+      // Re-check metrics with cache (<1ms response time) without freezing the UI
+      loadDashboardMetrics(false);
     }, [])
   );
 

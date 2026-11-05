@@ -594,7 +594,7 @@ export const authService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1800)),
       ]);
       if (!snap.empty) {
         await Promise.all(
@@ -640,11 +640,11 @@ export const authService = {
       }
     }
 
-    // 2. Load from Firestore and merge with robust 6.0s timeout
+    // 2. Load from Firestore and merge with robust 1.8s timeout
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1800)),
       ]);
       if (!snap.empty) {
         await Promise.all(
@@ -690,7 +690,7 @@ export const authService = {
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1800)),
       ]);
       if (!snap.empty) {
         await Promise.all(

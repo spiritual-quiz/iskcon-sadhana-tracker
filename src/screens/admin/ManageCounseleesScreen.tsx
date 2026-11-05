@@ -212,10 +212,14 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
   };
 
   const filtered = counselees.filter((c) => {
+    const qLower = searchQuery.trim().toLowerCase();
     const matchesSearch =
-      c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.phoneNumber.includes(searchQuery);
+      !qLower ||
+      (c.displayName || '').toLowerCase().includes(qLower) ||
+      (c.email || '').toLowerCase().includes(qLower) ||
+      (c.phoneNumber || '').includes(qLower) ||
+      (c.uid || '').toLowerCase().includes(qLower) ||
+      (c.invitationCode || '').toLowerCase().includes(qLower);
 
     if (!matchesSearch) return false;
     if (statusFilter === 'all') return true;

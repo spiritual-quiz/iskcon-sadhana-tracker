@@ -155,17 +155,17 @@ export const sadhanaService = {
       return local;
     }
 
-    // 2. Fallback to Cloud Firestore if not present locally
+    // 2. Fallback to Cloud Firestore if not present locally (fast 1200ms race timeout)
     const entryId = `${userId}_${dateStr}`;
     try {
       const snap = await Promise.race([
         getDoc(doc(db, 'sadhana_entries', entryId)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1200)),
       ]);
       if (snap.exists()) {
         const data = snap.data() as SadhanaEntry;
         await localStorageService.saveSadhanaEntry(data);
-        await fastCache.set(cacheKey, data, 60);
+        await fastCache.set(cacheKey, data, 120);
         return data;
       }
     } catch (e) {
@@ -190,11 +190,11 @@ export const sadhanaService = {
     // 1. Check local persistent storage first (instant 0ms)
     const localEntries = await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
     if (localEntries && localEntries.length > 0) {
-      await fastCache.set(cacheKey, localEntries, 60);
+      await fastCache.set(cacheKey, localEntries, 120);
       return localEntries;
     }
 
-    // 2. Query Firestore with single-field filter (NEVER requires composite index)
+    // 2. Query Firestore with fast 1500ms timeout
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
@@ -202,7 +202,7 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
       ]);
       if (!snap.empty) {
         const results = snap.docs
@@ -212,55 +212,17 @@ export const sadhanaService = {
 
         if (results.length > 0) {
           await Promise.all(results.map((e) => localStorageService.saveSadhanaEntry(e)));
-          await fastCache.set(cacheKey, results, 60);
+          await fastCache.set(cacheKey, results, 120);
           return results;
         }
       }
     } catch (e) {
-      // Query failed or timeout, proceed to direct doc ID lookups
+      // Query failed or timeout
     }
 
-    // 3. Fallback: Direct doc ID lookups for individual dates in range (bypasses any indexing)
-    try {
-      const datesInRange: string[] = [];
-      const [y1, m1, d1] = startDate.split('-').map(Number);
-      const [y2, m2, d2] = endDate.split('-').map(Number);
-      const startUtc = Date.UTC(y1, m1 - 1, d1);
-      const endUtc = Date.UTC(y2, m2 - 1, d2);
-      for (let t = startUtc; t <= endUtc; t += 86400000) {
-        datesInRange.push(new Date(t).toISOString().split('T')[0]);
-      }
-
-      if (datesInRange.length > 0 && datesInRange.length <= 31) {
-        const docSnaps = await Promise.all(
-          datesInRange.map(async (d) => {
-            const entryId = `${userId}_${d}`;
-            try {
-              const snap = await getDoc(doc(db, 'sadhana_entries', entryId));
-              return snap.exists() ? (snap.data() as SadhanaEntry) : null;
-            } catch {
-              return null;
-            }
-          })
-        );
-        const found = docSnaps.filter((e): e is SadhanaEntry => e !== null);
-        if (found.length > 0) {
-          found.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-          await Promise.all(found.map((e) => localStorageService.saveSadhanaEntry(e)));
-          await fastCache.set(cacheKey, found, 60);
-          return found;
-        }
-      }
-    } catch {
-      // Ignore
-    }
-
-    return localEntries || [];
+    return [];
   },
 
-  /**
-   * Admin: Get all counselees' entries for a specific date
-   */
   /**
    * Admin: Get all counselees' entries for a specific date
    */
@@ -281,12 +243,12 @@ export const sadhanaService = {
       });
     } catch {}
 
-    // 2. Query Cloud Firestore with robust 6.0s timeout
+    // 2. Query Cloud Firestore with fast 2.0s timeout
     try {
       const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
       ]);
       if (!snap.empty) {
         snap.docs.forEach((d) => {
@@ -357,7 +319,7 @@ export const sadhanaService = {
       });
     } catch {}
 
-    // 2. Query Cloud Firestore with robust 6.0s timeout
+    // 2. Query Cloud Firestore with fast 2.0s timeout
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
@@ -366,7 +328,7 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
       ]);
       if (!snap.empty) {
         snap.docs.forEach((d) => {
