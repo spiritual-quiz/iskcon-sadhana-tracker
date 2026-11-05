@@ -52,11 +52,13 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
             setPendingUsers(list);
             setIsLoading(false);
           } else {
-            loadPending(false);
+            setPendingUsers([]);
+            setIsLoading(false);
           }
         },
         () => {
-          loadPending(false);
+          setPendingUsers([]);
+          setIsLoading(false);
         }
       );
       return () => unsubscribe();
@@ -77,17 +79,21 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleAction = async (uid: string, name: string, approve: boolean) => {
+  const handleAction = async (uid: string, name: string, approve: boolean, email?: string) => {
     setProcessingUid(uid);
+    // Optimistic UI update: immediately remove devotee from screen on single click
+    setPendingUsers((prev) => prev.filter((u) => u.uid !== uid));
+
     try {
-      await authService.updateCounseleeStatus(uid, approve ? 'approved' : 'rejected');
+      await authService.updateCounseleeStatus(uid, approve ? 'approved' : 'rejected', email);
       Alert.alert(
         approve ? 'Devotee Approved' : 'Registration Rejected',
         `${name} has been ${approve ? 'approved. They can now access their sadhana dashboard.' : 'rejected.'}`
       );
-      loadPending();
+      loadPending(true);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not update status.');
+      loadPending(true);
     } finally {
       setProcessingUid(null);
     }
@@ -167,7 +173,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     style={[styles.btn, styles.rejectBtn]}
-                    onPress={() => handleAction(devotee.uid, devotee.displayName, false)}
+                    onPress={() => handleAction(devotee.uid, devotee.displayName, false, devotee.email)}
                     disabled={processingUid === devotee.uid}
                   >
                     <Text style={styles.rejectBtnText}>Reject</Text>
@@ -175,7 +181,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
                   <TouchableOpacity
                     style={[styles.btn, styles.approveBtn, { backgroundColor: theme.thickColor }]}
-                    onPress={() => handleAction(devotee.uid, devotee.displayName, true)}
+                    onPress={() => handleAction(devotee.uid, devotee.displayName, true, devotee.email)}
                     disabled={processingUid === devotee.uid}
                   >
                     {processingUid === devotee.uid ? (

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -44,9 +45,11 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
   const [directEditDevotee, setDirectEditDevotee] = useState<UserProfile | null>(null);
   const [directEditRounds, setDirectEditRounds] = useState<string>('16');
 
-  useEffect(() => {
-    loadCounselees();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadCounselees(true);
+    }, [])
+  );
 
   const loadCounselees = async (force = false) => {
     try {
@@ -65,8 +68,17 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
   };
 
   const handleApproveCounselee = async (user: UserProfile) => {
+    // Optimistic UI update: instantly update status in local React state so "Approve" button vanishes immediately on first click!
+    setCounselees((prev) =>
+      prev.map((c) =>
+        c.uid === user.uid || (user.email && c.email?.toLowerCase() === user.email.toLowerCase())
+          ? { ...c, status: 'approved' as UserStatus }
+          : c
+      )
+    );
+
     try {
-      await authService.updateCounseleeStatus(user.uid, 'approved');
+      await authService.updateCounseleeStatus(user.uid, 'approved', user.email);
       Alert.alert(
         'Devotee Approved! 🙏',
         `${user.displayName} is now approved. They can now immediately log in and submit their daily sadhana.`
@@ -74,6 +86,7 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
       loadCounselees(true);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not approve devotee.');
+      loadCounselees(true);
     }
   };
 
@@ -87,11 +100,15 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
         {
           text: 'Confirm',
           onPress: async () => {
+            setCounselees((prev) =>
+              prev.map((c) => (c.uid === user.uid ? { ...c, status: newStatus } : c))
+            );
             try {
-              await authService.updateCounseleeStatus(user.uid, newStatus);
-              loadCounselees();
+              await authService.updateCounseleeStatus(user.uid, newStatus, user.email);
+              loadCounselees(true);
             } catch (err: any) {
               Alert.alert('Error', err.message);
+              loadCounselees(true);
             }
           },
         },
@@ -109,12 +126,22 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
           text: 'Delete Permanently',
           style: 'destructive',
           onPress: async () => {
+            // Optimistic UI update: instantly remove from screen on single confirmation
+            setCounselees((prev) =>
+              prev.filter(
+                (c) =>
+                  c.uid !== user.uid &&
+                  (!user.email || c.email?.toLowerCase() !== user.email.toLowerCase())
+              )
+            );
+
             try {
-              await authService.deleteCounselee(user.uid);
+              await authService.deleteCounselee(user.uid, user.email);
               Alert.alert('Devotee Deleted', `${user.displayName} has been permanently deleted.`);
-              loadCounselees();
+              loadCounselees(true);
             } catch (err: any) {
               Alert.alert('Delete Failed', err.message || 'Could not delete devotee.');
+              loadCounselees(true);
             }
           },
         },

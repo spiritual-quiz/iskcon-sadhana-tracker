@@ -511,12 +511,17 @@ export const localStorageService = {
   /**
    * Permanently delete a user from local storage and purge all their related records
    */
-  deleteUser: async (uid: string): Promise<void> => {
+  deleteUser: async (uid: string, email?: string): Promise<void> => {
     try {
       // 1. Remove from local users map
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
       delete users[uid];
+      for (const k of Object.keys(users)) {
+        if (users[k].uid === uid || (email && users[k].email?.toLowerCase() === email.toLowerCase())) {
+          delete users[k];
+        }
+      }
       await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
 
       // 2. Mark in tombstone list so baseline seed never resurrects
@@ -524,6 +529,9 @@ export const localStorageService = {
       const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
       if (!deletedList.includes(uid)) {
         deletedList.push(uid);
+      }
+      if (email && !deletedList.includes(email.toLowerCase())) {
+        deletedList.push(email.toLowerCase());
         await AsyncStorage.setItem(KEYS.DELETED_USERS, JSON.stringify(deletedList));
       }
 
@@ -588,10 +596,16 @@ export const localStorageService = {
   /**
    * Update a user's status in local storage
    */
-  updateUserStatus: async (uid: string, status: UserStatus): Promise<void> => {
+  updateUserStatus: async (uid: string, status: UserStatus, email?: string): Promise<void> => {
     try {
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
+      for (const k of Object.keys(users)) {
+        if (users[k].uid === uid || (email && users[k].email?.toLowerCase() === email.toLowerCase())) {
+          users[k].status = status;
+          users[k].updatedAt = new Date().toISOString();
+        }
+      }
       if (users[uid]) {
         users[uid].status = status;
         users[uid].updatedAt = new Date().toISOString();

@@ -46,7 +46,13 @@ export const authService = {
         // Check if an active session UID exists in storage (prevents auto sign-out on web refresh)
         const storedUid = await AsyncStorage.getItem('bhakti_active_session_uid');
         if (storedUid) {
-          const localUser = await localStorageService.getUser(storedUid);
+          let localUser = await localStorageService.getUser(storedUid);
+          if (localUser && localUser.status === 'pending') {
+            try {
+              const fresh = await authService.getUserProfile(storedUid, true, localUser.email);
+              if (fresh) localUser = fresh;
+            } catch {}
+          }
           if (localUser && localUser.status !== 'disabled') {
             callback(localUser, null);
             return;
@@ -58,11 +64,8 @@ export const authService = {
 
       try {
         await AsyncStorage.setItem('bhakti_active_session_uid', fbUser.uid);
-        const userRef = doc(db, 'users', fbUser.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const profile = userSnap.data() as UserProfile;
+        const profile = await authService.getUserProfile(fbUser.uid, true, fbUser.email || undefined);
+        if (profile) {
           callback(profile, fbUser);
           return;
         }
@@ -120,11 +123,9 @@ export const authService = {
       const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const uid = userCredential.user.uid;
 
-      const userRef = doc(db, 'users', uid);
-      const userSnap = await getDoc(userRef);
+      const profile = await authService.getUserProfile(uid, true, cleanEmail);
 
-      if (userSnap.exists()) {
-        const profile = userSnap.data() as UserProfile;
+      if (profile) {
         if (profile.status === 'disabled') {
           await fbSignOut(auth);
           throw new Error('This account has been disabled. Please contact your counsellor.');
@@ -250,14 +251,29 @@ export const authService = {
       }
     }
 
-    // 2. Prepare counselee profile (Always defaults to role='counselee' and status='pending')
+    // 2. Check if user was already approved in Firestore (avoid reverting approved devotees to pending)
+    let initialStatus: UserStatus = 'pending';
+    try {
+      const existingDoc = await getDoc(doc(db, 'users', uid));
+      if (existingDoc.exists() && (existingDoc.data() as UserProfile).status === 'approved') {
+        initialStatus = 'approved';
+      } else {
+        const qEmail = query(collection(db, 'users'), where('email', '==', params.email.trim().toLowerCase()));
+        const snapEmail = await getDocs(qEmail);
+        if (!snapEmail.empty && (snapEmail.docs[0].data() as UserProfile).status === 'approved') {
+          initialStatus = 'approved';
+        }
+      }
+    } catch {}
+
+    // Prepare counselee profile
     const profile: UserProfile = {
       uid,
       email: params.email.trim().toLowerCase(),
       displayName: params.displayName.trim(),
       phoneNumber: params.phoneNumber.trim(),
       role: 'counselee',
-      status: 'pending',
+      status: initialStatus,
       counsellorId: validation.invitation.createdBy,
       dateOfBirth: params.dateOfBirth,
       iskconConnectDate: params.iskconConnectDate,
@@ -304,10 +320,16 @@ export const authService = {
   /**
    * Fetch user profile by UID
    */
-  getUserProfile: async (uid: string): Promise<UserProfile | null> => {
+  getUserProfile: async (uid: string, forceRemote = false, email?: string): Promise<UserProfile | null> => {
     // 1. Instant check from local persistent storage (0ms latency)
     const local = await localStorageService.getUser(uid);
-    if (local) return local;
+    if (!forceRemote) {
+      if (local && local.status !== 'pending') return local;
+      if (email) {
+        const localByEmail = await localStorageService.getUserByEmail(email);
+        if (localByEmail && localByEmail.status !== 'pending') return localByEmail;
+      }
+    }
 
     try {
       const userRef = doc(db, 'users', uid);
@@ -316,12 +338,29 @@ export const authService = {
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
       ]);
       if (snap.exists()) {
-        return snap.data() as UserProfile;
+        const profile = snap.data() as UserProfile;
+        await localStorageService.saveUser(profile).catch(() => {});
+        return profile;
+      }
+
+      // Fallback: check by email in Firestore
+      const targetEmail = (email || local?.email || '').trim().toLowerCase();
+      if (targetEmail) {
+        const q = query(collection(db, 'users'), where('email', '==', targetEmail));
+        const snapEmail = await Promise.race([
+          getDocs(q),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        ]);
+        if (!snapEmail.empty) {
+          const profile = snapEmail.docs[0].data() as UserProfile;
+          await localStorageService.saveUser(profile).catch(() => {});
+          return profile;
+        }
       }
     } catch (e) {
       // Gracefully fall back to local storage
     }
-    return null;
+    return (await localStorageService.getUser(uid)) || (email ? await localStorageService.getUserByEmail(email) : null);
   },
 
   /**
@@ -508,7 +547,7 @@ export const authService = {
   /**
    * Admin: approve or reject counselee registration
    */
-  updateCounseleeStatus: async (uid: string, status: UserStatus) => {
+  updateCounseleeStatus: async (uid: string, status: UserStatus, email?: string) => {
     try {
       const userRef = doc(db, 'users', uid);
       await updateDoc(userRef, {
@@ -516,9 +555,28 @@ export const authService = {
         updatedAt: new Date().toISOString(),
       });
     } catch (e) {
-      // Gracefully fall back to local storage in offline/hybrid mode
+      // If doc not found by uid ID, try querying by uid field or email
+      try {
+        const qUid = query(collection(db, 'users'), where('uid', '==', uid));
+        const snapUid = await getDocs(qUid);
+        if (!snapUid.empty) {
+          await updateDoc(snapUid.docs[0].ref, {
+            status,
+            updatedAt: new Date().toISOString(),
+          });
+        } else if (email) {
+          const qEmail = query(collection(db, 'users'), where('email', '==', email.toLowerCase().trim()));
+          const snapEmail = await getDocs(qEmail);
+          if (!snapEmail.empty) {
+            await updateDoc(snapEmail.docs[0].ref, {
+              status,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+      } catch {}
     }
-    await localStorageService.updateUserStatus(uid, status);
+    await localStorageService.updateUserStatus(uid, status, email);
     fastCache.invalidate('all_users');
     fastCache.invalidate('all_counselees');
     fastCache.invalidate('pending_counselees');
@@ -527,11 +585,23 @@ export const authService = {
   /**
    * Admin: permanently delete a counselee and purge all related local & cloud records
    */
-  deleteCounselee: async (uid: string): Promise<void> => {
+  deleteCounselee: async (uid: string, email?: string): Promise<void> => {
     // 1. Delete user document from Cloud Firestore
     try {
       const userRef = doc(db, 'users', uid);
       await deleteDoc(userRef);
+
+      // Clean up by uid query in case doc id was different
+      const qUid = query(collection(db, 'users'), where('uid', '==', uid));
+      const snapUid = await getDocs(qUid);
+      await Promise.all(snapUid.docs.map((d) => deleteDoc(d.ref)));
+
+      // Clean up by email in case doc had alternate id
+      if (email) {
+        const qEmail = query(collection(db, 'users'), where('email', '==', email.toLowerCase().trim()));
+        const snapEmail = await getDocs(qEmail);
+        await Promise.all(snapEmail.docs.map((d) => deleteDoc(d.ref)));
+      }
 
       // 2. Cascade delete all sub-records for this user from Firestore
       const collectionsToClean = [
@@ -557,7 +627,7 @@ export const authService = {
     }
 
     // 3. Permanently purge from local storage (including records & tombstones)
-    await localStorageService.deleteUser(uid);
+    await localStorageService.deleteUser(uid, email);
     fastCache.invalidate('all_users');
     fastCache.invalidate('all_counselees');
     fastCache.invalidate('pending_counselees');
@@ -575,18 +645,7 @@ export const authService = {
       }
     }
 
-    const map = new Map<string, UserProfile>();
-
-    // 1. Load from local persistent storage first
-    const localUsers = await localStorageService.getAllUsers();
-    for (const u of localUsers) {
-      if (u.role !== 'counsellor' && u.status === 'pending') {
-        map.set(u.uid, u);
-      }
-    }
-
-    // 2. Load from Firestore and merge with robust timeout
-    // Using single-field filter where('status', '==', 'pending') avoids composite indexing requirements
+    // 1. Query Firestore (source of truth) with 2000ms timeout
     try {
       const q = query(
         collection(db, 'users'),
@@ -594,28 +653,31 @@ export const authService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1800)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
       ]);
-      if (!snap.empty) {
-        await Promise.all(
-          snap.docs.map(async (d) => {
-            const u = d.data() as UserProfile;
-            if (u.role !== 'counsellor') {
-              map.set(u.uid, u);
-              await localStorageService.saveUser(u).catch(() => {});
-            }
-          })
-        );
-      }
-    } catch (e) {
-      // Gracefully fall back to local storage
-    }
 
-    const result = Array.from(map.values()).sort(
-      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
-    await fastCache.set('pending_counselees', result, 15);
-    return result;
+      const list: UserProfile[] = [];
+      if (!snap.empty) {
+        for (const d of snap.docs) {
+          const u = d.data() as UserProfile;
+          if (u.role !== 'counsellor' && u.status === 'pending') {
+            list.push(u);
+            await localStorageService.saveUser(u).catch(() => {});
+          }
+        }
+      }
+
+      list.sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      await fastCache.set('pending_counselees', list, 15);
+      return list;
+    } catch (e) {
+      // Offline fallback: only use local storage if Firestore failed
+      const localUsers = await localStorageService.getAllUsers();
+      const localPending = localUsers.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
+      return localPending;
+    }
   },
 
   /**
@@ -632,33 +694,33 @@ export const authService = {
 
     const map = new Map<string, UserProfile>();
 
-    // 1. Load from local persistent storage
-    const localUsers = await localStorageService.getAllUsers();
-    for (const u of localUsers) {
-      if (u.role !== 'counsellor') {
-        map.set(u.uid, u);
-      }
-    }
-
-    // 2. Load from Firestore and merge with robust 1.8s timeout
+    // 1. Load from Firestore first (source of truth) with 2000ms timeout
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1800)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
       ]);
       if (!snap.empty) {
-        await Promise.all(
-          snap.docs.map(async (d) => {
-            const u = d.data() as UserProfile;
-            if (u.role !== 'counsellor') {
-              map.set(u.uid, u);
-              await localStorageService.saveUser(u).catch(() => {});
-            }
-          })
-        );
+        for (const d of snap.docs) {
+          const u = d.data() as UserProfile;
+          if (u.role !== 'counsellor') {
+            map.set(u.uid, u);
+            await localStorageService.saveUser(u).catch(() => {});
+          }
+        }
       }
     } catch (e) {
       // Gracefully fall back to local storage
+    }
+
+    // 2. Fall back to local persistent storage only if Firestore returned 0 docs (offline)
+    if (map.size === 0) {
+      const localUsers = await localStorageService.getAllUsers();
+      for (const u of localUsers) {
+        if (u.role !== 'counsellor') {
+          map.set(u.uid, u);
+        }
+      }
     }
 
     const result = Array.from(map.values()).sort(
@@ -682,27 +744,27 @@ export const authService = {
 
     const map = new Map<string, UserProfile>();
 
-    const localUsers = await localStorageService.getAllUsers();
-    for (const u of localUsers) {
-      map.set(u.uid, u);
-    }
-
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1800)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
       ]);
       if (!snap.empty) {
-        await Promise.all(
-          snap.docs.map(async (d) => {
-            const u = d.data() as UserProfile;
-            map.set(u.uid, u);
-            await localStorageService.saveUser(u).catch(() => {});
-          })
-        );
+        for (const d of snap.docs) {
+          const u = d.data() as UserProfile;
+          map.set(u.uid, u);
+          await localStorageService.saveUser(u).catch(() => {});
+        }
       }
     } catch (e) {
       // Gracefully fall back to local storage
+    }
+
+    if (map.size === 0) {
+      const localUsers = await localStorageService.getAllUsers();
+      for (const u of localUsers) {
+        map.set(u.uid, u);
+      }
     }
 
     const result = Array.from(map.values());

@@ -8,7 +8,7 @@ interface AuthContextType extends AuthState {
   signIn: (email: string, pass: string) => Promise<UserProfile>;
   register: (params: RegisterParams) => Promise<void>;
   signOut: () => Promise<void>;
-  reloadUser: () => Promise<void>;
+  reloadUser: () => Promise<UserProfile | null>;
   updateDeclaredRounds: (newRounds: number) => Promise<void>;
   requestDeclaredRoundsChange: (newRounds: number) => Promise<void>;
   cancelDeclaredRoundsRequest: () => Promise<void>;
@@ -68,13 +68,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const reloadUser = async () => {
-    if (firebaseUser?.uid) {
-      const refreshed = await authService.getUserProfile(firebaseUser.uid);
+  const reloadUser = async (): Promise<UserProfile | null> => {
+    const targetUid = user?.uid || firebaseUser?.uid;
+    const email = user?.email || firebaseUser?.email;
+    if (targetUid || email) {
+      const refreshed = await authService.getUserProfile(targetUid || '', true, email || undefined);
       if (refreshed) {
         setUser(refreshed);
+        return refreshed;
       }
     }
+    return null;
   };
 
   const updateDeclaredRounds = async (newRounds: number) => {

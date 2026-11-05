@@ -1,18 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { THEME } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
+import { UserProfile } from '../../types/auth';
 
 export const AwaitingApprovalScreen = () => {
   const { user, reloadUser, signOut } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    let unsubscribe: (() => void) | undefined;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      unsubscribe = onSnapshot(userRef, async (snap) => {
+        if (snap.exists()) {
+          const profile = snap.data() as UserProfile;
+          if (profile.status === 'approved') {
+            await reloadUser();
+          }
+        }
+      });
+    } catch {}
+
+    // Auto-check on mount to see if already approved in cloud database
+    reloadUser();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user?.uid]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await reloadUser();
-      Alert.alert('Status Checked', 'If your counsellor has approved your account, the app will update.');
+      const refreshed = await reloadUser();
+      if (refreshed && refreshed.status === 'approved') {
+        Alert.alert('Approved! 🙏', 'Your account has been approved by your counsellor. Opening your sadhana dashboard...');
+      } else {
+        Alert.alert('Status Checked', 'Your account is still awaiting approval from your counsellor. We will update automatically once approved.');
+      }
+    } catch {
+      Alert.alert('Status Checked', 'Could not reach server. Please check your internet connection.');
     } finally {
       setIsRefreshing(false);
     }
