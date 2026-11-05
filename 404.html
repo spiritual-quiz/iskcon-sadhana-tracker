@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="%LANG_ISO_CODE%">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -36,6 +36,13 @@
         -webkit-touch-callout: none;
         user-select: none;
       }
+      /* Allow text selection and cursor placement in form inputs on iOS Safari */
+      input,
+      textarea,
+      select {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+      }
       body {
         overflow: hidden;
         /* iOS Safe Area Insets for iPhone notch and home indicator */
@@ -54,7 +61,7 @@
         overscroll-behavior: none;
       }
     </style>
-  </head>
+  <link rel="icon" href="/iskcon-sadhana-tracker/favicon.ico"/></head>
 
   <body>
     <noscript>
@@ -82,5 +89,6 @@
         });
       }
     </script>
-  </body>
+  <script src="/iskcon-sadhana-tracker/_expo/static/js/web/index-7cca65a01b24d11b3ad70f61a5868ed4.js" defer></script>
+</body>
 </html>
