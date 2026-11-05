@@ -304,6 +304,21 @@ describe('Service Logic and Integration Verification', () => {
   });
 
   describe('Target Rounds Approval Workflow & 1-Week Reports', () => {
+    beforeEach(async () => {
+      await localStorageService.saveUser({
+        uid: 'devotee_user_uid',
+        email: 'devotee@iskcon.org',
+        displayName: 'Test Devotee',
+        phoneNumber: '+919876543211',
+        role: 'counselee',
+        status: 'approved',
+        declaredRounds: 16,
+        publicAppreciationConsent: true,
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z',
+      });
+    });
+
     test('counselee requests target rounds change and counsellor approves', async () => {
       const user = await authService.getUserProfile('devotee_user_uid');
       expect(user).toBeDefined();

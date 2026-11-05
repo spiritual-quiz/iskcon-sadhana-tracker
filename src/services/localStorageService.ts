@@ -359,6 +359,14 @@ export const localStorageService = {
    */
   saveUser: async (user: UserProfile, password?: string): Promise<void> => {
     try {
+      // If user was previously marked in deletedList, un-tombstone them so re-registration works cleanly
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      if (deletedRaw) {
+        const deletedList: string[] = JSON.parse(deletedRaw);
+        const filtered = deletedList.filter((id) => id !== user.uid);
+        await AsyncStorage.setItem(KEYS.DELETED_USERS, JSON.stringify(filtered));
+      }
+
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
       users[user.uid] = { ...user, ...(password ? { password } : {}) };
@@ -381,24 +389,6 @@ export const localStorageService = {
       const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
       if (users[uid]) return users[uid];
 
-      if (uid === 'devotee_user_uid') {
-        return {
-          uid: 'devotee_user_uid',
-          email: 'devotee@iskcon.org',
-          displayName: 'Ramesh Das',
-          phoneNumber: '+919876543211',
-          role: 'counselee',
-          status: 'approved',
-          counsellorId: 'counsellor_admin_uid',
-          dateOfBirth: '1995-08-25',
-          iskconConnectDate: '2020-01-15',
-          declaredRounds: 16,
-          invitationCode: 'KRISHNA7',
-          publicAppreciationConsent: true,
-          createdAt: '2025-01-01T00:00:00.000Z',
-          updatedAt: '2025-01-01T00:00:00.000Z',
-        };
-      }
       if (uid === 'counsellor_admin_uid') {
         return {
           uid: 'counsellor_admin_uid',
@@ -485,7 +475,7 @@ export const localStorageService = {
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const localUsers: Record<string, UserProfile> = existingRaw ? JSON.parse(existingRaw) : {};
 
-      // Seed baseline demo accounts if not already present and not deleted
+      // Seed baseline demo counsellor if not already present and not deleted
       const defaultUsers: Record<string, UserProfile> = {
         'counsellor_admin_uid': {
           uid: 'counsellor_admin_uid',
@@ -496,22 +486,6 @@ export const localStorageService = {
           status: 'approved',
           declaredRounds: 16,
           publicAppreciationConsent: false,
-          createdAt: '2025-01-01T00:00:00.000Z',
-          updatedAt: '2025-01-01T00:00:00.000Z',
-        },
-        'devotee_user_uid': {
-          uid: 'devotee_user_uid',
-          email: 'devotee@iskcon.org',
-          displayName: 'Ramesh Das',
-          phoneNumber: '+919876543211',
-          role: 'counselee',
-          status: 'approved',
-          counsellorId: 'counsellor_admin_uid',
-          dateOfBirth: '1995-08-25',
-          iskconConnectDate: '2020-01-15',
-          declaredRounds: 16,
-          invitationCode: 'KRISHNA7',
-          publicAppreciationConsent: true,
           createdAt: '2025-01-01T00:00:00.000Z',
           updatedAt: '2025-01-01T00:00:00.000Z',
         },

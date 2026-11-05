@@ -1,9 +1,15 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getAuth } from 'firebase/auth';
+import {
+  initializeAuth,
+  getAuth,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+} from 'firebase/auth';
 // @ts-ignore - React Native specific persistence export
 import { getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, setLogLevel } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Silence non-critical backend connection warnings in offline / hybrid mode
 try {
@@ -25,12 +31,19 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// In React Native / Expo, Auth should ideally use persistence
+// In Web/PWA, use browser local persistence so page refreshes never sign the user out.
+// In React Native (APK), use AsyncStorage persistence.
 let auth: any;
 try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
+  if (Platform.OS === 'web') {
+    auth = initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    });
+  } else {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  }
 } catch (e) {
   auth = getAuth(app);
 }

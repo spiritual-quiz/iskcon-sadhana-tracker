@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
@@ -21,6 +21,12 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     notificationService.setupNotifications();
+
+    // PWA updates automatically in the browser cache upon reload.
+    // Update prompts and OTA checks are strictly for the Android APK.
+    if (Platform.OS === 'web') {
+      return;
+    }
 
     // Check for updates via updateService (handles both Firestore broadcast & native OTA)
     const checkAppUpdates = async () => {

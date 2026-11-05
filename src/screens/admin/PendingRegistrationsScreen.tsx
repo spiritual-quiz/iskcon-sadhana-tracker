@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { UserProfile } from '../../types/auth';
 import { authService } from '../../services/authService';
@@ -25,13 +26,48 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [processingUid, setProcessingUid] = useState<string | null>(null);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadPending(true);
+    }, [])
+  );
+
   useEffect(() => {
-    loadPending();
+    // Realtime listener for pending registrations from Firestore
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('role', '==', 'counselee'),
+        where('status', '==', 'pending')
+      );
+      const unsubscribe = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const list = snap.docs.map((d) => d.data() as UserProfile);
+            list.sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            setPendingUsers(list);
+            setIsLoading(false);
+          } else {
+            setPendingUsers([]);
+            setIsLoading(false);
+          }
+        },
+        () => {
+          loadPending(false);
+        }
+      );
+      return () => unsubscribe();
+    } catch {
+      loadPending(false);
+    }
   }, []);
 
-  const loadPending = async () => {
+  const loadPending = async (force = false) => {
     try {
-      const data = await authService.getPendingCounselees();
+      const data = await authService.getPendingCounselees(force);
       setPendingUsers(data);
     } catch (e) {
       console.warn('Error fetching pending registrations:', e);

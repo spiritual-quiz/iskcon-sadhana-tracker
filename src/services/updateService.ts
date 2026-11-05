@@ -38,6 +38,15 @@ export const updateService = {
     versionInfo?: AppVersionInfo;
     updateSource: 'expo' | 'firestore' | 'none';
   }> => {
+    // In PWA / Web, the browser automatically updates assets from GitHub Pages on reload.
+    // Update pop-up is only required on native APK.
+    if ((Platform.OS as string) === 'web') {
+      return {
+        isAvailable: false,
+        updateSource: 'none',
+      };
+    }
+
     const current = updateService.getCurrentVersion();
 
     // 1. Check Firestore remote version broadcast
@@ -70,7 +79,7 @@ export const updateService = {
 
     // 2. Check native Expo Updates service (if on native device)
     try {
-      if (Platform.OS !== 'web' && !__DEV__ && Updates?.checkForUpdateAsync) {
+      if ((Platform.OS as string) !== 'web' && !__DEV__ && Updates?.checkForUpdateAsync) {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
           return {
@@ -104,7 +113,7 @@ export const updateService = {
     onProgress?: (progress: number) => void
   ): Promise<void> => {
     // 1. If native Expo Updates is available, fetch the bundle
-    if (Platform.OS !== 'web' && Updates?.fetchUpdateAsync) {
+    if ((Platform.OS as string) !== 'web' && Updates?.fetchUpdateAsync) {
       try {
         await Updates.fetchUpdateAsync();
       } catch (e) {
@@ -122,7 +131,7 @@ export const updateService = {
    * Reload / restart the application
    */
   reloadApp: async (): Promise<void> => {
-    if (Platform.OS === 'web') {
+    if ((Platform.OS as string) === 'web') {
       if (typeof window !== 'undefined') {
         window.location.reload();
       }

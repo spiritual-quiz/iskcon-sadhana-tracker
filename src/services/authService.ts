@@ -23,6 +23,7 @@ import { UserProfile, UserRole, UserStatus } from '../types/auth';
 import { validateInvitationCode, redeemInvitationCode } from './invitationService';
 import { localStorageService, LocalStoredUser } from './localStorageService';
 import { fastCache } from './fastCacheService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface RegisterParams {
   email: string;
@@ -42,11 +43,21 @@ export const authService = {
   subscribeToAuthState: (callback: (user: UserProfile | null, fbUser: User | null) => void) => {
     return onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
+        // Check if an active session UID exists in storage (prevents auto sign-out on web refresh)
+        const storedUid = await AsyncStorage.getItem('bhakti_active_session_uid');
+        if (storedUid) {
+          const localUser = await localStorageService.getUser(storedUid);
+          if (localUser && localUser.status !== 'disabled') {
+            callback(localUser, null);
+            return;
+          }
+        }
         callback(null, null);
         return;
       }
 
       try {
+        await AsyncStorage.setItem('bhakti_active_session_uid', fbUser.uid);
         const userRef = doc(db, 'users', fbUser.uid);
         const userSnap = await getDoc(userRef);
 
@@ -91,8 +102,9 @@ export const authService = {
           await fbSignOut(auth);
           throw new Error('This account has been disabled. Please contact your counsellor.');
         }
-        // Save to local cache as well
+        // Save to local cache as well with verified credentials
         await localStorageService.saveUser(profile, password);
+        await AsyncStorage.setItem('bhakti_active_session_uid', uid);
         return profile;
       }
 
@@ -103,24 +115,30 @@ export const authService = {
           await fbSignOut(auth);
           throw new Error('This account has been disabled. Please contact your counsellor.');
         }
+        await AsyncStorage.setItem('bhakti_active_session_uid', uid);
         return localUser;
       }
 
       throw new Error('User profile record not found in database.');
     } catch (firebaseErr: any) {
-      // Check local storage first for offline / demo registered users
-      const localMatch = await localStorageService.getUserByEmail(cleanEmail);
-      if (localMatch) {
-        if (localMatch.status === 'disabled') {
-          throw new Error('This account has been disabled. Please contact your counsellor.');
-        }
-        if (localMatch.password && localMatch.password !== password) {
-          throw new Error('Incorrect password. Please verify your credentials or tap "Forgot Password?".');
-        }
-        return localMatch;
+      // 1. STRICT PASSWORD VALIDATION:
+      // If Firebase Auth rejected the credentials, throw 'Incorrect password' error immediately.
+      // NEVER fall back to local storage or allow wrong password to log in.
+      if (
+        firebaseErr.code === 'auth/wrong-password' ||
+        firebaseErr.code === 'auth/invalid-credential' ||
+        firebaseErr.code === 'auth/invalid-login-credentials'
+      ) {
+        throw new Error('Incorrect password. Please verify your credentials or tap "Forgot Password?".');
+      }
+      if (firebaseErr.code === 'auth/user-not-found') {
+        throw new Error('No devotee account found with this email. Please verify your email or register as a new counselee.');
+      }
+      if (firebaseErr.code === 'auth/too-many-requests') {
+        throw new Error('Access temporarily disabled due to multiple failed login attempts. Please try again later or reset password.');
       }
 
-      // Default demo counsellor credentials
+      // 2. Default demo counsellor credentials (offline fallback)
       if (cleanEmail === 'madhavcarandas@gmail.com' && password === 'Sadhana@108') {
         const adminProfile: UserProfile = {
           uid: 'counsellor_admin_uid',
@@ -131,36 +149,54 @@ export const authService = {
           status: 'approved',
           declaredRounds: 16,
           publicAppreciationConsent: false,
-          createdAt: new Date().toISOString(),
+          createdAt: '2025-01-01T00:00:00.000Z',
           updatedAt: new Date().toISOString(),
         };
         await localStorageService.saveUser(adminProfile, password);
+        await AsyncStorage.setItem('bhakti_active_session_uid', adminProfile.uid);
         return adminProfile;
       }
 
-      // Default demo devotee credentials
-      if (cleanEmail === 'devotee@iskcon.org' && password === 'Devotee@108') {
-        const devoteeProfile: UserProfile = {
-          uid: 'devotee_user_uid',
-          email: 'devotee@iskcon.org',
-          displayName: 'Ramesh Das',
-          phoneNumber: '+919876543211',
-          role: 'counselee',
-          status: 'approved',
-          counsellorId: 'counsellor_admin_uid',
-          dateOfBirth: '1995-08-25',
-          iskconConnectDate: '2020-01-15',
-          declaredRounds: 16,
-          invitationCode: 'KRISHNA7',
-          publicAppreciationConsent: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        await localStorageService.saveUser(devoteeProfile, password);
-        return devoteeProfile;
+      // 3. Offline fallback ONLY if network error occurred
+      const isNetworkOrOffline =
+        firebaseErr.code === 'auth/network-request-failed' ||
+        firebaseErr.message?.includes('offline') ||
+        firebaseErr.message?.includes('network');
+
+      if (isNetworkOrOffline) {
+        const localMatch = await localStorageService.getUserByEmail(cleanEmail);
+        if (localMatch) {
+          if (localMatch.status === 'disabled') {
+            throw new Error('This account has been disabled. Please contact your counsellor.');
+          }
+          if (!localMatch.password) {
+            throw new Error('Network connection required to verify credentials.');
+          }
+          if (localMatch.password !== password) {
+            throw new Error('Incorrect password. Please verify your credentials or tap "Forgot Password?".');
+          }
+          await AsyncStorage.setItem('bhakti_active_session_uid', localMatch.uid);
+          return localMatch;
+        }
       }
 
       throw firebaseErr;
+    }
+  },
+
+  /**
+   * Verify password credentials (used for fingerprint / touch sensor enrollment)
+   */
+  verifyCredentials: async (email: string, password: string): Promise<boolean> => {
+    try {
+      await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      return true;
+    } catch (e: any) {
+      if (e.code === 'auth/network-request-failed') {
+        const local = await localStorageService.getUserByEmail(email);
+        return !!local?.password && local.password === password;
+      }
+      return false;
     }
   },
 
@@ -184,8 +220,31 @@ export const authService = {
         params.password
       );
       uid = userCredential.user.uid;
-    } catch (fbAuthErr) {
-      console.warn('Firebase Auth user creation fallback to local profile:', fbAuthErr);
+    } catch (fbAuthErr: any) {
+      if (
+        fbAuthErr.code === 'auth/email-already-in-use' ||
+        fbAuthErr.message?.includes('email-already-in-use')
+      ) {
+        // Devotee was deleted from database and is now re-registering with the same email
+        try {
+          const existingCred = await signInWithEmailAndPassword(
+            auth,
+            params.email.trim(),
+            params.password
+          );
+          uid = existingCred.user.uid;
+        } catch (signInErr: any) {
+          console.warn('Re-registration with same email using auth ID:', signInErr);
+          if (
+            signInErr.code === 'auth/wrong-password' ||
+            signInErr.code === 'auth/invalid-credential'
+          ) {
+            throw new Error(
+              'This email was previously registered. Please use your original password to re-register, or reset your password on the login screen.'
+            );
+          }
+        }
+      }
     }
 
     // 2. Prepare counselee profile (Always defaults to role='counselee' and status='pending')
@@ -207,8 +266,9 @@ export const authService = {
       updatedAt: nowIso,
     };
 
-    // 3. ALWAYS Save to local storage first (ensures admin side ALWAYS sees the new registration)
+    // 3. Save to local storage (un-tombstones if previously deleted)
     await localStorageService.saveUser(profile, params.password);
+    await AsyncStorage.setItem('bhakti_active_session_uid', uid);
 
     // 4. Also save to Cloud Firestore if connected
     try {
@@ -218,6 +278,11 @@ export const authService = {
       // Gracefully persisted in local storage
     }
 
+    // 5. Invalidate caches so counsellor sees new registration immediately
+    fastCache.invalidate('all_users');
+    fastCache.invalidate('all_counselees');
+    fastCache.invalidate('pending_counselees');
+
     return profile;
   },
 
@@ -226,6 +291,7 @@ export const authService = {
    */
   signOut: async () => {
     try {
+      await AsyncStorage.removeItem('bhakti_active_session_uid');
       await fbSignOut(auth);
     } catch (e) {
       console.warn('Firebase sign out error:', e);
@@ -459,15 +525,35 @@ export const authService = {
    * Admin: permanently delete a counselee and purge all related local & cloud records
    */
   deleteCounselee: async (uid: string): Promise<void> => {
-    // 1. Delete from Cloud Firestore if reachable
+    // 1. Delete user document from Cloud Firestore
     try {
       const userRef = doc(db, 'users', uid);
       await deleteDoc(userRef);
+
+      // 2. Cascade delete all sub-records for this user from Firestore
+      const collectionsToClean = [
+        { name: 'sadhana_entries', field: 'userId' },
+        { name: 'monitoring_alerts', field: 'userId' },
+        { name: 'weekly_attendance', field: 'userId' },
+        { name: 'monthly_satsanga', field: 'userId' },
+        { name: 'notifications', field: 'userId' },
+      ];
+
+      for (const col of collectionsToClean) {
+        try {
+          const q = query(collection(db, col.name), where(col.field, '==', uid));
+          const snap = await getDocs(q);
+          const deletes = snap.docs.map((d) => deleteDoc(d.ref));
+          await Promise.all(deletes);
+        } catch {
+          // ignore individual sub-collection error
+        }
+      }
     } catch (e) {
       // Safe fallback in offline/hybrid mode
     }
 
-    // 2. Permanently purge from local storage (including records & tombstones)
+    // 3. Permanently purge from local storage (including records & tombstones)
     await localStorageService.deleteUser(uid);
     fastCache.invalidate('all_users');
     fastCache.invalidate('all_counselees');
@@ -477,11 +563,13 @@ export const authService = {
   /**
    * Get all counselees with status === 'pending' awaiting approval
    */
-  getPendingCounselees: async (): Promise<UserProfile[]> => {
+  getPendingCounselees: async (forceRefresh = false): Promise<UserProfile[]> => {
     // 0. Check in-memory fast cache (0ms instant response)
-    const cached = await fastCache.get<UserProfile[]>('pending_counselees');
-    if (cached) {
-      return cached;
+    if (!forceRefresh) {
+      const cached = await fastCache.get<UserProfile[]>('pending_counselees');
+      if (cached) {
+        return cached;
+      }
     }
 
     const map = new Map<string, UserProfile>();
@@ -521,7 +609,7 @@ export const authService = {
     const result = Array.from(map.values()).sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
-    await fastCache.set('pending_counselees', result, 60);
+    await fastCache.set('pending_counselees', result, 30);
     return result;
   },
 

@@ -170,7 +170,12 @@ export const LoginScreen = ({ navigation }: any) => {
         }
       }
     } catch (err: any) {
-      Alert.alert('Login Failed', err.message || 'Could not verify credentials.');
+      const msg = err.message || 'Could not verify credentials.';
+      const isIncorrectPass = msg.toLowerCase().includes('incorrect password');
+      Alert.alert(
+        isIncorrectPass ? 'Incorrect Password' : 'Login Failed',
+        msg
+      );
     } finally {
       setIsSubmitting(false);
     }

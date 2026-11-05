@@ -319,7 +319,7 @@ export const RegisterScreen = ({ navigation }: any) => {
               <Ionicons pointerEvents="none" name="person-outline" size={18} color="#D97706" style={styles.inputLeadingIcon} />
               <TextInput
                 style={styles.boxTextInput}
-                placeholder="e.g. Radheshyam Das / Ramesh Kumar"
+                placeholder="e.g. Radheshyam Das / Sundar Gopal Das"
                 placeholderTextColor="#9CA3AF"
                 value={displayName}
                 onChangeText={setDisplayName}

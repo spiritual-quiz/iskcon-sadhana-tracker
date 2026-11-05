@@ -313,7 +313,15 @@ export const notificationService = {
       // If today is already filled, dismiss today's reminders
       if (todayEntry) {
         await notificationService.cancelTodayReminders();
+        return;
       }
+
+      // Throttle: avoid re-registering scheduled alarms repeatedly on every focus or render
+      const lastScheduledDate = await AsyncStorage.getItem('bhakti_last_scheduled_alarm_date');
+      if (lastScheduledDate === todayStr) {
+        return;
+      }
+      await AsyncStorage.setItem('bhakti_last_scheduled_alarm_date', todayStr);
 
       // 1. Repeating 6:00 PM Daily Reminder (18:00 IST) - fires even when app is closed
       await Notifications.scheduleNotificationAsync({

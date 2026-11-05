@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { UserProfile } from '../types/auth';
 import { biometricService } from '../services/biometricService';
+import { authService } from '../services/authService';
+import { localStorageService } from '../services/localStorageService';
 
 interface BiometricEnrollModalProps {
   visible: boolean;
@@ -39,7 +41,31 @@ export const BiometricEnrollModal: React.FC<BiometricEnrollModalProps> = ({
   const handleEnroll = async (explicitPassword?: string) => {
     setIsEnrolling(true);
     try {
-      const res = await biometricService.enrollWithStoredPassword(user, explicitPassword);
+      let pwdToVerify = explicitPassword;
+      if (!pwdToVerify) {
+        const local = await localStorageService.getUser(user.uid);
+        pwdToVerify = local?.password;
+      }
+
+      if (!pwdToVerify) {
+        setIsEnrolling(false);
+        setNeedsPassword(true);
+        return;
+      }
+
+      // Verify password strictly with authentication service
+      const isValid = await authService.verifyCredentials(user.email, pwdToVerify);
+      if (!isValid) {
+        setIsEnrolling(false);
+        setNeedsPassword(true);
+        Alert.alert(
+          'Incorrect Password',
+          'The password you entered is incorrect. Please enter your valid account password to enable fingerprint.'
+        );
+        return;
+      }
+
+      const res = await biometricService.enrollWithStoredPassword(user, pwdToVerify);
       if (res.success) {
         setIsEnrolling(false);
         onClose();

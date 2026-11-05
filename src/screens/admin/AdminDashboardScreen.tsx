@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,16 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { getTodayDateStringIST } from '../../utils/dateUtils';
 import { UserProfile } from '../../types/auth';
@@ -49,32 +51,96 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
 
+  const alertedPendingUidsRef = useRef<Set<string>>(new Set());
+  const lastFetchedTimeRef = useRef<number>(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardMetrics(true);
+    }, [])
+  );
+
   useEffect(() => {
+    // 1. Initial metrics load
     loadDashboardMetrics();
-    const checkPostLoginBio = async () => {
-      if (user?.email) {
-        const isEnrolled = await biometricService.isUserEnrolled(user.email);
-        if (!isEnrolled) {
-          const hw = await biometricService.isHardwareAvailable();
-          if (hw) {
-            setTimeout(() => {
-              setShowAutoBioPrompt(true);
-            }, 800);
+
+    // 2. Real-time listener for newly registered pending counselees from Firestore
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('role', '==', 'counselee'),
+        where('status', '==', 'pending')
+      );
+      const unsubscribe = onSnapshot(
+        q,
+        (snap) => {
+          if (!snap.empty) {
+            const pendingDevotees = snap.docs.map((d) => d.data() as UserProfile);
+            setPendingCount(pendingDevotees.length);
+
+            // Find any newly arrived pending devotee who has not been popped up yet
+            const unalerted = pendingDevotees.filter((d) => !alertedPendingUidsRef.current.has(d.uid));
+            if (unalerted.length > 0) {
+              unalerted.forEach((d) => alertedPendingUidsRef.current.add(d.uid));
+              Alert.alert(
+                'New Counselee Registration',
+                `Hare Krishna! ${unalerted[0].displayName}${
+                  unalerted.length > 1 ? ` and ${unalerted.length - 1} more devotee(s)` : ''
+                } registered and are awaiting your approval.`,
+                [
+                  { text: 'Review Later', style: 'cancel' },
+                  {
+                    text: 'Review Now',
+                    onPress: () => navigation.navigate('PendingRegistrations'),
+                  },
+                ]
+              );
+            }
+          } else {
+            setPendingCount(0);
+          }
+        },
+        () => {
+          // offline listener fallback
+        }
+      );
+
+      const checkPostLoginBio = async () => {
+        if (user?.email) {
+          const isEnrolled = await biometricService.isUserEnrolled(user.email);
+          if (!isEnrolled) {
+            const hw = await biometricService.isHardwareAvailable();
+            if (hw) {
+              setTimeout(() => {
+                setShowAutoBioPrompt(true);
+              }, 800);
+            }
           }
         }
-      }
-    };
-    checkPostLoginBio();
+      };
+      checkPostLoginBio();
+
+      return () => unsubscribe();
+    } catch {
+      // offline fallback
+    }
   }, []);
 
-  const loadDashboardMetrics = async () => {
+  const loadDashboardMetrics = async (force = false) => {
+    const nowMs = Date.now();
+    // Throttle metric loads to at most once per 8 seconds unless forced
+    if (!force && nowMs - lastFetchedTimeRef.current < 8000) {
+      return;
+    }
+    lastFetchedTimeRef.current = nowMs;
+
     try {
       const now = new Date();
       const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-      // Parallelized instant fetch across all metrics
+      // Parallelized instant fetch across all metrics with forceRefresh support
       const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly] = await Promise.all([
-        authService.getAllUsers(),
+        authService.getAllUsers(force),
         sadhanaService.getAllEntriesForDate(todayStr),
         monitoringService.getOpenAlerts(),
         localStorageService.getSharedWeeklySummaries(todayStr).catch(() => []),
@@ -116,7 +182,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
   const onRefresh = () => {
     setIsRefreshing(true);
-    loadDashboardMetrics();
+    loadDashboardMetrics(true);
   };
 
   const adminSections = [

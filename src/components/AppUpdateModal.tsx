@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -116,6 +117,10 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
   const handleDownloadApkDirectly = () => {
     Linking.openURL('https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest');
   };
+
+  if (Platform.OS === 'web' || !visible) {
+    return null;
+  }
 
   return (
     <Modal
