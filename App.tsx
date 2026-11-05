@@ -10,6 +10,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { notificationService } from './src/services/notificationService';
 import { updateService, AppVersionInfo } from './src/services/updateService';
 import { AppUpdateModal } from './src/components/AppUpdateModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AppContent: React.FC = () => {
   const { theme, currentThemeId } = useTheme();
@@ -51,13 +52,10 @@ const AppContent: React.FC = () => {
     // 1. Initial check on cold mount
     checkAppUpdates();
 
-    // 2. AppState listener: whenever user returns to the app, re-prompt if update pending,
-    // or re-check if at least 30 minutes have elapsed (zero background battery drain).
+    // 2. AppState listener: re-check only after 12+ hours to avoid annoying pop-ups
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        if (isUpdatePendingRef.current) {
-          setShowUpdateModal(true);
-        } else if (Date.now() - lastCheckTimeRef.current > 30 * 60 * 1000) {
+        if (Date.now() - lastCheckTimeRef.current > 12 * 60 * 60 * 1000) {
           checkAppUpdates();
         }
       }
@@ -77,8 +75,12 @@ const AppContent: React.FC = () => {
     await updateService.reloadApp();
   };
 
-  const handleDismissModal = () => {
+  const handleDismissModal = async () => {
     setShowUpdateModal(false);
+    isUpdatePendingRef.current = false;
+    if (pendingUpdateInfo?.version) {
+      await AsyncStorage.setItem('bhakti_dismissed_update_version', pendingUpdateInfo.version);
+    }
   };
 
   const navTheme = {

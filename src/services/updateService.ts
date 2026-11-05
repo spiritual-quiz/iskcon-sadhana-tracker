@@ -23,15 +23,15 @@ export const updateService = {
    */
   getCurrentVersion: () => {
     return {
-      version: Constants.expoConfig?.version || '1.0.27',
-      versionCode: Constants.expoConfig?.android?.versionCode || 28,
+      version: Constants.expoConfig?.version || '1.0.29',
+      versionCode: Constants.expoConfig?.android?.versionCode || 30,
     };
   },
 
   /**
    * Check for updates from:
-   * 1. Firestore 'app_settings/version_control' (published by admin / system)
-   * 2. Expo Updates service (for native OTA updates)
+   * 1. Expo Updates service (for native OTA updates)
+   * 2. Firestore 'app_settings/version_control' (published by admin / system)
    */
   checkForUpdate: async (): Promise<{
     isAvailable: boolean;
@@ -48,8 +48,35 @@ export const updateService = {
     }
 
     const current = updateService.getCurrentVersion();
+    const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
+    const lastApplied = await AsyncStorage.getItem(LAST_APPLIED_UPDATE_KEY);
 
-    // 1. Check Firestore remote version broadcast
+    // 1. Check native Expo Updates service (primary source for OTA bundles)
+    try {
+      if ((Platform.OS as string) !== 'web' && !__DEV__ && Updates?.checkForUpdateAsync) {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          const otaVersion = `v${current.version}+ota`;
+          if (lastDismissed !== otaVersion && lastApplied !== otaVersion) {
+            return {
+              isAvailable: true,
+              versionInfo: {
+                version: otaVersion,
+                versionCode: current.versionCode,
+                title: 'New Devotional Update Available',
+                releaseNotes: 'Performance optimizations, notification accuracy, and enhancements.',
+                publishedAt: new Date().toISOString(),
+              },
+              updateSource: 'expo',
+            };
+          }
+        }
+      }
+    } catch (e) {
+      // Ignored
+    }
+
+    // 2. Check Firestore remote version broadcast ONLY IF STRICTLY HIGHER than current versionCode
     try {
       const docRef = doc(db, 'app_settings', 'version_control');
       const snap = await Promise.race([
@@ -59,13 +86,18 @@ export const updateService = {
 
       if (snap && snap.exists()) {
         const remoteInfo = snap.data() as AppVersionInfo;
-        const lastApplied = await AsyncStorage.getItem(LAST_APPLIED_UPDATE_KEY);
+        const remoteCode = remoteInfo.versionCode || 0;
 
-        // Check if remote version is higher or has a newer timestamp than last applied
-        const isHigherVersion = (remoteInfo.versionCode || 0) > current.versionCode;
-        const isDifferentVersion = remoteInfo.version !== current.version && remoteInfo.version !== lastApplied;
-
-        if (isHigherVersion || isDifferentVersion) {
+        // An update is available ONLY IF:
+        // 1. Remote versionCode is strictly higher than running app
+        // 2. Remote version string is strictly different from running app
+        // 3. User has NOT already dismissed or applied this version
+        if (
+          remoteCode > current.versionCode &&
+          remoteInfo.version !== current.version &&
+          remoteInfo.version !== lastDismissed &&
+          remoteInfo.version !== lastApplied
+        ) {
           return {
             isAvailable: true,
             versionInfo: remoteInfo,
@@ -74,29 +106,7 @@ export const updateService = {
         }
       }
     } catch (e) {
-      // Offline or permission fallback
-    }
-
-    // 2. Check native Expo Updates service (if on native device)
-    try {
-      if ((Platform.OS as string) !== 'web' && !__DEV__ && Updates?.checkForUpdateAsync) {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          return {
-            isAvailable: true,
-            versionInfo: {
-              version: `v${current.version}+ota`,
-              versionCode: current.versionCode,
-              title: 'Devotional Enhancements & Fixes',
-              releaseNotes: 'Performance optimizations, notification accuracy, and battery life improvements.',
-              publishedAt: new Date().toISOString(),
-            },
-            updateSource: 'expo',
-          };
-        }
-      }
-    } catch (e) {
-      // Ignored
+      // Offline fallback
     }
 
     return {
