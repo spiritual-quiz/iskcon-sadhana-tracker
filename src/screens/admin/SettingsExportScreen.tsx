@@ -50,23 +50,20 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   const loadLiveBroadcast = async () => {
     try {
       const live = await updateService.getLatestBroadcast();
-      if (live) {
-        if (live.version) setBroadcastVersion(live.version);
-        if (live.versionCode) setBroadcastCode(String(live.versionCode));
+      if (live && live.version) {
+        setBroadcastVersion(live.version);
+        setBroadcastCode(String(live.versionCode || currentAppVersion.versionCode));
         if (live.title) setBroadcastTitle(live.title);
         if (live.releaseNotes) setBroadcastNotes(live.releaseNotes);
+      } else {
+        setBroadcastVersion(currentAppVersion.version);
+        setBroadcastCode(String(currentAppVersion.versionCode));
+        setBroadcastTitle(`Bhakti Unnati v${currentAppVersion.version}`);
       }
     } catch (e) {
-      console.warn('Error loading live broadcast:', e);
+      setBroadcastVersion(currentAppVersion.version);
+      setBroadcastCode(String(currentAppVersion.versionCode));
     }
-  };
-
-  const handleSyncToCurrentBuild = () => {
-    setBroadcastVersion(currentAppVersion.version);
-    setBroadcastCode(String(currentAppVersion.versionCode));
-    setBroadcastTitle(`Bhakti Unnati v${currentAppVersion.version}`);
-    setBroadcastNotes('Devotee approval updates, retained username on invalid password, and live software version tracking.');
-    Alert.alert('Auto-Filled', `Synced broadcast fields to running app version v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`);
   };
 
   const handleCheckUpdates = async () => {
@@ -75,22 +72,22 @@ export const SettingsExportScreen = ({ navigation }: any) => {
       const res = await updateService.checkForUpdate();
       if (res.isAvailable) {
         Alert.alert(
-          'Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.`,
+          'New Update Available',
+          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.\n\nWould you like to install and restart now?`,
           [
             { text: 'Later', style: 'cancel' },
             {
-              text: 'Download & Apply',
+              text: 'Install & Restart',
               onPress: async () => {
-                await updateService.fetchAndApplyUpdate(res.versionInfo);
-                Alert.alert(
-                  'Update Ready',
-                  'The update package has been downloaded successfully. Restart app to apply?',
-                  [
-                    { text: 'Restart Now', onPress: () => updateService.reloadApp() },
-                    { text: 'Later' },
-                  ]
-                );
+                setIsCheckingUpdates(true);
+                try {
+                  await updateService.fetchAndApplyUpdate(res.versionInfo);
+                  await updateService.reloadApp();
+                } catch (err: any) {
+                  Alert.alert('Update Error', err?.message || 'Failed to download update.');
+                } finally {
+                  setIsCheckingUpdates(false);
+                }
               },
             },
           ]
@@ -98,11 +95,11 @@ export const SettingsExportScreen = ({ navigation }: any) => {
       } else {
         Alert.alert(
           'Software Up to Date',
-          `You are on the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
+          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
         );
       }
-    } catch (e: any) {
-      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+    } catch {
+      Alert.alert('Update Check', 'Unable to reach update service. Please check your internet connection.');
     } finally {
       setIsCheckingUpdates(false);
     }
@@ -301,28 +298,11 @@ export const SettingsExportScreen = ({ navigation }: any) => {
 
         {/* Software Version & Upgrade Broadcast */}
         <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <Ionicons name="information-circle-outline" size={20} color={theme.thickColor} />
-              <Text style={[styles.cardTitle, { color: theme.thickColor, marginBottom: 0 }]}>
-                Current Software Version
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.checkUpdateBtn, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}
-              onPress={handleCheckUpdates}
-              disabled={isCheckingUpdates}
-              activeOpacity={0.8}
-            >
-              {isCheckingUpdates ? (
-                <ActivityIndicator size="small" color={theme.thickColor} />
-              ) : (
-                <>
-                  <Ionicons name="refresh-outline" size={13} color={theme.thickColor} />
-                  <Text style={[styles.checkUpdateBtnText, { color: theme.thickColor }]}>Check Updates</Text>
-                </>
-              )}
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <Ionicons name="information-circle-outline" size={20} color={theme.thickColor} />
+            <Text style={[styles.cardTitle, { color: theme.thickColor, marginBottom: 0 }]}>
+              Current Software Version
+            </Text>
           </View>
 
           <View style={[styles.versionBanner, { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight }]}>
@@ -340,19 +320,28 @@ export const SettingsExportScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 }}>
-            <Text style={[styles.subSectionTitle, { color: theme.thickColor }]}>
-              Publish Upgrade Broadcast to Users
-            </Text>
-            <TouchableOpacity
-              style={[styles.syncBuildBtn, { borderColor: theme.colors.border }]}
-              onPress={handleSyncToCurrentBuild}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="sync-outline" size={12} color={theme.thickColor} />
-              <Text style={[styles.syncBuildBtnText, { color: theme.thickColor }]}>Auto-Fill Current Build</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Dedicated single button to check software updates without colliding */}
+          <TouchableOpacity
+            style={[styles.singleCheckUpdateBtn, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}
+            onPress={handleCheckUpdates}
+            disabled={isCheckingUpdates}
+            activeOpacity={0.8}
+          >
+            {isCheckingUpdates ? (
+              <ActivityIndicator size="small" color={theme.thickColor} />
+            ) : (
+              <View style={styles.btnContentRow}>
+                <Ionicons name="refresh-circle-outline" size={18} color={theme.thickColor} />
+                <Text style={[styles.singleCheckUpdateBtnText, { color: theme.thickColor }]}>
+                  Check for Software Updates
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <Text style={[styles.subSectionTitle, { color: theme.thickColor, marginTop: 16, marginBottom: 8 }]}>
+            Publish Upgrade Broadcast to Users
+          </Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Broadcast Version Number</Text>
@@ -533,18 +522,24 @@ const styles = StyleSheet.create({
     fontSize: THEME.typography.sizes.sm,
     marginLeft: 8,
   },
-  checkUpdateBtn: {
+  singleCheckUpdateBtn: {
+    marginTop: 10,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  singleCheckUpdateBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  btnContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 4,
-  },
-  checkUpdateBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
+    gap: 8,
   },
   versionBanner: {
     flexDirection: 'row',
@@ -565,21 +560,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   subSectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  syncBuildBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-  },
-  syncBuildBtnText: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: 'bold',
   },
 });

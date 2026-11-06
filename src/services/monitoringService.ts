@@ -17,6 +17,8 @@ import { localStorageService } from './localStorageService';
 import { authService } from './authService';
 import { sadhanaService } from './sadhanaService';
 
+import { fastCache } from './fastCacheService';
+
 export const monitoringService = {
   /**
    * Run automated audit check for a counselee:
@@ -134,8 +136,15 @@ export const monitoringService = {
    * Get all active (open) monitoring alerts for admin dashboard.
    * Dynamically evaluates all approved counselees for continuous 3+ days of missing sadhana.
    */
-  getOpenAlerts: async (): Promise<MonitoringAlert[]> => {
+  getOpenAlerts: async (forceRefresh = false): Promise<MonitoringAlert[]> => {
     const todayStr = getTodayDateStringIST();
+    const cacheKey = `open_alerts_${todayStr}`;
+
+    if (!forceRefresh) {
+      const cached = await fastCache.get<MonitoringAlert[]>(cacheKey);
+      if (cached && cached.length > 0) return cached;
+    }
+
     const alertMap = new Map<string, MonitoringAlert>();
 
     // 1. First, load any existing open alerts from Firestore (e.g. low_score or manual followups)
@@ -147,7 +156,7 @@ export const monitoringService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
       ]);
       if (snap && !snap.empty) {
         snap.docs.forEach((d) => {
@@ -179,7 +188,7 @@ export const monitoringService = {
       try {
         recentSnap = await Promise.race([
           getDocs(recentEntriesQuery),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
         ]);
       } catch (e) {
         // Fallback to local entries if offline
@@ -195,50 +204,54 @@ export const monitoringService = {
         });
       }
 
-      for (const c of approved) {
-        // If devotee submitted at least once in the last 3 days, they are NOT inactive for 3 continuous days
-        if (activeInLast3Days.has(c.uid)) {
-          // If an older missing_card alert exists for this user, mark it resolved
-          continue;
-        }
+      const inactiveCounselees = approved.filter((c) => !activeInLast3Days.has(c.uid));
+      await Promise.all(
+        inactiveCounselees.map(async (c) => {
+          try {
+            const latestEntry = await Promise.race([
+              sadhanaService.getLatestEntryForUser(c.uid),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+            ]);
+            const lastDate = latestEntry?.date;
+            const daysSince = lastDate
+              ? getDaysDifference(lastDate, todayStr)
+              : getDaysDifference(c.createdAt ? c.createdAt.split('T')[0] : todayStr, todayStr);
 
-        // Devotee has not submitted for 3 continuous days!
-        const latestEntry = await sadhanaService.getLatestEntryForUser(c.uid);
-        const lastDate = latestEntry?.date;
-        const daysSince = lastDate
-          ? getDaysDifference(lastDate, todayStr)
-          : getDaysDifference(c.createdAt ? c.createdAt.split('T')[0] : todayStr, todayStr);
+            if (daysSince >= 3) {
+              const alertId = `missing_${c.uid}`;
+              const alert: MonitoringAlert = {
+                id: alertId,
+                userId: c.uid,
+                counseleeName: c.displayName,
+                alertType: 'missing_card',
+                severity: 'warning',
+                title: 'Sadhana Pending (3+ Days)',
+                description: `${c.displayName} has not submitted a daily sadhana card for ${daysSince} consecutive days${lastDate ? ` (Last submitted: ${lastDate})` : ''}.`,
+                lastSubmissionDate: lastDate,
+                consecutiveMissingDays: daysSince,
+                status: 'open',
+                createdAt: new Date().toISOString(),
+              };
 
-        if (daysSince >= 3) {
-          const alertId = `missing_${c.uid}`;
-          const alert: MonitoringAlert = {
-            id: alertId,
-            userId: c.uid,
-            counseleeName: c.displayName,
-            alertType: 'missing_card',
-            severity: 'warning',
-            title: 'Sadhana Pending (3+ Days)',
-            description: `${c.displayName} has not submitted a daily sadhana card for ${daysSince} consecutive days${lastDate ? ` (Last submitted: ${lastDate})` : ''}.`,
-            lastSubmissionDate: lastDate,
-            consecutiveMissingDays: daysSince,
-            status: 'open',
-            createdAt: new Date().toISOString(),
-          };
-
-          alertMap.set(alertId, alert);
-          // Persist alert to Firestore asynchronously
-          setDoc(doc(db, 'monitoring_alerts', alertId), alert).catch(() => {});
-        }
-      }
+              alertMap.set(alertId, alert);
+              // Persist alert to Firestore asynchronously
+              setDoc(doc(db, 'monitoring_alerts', alertId), alert).catch(() => {});
+            }
+          } catch {}
+        })
+      );
     } catch (err) {
       console.warn('Error in dynamic open alerts evaluation:', err);
     }
 
-    return Array.from(alertMap.values()).sort((a, b) => {
+    const results = Array.from(alertMap.values()).sort((a, b) => {
       // Prioritize missing_card alerts, then descending missing days
       if (a.alertType === 'missing_card' && b.alertType !== 'missing_card') return -1;
       if (b.alertType === 'missing_card' && a.alertType !== 'missing_card') return 1;
       return (b.consecutiveMissingDays || 0) - (a.consecutiveMissingDays || 0);
     });
+
+    await fastCache.set(cacheKey, results, 90);
+    return results;
   },
 };

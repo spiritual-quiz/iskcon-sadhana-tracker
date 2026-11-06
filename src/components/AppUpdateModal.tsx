@@ -47,8 +47,14 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
       }
+    } else if (stage === 'idle') {
+      // Automatic update download as requested by user ("The app update also should happen automatically")
+      const autoTimer = setTimeout(() => {
+        handleUpdatePress();
+      }, 1500);
+      return () => clearTimeout(autoTimer);
     }
-  }, [visible]);
+  }, [visible, stage]);
 
   const handleUpdatePress = async () => {
     setStage('downloading');
@@ -159,6 +165,9 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                   <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
                     {updateMessage ||
                       'A fresh version of Bhakti Unnati is ready with new devotional features and optimizations.'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.thickColor, fontWeight: '600', marginBottom: 12 }}>
+                    Starting automatic update...
                   </Text>
 
                   {/* Highlights Box */}

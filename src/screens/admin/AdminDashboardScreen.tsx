@@ -50,7 +50,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [dailyLowScoreCount, setDailyLowScoreCount] = useState<number>(0);
   const [weeklyLowScoreCount, setWeeklyLowScoreCount] = useState<number>(0);
   const [monthlyLowScoreCount, setMonthlyLowScoreCount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
 
@@ -143,21 +143,21 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       const now = new Date();
       const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-      // Parallelized instant fetch across all metrics with forceRefresh support
-      const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly, livePending] = await Promise.all([
+      // Parallelized instant fetch across metrics with forceRefresh support
+      const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly] = await Promise.all([
         authService.getAllUsers(force),
-        sadhanaService.getAllEntriesForDate(todayStr),
-        monitoringService.getOpenAlerts(),
+        sadhanaService.getAllEntriesForDate(todayStr, force),
+        monitoringService.getOpenAlerts(force),
         localStorageService.getSharedWeeklySummaries(todayStr).catch(() => []),
         localStorageService.getSharedMonthlySummaries(monthId).catch(() => []),
-        authService.getPendingCounselees(true).catch(() => []),
       ]);
 
       const approved = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
+      const pendingDevotees = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
       const reminderReqs = allUsers.filter((u) => u.role !== 'counsellor' && u.reminderOptOutRequested === true);
       const targetReqs = allUsers.filter((u) => u.role !== 'counsellor' && u.targetRoundsRequested && u.targetRoundsRequested > 0);
       setApprovedCount(approved.length);
-      setPendingCount(livePending.length);
+      setPendingCount(pendingDevotees.length);
       setReminderRequestsCount(reminderReqs.length);
       setTargetRequestsCount(targetReqs.length);
 
@@ -176,7 +176,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       const bdays = birthdayService.getUpcomingBirthdays(approved, 30);
       setUpcomingBirthdaysCount(bdays.length);
 
-      await notificationService.checkAndDispatchAdminAlerts(user);
+      // Dispatch admin alerts in background without blocking dashboard
+      notificationService.checkAndDispatchAdminAlerts(user).catch(() => {});
     } catch (e) {
       console.warn('Error loading admin dashboard metrics:', e);
     } finally {
@@ -196,18 +197,22 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       const res = await updateService.checkForUpdate();
       if (res.isAvailable) {
         Alert.alert(
-          'Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.`,
+          'New Update Available',
+          `A new software update (${res.versionInfo?.version || 'Latest'}) is available with devotional honours and improvements.\n\nWould you like to install it now?`,
           [
             { text: 'Later', style: 'cancel' },
             {
-              text: 'Download & Apply',
+              text: 'Install & Restart',
               onPress: async () => {
-                await updateService.fetchAndApplyUpdate(res.versionInfo);
-                Alert.alert('Update Applied', 'Update package downloaded. Restart app to apply?', [
-                  { text: 'Restart Now', onPress: () => updateService.reloadApp() },
-                  { text: 'Later' },
-                ]);
+                setIsCheckingUpdates(true);
+                try {
+                  await updateService.fetchAndApplyUpdate(res.versionInfo);
+                  await updateService.reloadApp();
+                } catch (err: any) {
+                  Alert.alert('Update Error', err?.message || 'Failed to download update package.');
+                } finally {
+                  setIsCheckingUpdates(false);
+                }
               },
             },
           ]
@@ -215,7 +220,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       } else {
         Alert.alert(
           'Software Up to Date',
-          `You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
+          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
         );
       }
     } catch (e: any) {
@@ -436,24 +441,6 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
               </View>
             </View>
           )}
-
-          {/* Devotional Honours Shortcut */}
-          <View style={styles.honoursNavRow}>
-            <TouchableOpacity
-              style={[styles.honoursNavBtn, { backgroundColor: theme.thickColor }]}
-              onPress={() => navigation.navigate('HonoursScreen')}
-              activeOpacity={0.85}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="trophy" size={16} color="#FFFFFF" />
-                <Text style={styles.honoursNavBtnText}>Honours: Devotional Champions</Text>
-              </View>
-              <View style={styles.honoursNavPill}>
-                <Text style={styles.honoursNavPillText}>View Board</Text>
-                <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-          </View>
 
           {/* Master Admin Sections Grid */}
           <Text style={[styles.sectionsTitle, { color: theme.thickColor }]}>Counselling & Monitoring Modules</Text>

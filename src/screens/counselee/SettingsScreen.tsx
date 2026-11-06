@@ -19,18 +19,22 @@ export const SettingsScreen = () => {
       const res = await updateService.checkForUpdate();
       if (res.isAvailable) {
         Alert.alert(
-          'Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.`,
+          'New Update Available',
+          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.\n\nWould you like to install and restart now?`,
           [
             { text: 'Later', style: 'cancel' },
             {
-              text: 'Download & Apply',
+              text: 'Install & Restart',
               onPress: async () => {
-                await updateService.fetchAndApplyUpdate(res.versionInfo);
-                Alert.alert('Update Applied', 'Update downloaded successfully. Restart app to apply?', [
-                  { text: 'Restart Now', onPress: () => updateService.reloadApp() },
-                  { text: 'Later' },
-                ]);
+                setIsCheckingUpdates(true);
+                try {
+                  await updateService.fetchAndApplyUpdate(res.versionInfo);
+                  await updateService.reloadApp();
+                } catch (err: any) {
+                  Alert.alert('Update Error', err?.message || 'Failed to download update.');
+                } finally {
+                  setIsCheckingUpdates(false);
+                }
               },
             },
           ]
