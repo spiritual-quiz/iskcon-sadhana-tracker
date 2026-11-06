@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
@@ -8,20 +8,20 @@ import { performerService, HonoursData, CategoryChampion } from '../services/per
 interface HonoursCardProps {
   dateStr?: string;
   refreshTrigger?: number;
-  initialTab?: 'all' | 'yesterday' | 'weekly' | 'monthly';
+  initialTab?: 'yesterday' | 'weekly' | 'monthly' | 'all';
   compact?: boolean;
 }
 
 export const HonoursCard: React.FC<HonoursCardProps> = ({
   dateStr,
   refreshTrigger,
-  initialTab = 'all',
+  initialTab = 'yesterday',
   compact = false,
 }) => {
   const { theme } = useTheme();
   const [data, setData] = useState<HonoursData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeCategory, setActiveCategory] = useState<'all' | 'yesterday' | 'weekly' | 'monthly'>(initialTab);
+  const [activeCategory, setActiveCategory] = useState<'yesterday' | 'weekly' | 'monthly' | 'all'>(initialTab);
 
   useEffect(() => {
     let isMounted = true;
@@ -66,6 +66,7 @@ export const HonoursCard: React.FC<HonoursCardProps> = ({
   const monthlyChamps = data.monthlyChampions.championsList;
   const isFirst10Days = data.monthlyChampions.isFirst10Days;
   const quote = data.motivationalQuote;
+  const monthNameShort = data.monthlyChampions.previousMonthName.split(' ')[0];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -103,23 +104,13 @@ export const HonoursCard: React.FC<HonoursCardProps> = ({
         </View>
       </View>
 
-      {/* 10-Days Monthly Champions Celebration Banner */}
-      {isFirst10Days && (
-        <View style={styles.highlightNoticeBox}>
-          <Ionicons name="ribbon" size={16} color="#B45309" />
-          <Text style={styles.highlightNoticeText}>
-            🌟 {data.monthlyChampions.previousMonthName} Champions • Active for the first 10 days of {data.monthlyChampions.currentMonthName} ({data.monthlyChampions.daysRemainingInHighlight} days remaining)
-          </Text>
-        </View>
-      )}
-
-      {/* Filter Tabs */}
+      {/* Filter Tabs strictly ordered: Yesterday, Last Week, October Champions, All Honours */}
       <View style={styles.tabsRow}>
         {[
+          { key: 'yesterday', label: 'Yesterday' },
+          { key: 'weekly', label: 'Last Week' },
+          { key: 'monthly', label: `${monthNameShort} Champions` },
           { key: 'all', label: 'All Honours' },
-          { key: 'yesterday', label: "Yesterday" },
-          { key: 'weekly', label: "Last Week" },
-          { key: 'monthly', label: `${data.monthlyChampions.previousMonthName.split(' ')[0]} Champions` },
         ].map((tab) => {
           const isActive = activeCategory === tab.key;
           return (
@@ -145,179 +136,264 @@ export const HonoursCard: React.FC<HonoursCardProps> = ({
         })}
       </View>
 
-      {/* Cards List */}
-      <View style={styles.itemsList}>
-        {/* 1. YESTERDAY'S FIRST TO SUBMIT */}
-        {(activeCategory === 'all' || activeCategory === 'yesterday') && yesterdayFirstDevotee && (
-          <View
-            style={[
-              styles.honourCard,
-              { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight },
-            ]}
-          >
-            <View style={styles.cardTopRow}>
-              <View style={[styles.badgePill, { backgroundColor: '#15803D' }]}>
-                <Ionicons name="sunny" size={12} color="#FFFFFF" />
-                <Text style={styles.badgePillText}>Yesterday's First to Submit</Text>
-              </View>
-              {yesterdayFirstDevotee.timeStr && (
-                <Text style={[styles.timeBadge, { color: '#15803D' }]}>
-                  {yesterdayFirstDevotee.timeStr}
-                </Text>
-              )}
-            </View>
-            <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
-              {yesterdayFirstDevotee.counseleeName}
-            </Text>
-            <Text style={[styles.honourDetail, { color: theme.colors.textMuted }]}>
-              {yesterdayFirstDevotee.detail}
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 1: YESTERDAY DETAILS */}
+      {/* ------------------------------------------------------------- */}
+      {(activeCategory === 'yesterday' || activeCategory === 'all') && (
+        <View style={styles.sectionBlock}>
+          {/* Yesterday Date Badge */}
+          <View style={[styles.dateHeaderBanner, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+            <Ionicons name="calendar-outline" size={15} color="#92400E" />
+            <Text style={styles.dateHeaderText}>
+              Date: <Text style={{ fontWeight: 'bold' }}>{data.yesterday.readableDate}</Text> (Yesterday)
             </Text>
           </View>
-        )}
 
-        {/* 2. YESTERDAY'S BEST PERFORMER */}
-        {(activeCategory === 'all' || activeCategory === 'yesterday') && yesterdayDevotee && (
-          <View
-            style={[
-              styles.honourCard,
-              { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
-            ]}
-          >
-            <View style={styles.cardTopRow}>
-              <View style={[styles.badgePill, { backgroundColor: '#B45309' }]}>
-                <Ionicons name="ribbon" size={12} color="#FFFFFF" />
-                <Text style={styles.badgePillText}>Yesterday's Best Performer</Text>
-              </View>
-              <Text style={[styles.scoreBadge, { color: '#B45309' }]}>
-                {yesterdayDevotee.percentage}% Score
-              </Text>
-            </View>
-            <Text style={[styles.devoteeName, { color: '#78350F' }]}>
-              {yesterdayDevotee.counseleeName}
-            </Text>
-            <Text style={[styles.honourDetail, { color: '#92400E' }]}>
-              {yesterdayDevotee.detail}
-            </Text>
-          </View>
-        )}
-
-        {/* 3. LAST WEEK'S BEST PERFORMER */}
-        {(activeCategory === 'all' || activeCategory === 'weekly') && lastWeekDevotee && (
-          <View
-            style={[
-              styles.honourCard,
-              { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' },
-            ]}
-          >
-            <View style={styles.cardTopRow}>
-              <View style={[styles.badgePill, { backgroundColor: '#6D28D9' }]}>
-                <Ionicons name="star" size={12} color="#FFFFFF" />
-                <Text style={styles.badgePillText}>Last Week's Best Performer</Text>
-              </View>
-              <Text style={[styles.scoreBadge, { color: '#6D28D9' }]}>
-                {lastWeekDevotee.percentage}% Avg
-              </Text>
-            </View>
-            <Text style={[styles.devoteeName, { color: '#4C1D95' }]}>
-              {lastWeekDevotee.counseleeName}
-            </Text>
-            <Text style={[styles.honourDetail, { color: '#5B21B6' }]}>
-              {lastWeekDevotee.detail}
-            </Text>
-          </View>
-        )}
-
-        {/* LAST WEEK CATEGORY HIGHLIGHTS */}
-        {(activeCategory === 'weekly') &&
-          data.lastWeek.championsList.map((champ, idx) => (
+          {/* Yesterday First to Submit */}
+          {yesterdayFirstDevotee ? (
             <View
-              key={`week_${champ.category}_${idx}`}
-              style={[styles.categoryMiniCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+              style={[
+                styles.honourCard,
+                { backgroundColor: theme.liteColor, borderColor: theme.colors.borderLight },
+              ]}
             >
-              <View style={styles.categoryHeaderRow}>
-                <View style={styles.categoryTitleRow}>
-                  <Ionicons name={champ.iconName as any} size={15} color={theme.thickColor} />
-                  <Text style={[styles.categoryTitle, { color: theme.thickColor }]}>{champ.title}</Text>
+              <View style={styles.cardTopRow}>
+                <View style={[styles.badgePill, { backgroundColor: '#15803D' }]}>
+                  <Ionicons name="sunny" size={12} color="#FFFFFF" />
+                  <Text style={styles.badgePillText}>Yesterday's First to Submit</Text>
                 </View>
-                <View style={[styles.champBadgePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
-                  <Text style={[styles.champBadgeText, { color: theme.thickColor }]}>{champ.badge}</Text>
-                </View>
+                {yesterdayFirstDevotee.timeStr && (
+                  <Text style={[styles.timeBadge, { color: '#15803D' }]}>
+                    {yesterdayFirstDevotee.timeStr}
+                  </Text>
+                )}
               </View>
-              <Text style={[styles.champDevoteeName, { color: theme.colors.text }]}>
-                {champ.devoteeName} • <Text style={{ fontWeight: 'bold', color: theme.thickColor }}>{champ.valueStr}</Text>
+              <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                {yesterdayFirstDevotee.counseleeName}
               </Text>
-              <Text style={[styles.champDetailText, { color: theme.colors.textMuted }]}>{champ.detail}</Text>
-            </View>
-          ))}
-
-        {/* 4. LAST MONTH'S CATEGORY CHAMPIONS (The 7 Disciplines) */}
-        {(activeCategory === 'all' || activeCategory === 'monthly') && (
-          <View style={styles.monthlySection}>
-            <View style={styles.monthlySectionHeader}>
-              <Ionicons name="medal" size={16} color="#047857" />
-              <Text style={styles.monthlySectionTitle}>
-                {data.monthlyChampions.previousMonthName} Category Champions
+              <Text style={[styles.honourDetail, { color: theme.colors.textMuted }]}>
+                {yesterdayFirstDevotee.detail}
               </Text>
             </View>
+          ) : null}
 
-            {monthlyChamps.length === 0 ? (
-              <Text style={[styles.noChampionsText, { color: theme.colors.textMuted }]}>
-                No entries recorded for this month yet.
+          {/* Yesterday Best Performer */}
+          {yesterdayDevotee ? (
+            <View
+              style={[
+                styles.honourCard,
+                { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+              ]}
+            >
+              <View style={styles.cardTopRow}>
+                <View style={[styles.badgePill, { backgroundColor: '#B45309' }]}>
+                  <Ionicons name="ribbon" size={12} color="#FFFFFF" />
+                  <Text style={styles.badgePillText}>Yesterday's Best Performer</Text>
+                </View>
+                <Text style={[styles.scoreBadge, { color: '#B45309' }]}>
+                  {yesterdayDevotee.percentage}% Score
+                </Text>
+              </View>
+              <Text style={[styles.devoteeName, { color: '#78350F' }]}>
+                {yesterdayDevotee.counseleeName}
               </Text>
-            ) : (
-              monthlyChamps.map((champ, idx) => {
-                const badgeColor =
-                  champ.category === 'chanting'
-                    ? '#B45309'
-                    : champ.category === 'hearing'
-                    ? '#0284C7'
-                    : champ.category === 'reading'
-                    ? '#7C3AED'
-                    : champ.category === 'sleep'
-                    ? '#059669'
-                    : champ.category === 'onlineReading'
-                    ? '#4F46E5'
-                    : champ.category === 'service'
-                    ? '#DC2626'
-                    : '#D97706';
+              <Text style={[styles.honourDetail, { color: '#92400E' }]}>
+                {yesterdayDevotee.detail}
+              </Text>
+            </View>
+          ) : null}
 
-                return (
-                  <View
-                    key={`month_${champ.category}_${idx}`}
-                    style={[
-                      styles.categoryCard,
-                      { backgroundColor: theme.colors.card, borderColor: theme.colors.borderLight },
-                    ]}
-                  >
-                    <View style={styles.categoryCardTop}>
-                      <View style={[styles.categoryIconCircle, { backgroundColor: badgeColor + '18' }]}>
-                        <Ionicons name={champ.iconName as any} size={16} color={badgeColor} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.categoryTitleRow}>
-                          <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>{champ.title}</Text>
-                          <View style={[styles.champBadgePill, { backgroundColor: badgeColor + '20', borderColor: badgeColor }]}>
-                            <Text style={[styles.champBadgeText, { color: badgeColor }]}>{champ.badge}</Text>
-                          </View>
-                        </View>
-                        <Text style={[styles.champDevoteeName, { color: theme.colors.text }]}>
-                          {champ.devoteeName}
-                        </Text>
-                        <Text style={[styles.champScoreHighlight, { color: badgeColor }]}>
-                          {champ.valueStr}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.champDetailText, { color: theme.colors.textMuted }]}>
-                      {champ.detail}
-                    </Text>
+          {/* Yesterday Category Leaders (Chanting, Reading, Hearing) */}
+          {data.yesterday.championsList.length > 0 &&
+            data.yesterday.championsList.map((champ, idx) => (
+              <View
+                key={`y_champ_${idx}`}
+                style={[styles.categoryMiniCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+              >
+                <View style={styles.categoryHeaderRow}>
+                  <View style={styles.categoryTitleRow}>
+                    <Ionicons name={champ.iconName as any} size={15} color={theme.thickColor} />
+                    <Text style={[styles.categoryTitle, { color: theme.thickColor }]}>{champ.title}</Text>
                   </View>
-                );
-              })
-            )}
+                  <View style={[styles.champBadgePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+                    <Text style={[styles.champBadgeText, { color: theme.thickColor }]}>{champ.badge}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.champDevoteeName, { color: theme.colors.text }]}>
+                  {champ.devoteeName} • <Text style={{ fontWeight: 'bold', color: theme.thickColor }}>{champ.valueStr}</Text>
+                </Text>
+                <Text style={[styles.champDetailText, { color: theme.colors.textMuted }]}>{champ.detail}</Text>
+              </View>
+            ))}
+
+          {!yesterdayDevotee && !yesterdayFirstDevotee && data.yesterday.championsList.length === 0 && (
+            <View style={styles.emptyNoticeBox}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.textMuted} />
+              <Text style={[styles.emptyNoticeText, { color: theme.colors.textMuted }]}>
+                No completed sadhana submissions were recorded for yesterday ({data.yesterday.readableDate}).
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 2: LAST WEEK DETAILS (Monday to Sunday) */}
+      {/* ------------------------------------------------------------- */}
+      {(activeCategory === 'weekly' || activeCategory === 'all') && (
+        <View style={styles.sectionBlock}>
+          {/* Last Week Date Range Badge (Monday to Sunday) */}
+          <View style={[styles.dateHeaderBanner, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF' }]}>
+            <Ionicons name="calendar-outline" size={15} color="#6D28D9" />
+            <Text style={[styles.dateHeaderText, { color: '#581C87' }]}>
+              Last Week: <Text style={{ fontWeight: 'bold' }}>{data.lastWeek.fullDateRangeFormatted}</Text>
+            </Text>
           </View>
-        )}
-      </View>
+
+          {/* Last Week Best Performer */}
+          {lastWeekDevotee ? (
+            <View
+              style={[
+                styles.honourCard,
+                { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' },
+              ]}
+            >
+              <View style={styles.cardTopRow}>
+                <View style={[styles.badgePill, { backgroundColor: '#6D28D9' }]}>
+                  <Ionicons name="star" size={12} color="#FFFFFF" />
+                  <Text style={styles.badgePillText}>Last Week's Best Performer</Text>
+                </View>
+                <Text style={[styles.scoreBadge, { color: '#6D28D9' }]}>
+                  {lastWeekDevotee.percentage}% Avg
+                </Text>
+              </View>
+              <Text style={[styles.devoteeName, { color: '#4C1D95' }]}>
+                {lastWeekDevotee.counseleeName}
+              </Text>
+              <Text style={[styles.honourDetail, { color: '#5B21B6' }]}>
+                {lastWeekDevotee.detail}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Last Week Category Highlights */}
+          {data.lastWeek.championsList.length > 0 &&
+            data.lastWeek.championsList.map((champ, idx) => (
+              <View
+                key={`w_champ_${idx}`}
+                style={[styles.categoryMiniCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}
+              >
+                <View style={styles.categoryHeaderRow}>
+                  <View style={styles.categoryTitleRow}>
+                    <Ionicons name={champ.iconName as any} size={15} color={theme.thickColor} />
+                    <Text style={[styles.categoryTitle, { color: theme.thickColor }]}>{champ.title}</Text>
+                  </View>
+                  <View style={[styles.champBadgePill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+                    <Text style={[styles.champBadgeText, { color: theme.thickColor }]}>{champ.badge}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.champDevoteeName, { color: theme.colors.text }]}>
+                  {champ.devoteeName} • <Text style={{ fontWeight: 'bold', color: theme.thickColor }}>{champ.valueStr}</Text>
+                </Text>
+                <Text style={[styles.champDetailText, { color: theme.colors.textMuted }]}>{champ.detail}</Text>
+              </View>
+            ))}
+
+          {!lastWeekDevotee && data.lastWeek.championsList.length === 0 && (
+            <View style={styles.emptyNoticeBox}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.textMuted} />
+              <Text style={[styles.emptyNoticeText, { color: theme.colors.textMuted }]}>
+                No completed sadhana entries recorded for last week ({data.lastWeek.fullDateRangeFormatted}).
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 3: MONTHLY CHAMPIONS (e.g. October Champions) */}
+      {/* ------------------------------------------------------------- */}
+      {(activeCategory === 'monthly' || activeCategory === 'all') && (
+        <View style={styles.sectionBlock}>
+          {/* Month Header Banner */}
+          <View style={[styles.dateHeaderBanner, { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }]}>
+            <Ionicons name="medal-outline" size={15} color="#047857" />
+            <Text style={[styles.dateHeaderText, { color: '#065F46' }]}>
+              Month: <Text style={{ fontWeight: 'bold' }}>{data.monthlyChampions.previousMonthName}</Text> Champions
+            </Text>
+          </View>
+
+          {/* 10-Days Monthly Champions Celebration Banner */}
+          {isFirst10Days && (
+            <View style={styles.highlightNoticeBox}>
+              <Ionicons name="ribbon" size={16} color="#B45309" />
+              <Text style={styles.highlightNoticeText}>
+                🌟 {data.monthlyChampions.previousMonthName} Champions • Active for the first 10 days of {data.monthlyChampions.currentMonthName} ({data.monthlyChampions.daysRemainingInHighlight} days remaining)
+              </Text>
+            </View>
+          )}
+
+          {/* Monthly Champions Breakdown across 7 Disciplines */}
+          {monthlyChamps.length === 0 ? (
+            <View style={styles.emptyNoticeBox}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.textMuted} />
+              <Text style={[styles.emptyNoticeText, { color: theme.colors.textMuted }]}>
+                No entries recorded for {data.monthlyChampions.previousMonthName} yet.
+              </Text>
+            </View>
+          ) : (
+            monthlyChamps.map((champ, idx) => {
+              const badgeColor =
+                champ.category === 'chanting'
+                  ? '#B45309'
+                  : champ.category === 'hearing'
+                  ? '#0284C7'
+                  : champ.category === 'reading'
+                  ? '#7C3AED'
+                  : champ.category === 'sleep'
+                  ? '#059669'
+                  : champ.category === 'onlineReading'
+                  ? '#4F46E5'
+                  : champ.category === 'service'
+                  ? '#DC2626'
+                  : '#D97706';
+
+              return (
+                <View
+                  key={`month_${champ.category}_${idx}`}
+                  style={[
+                    styles.categoryCard,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.borderLight },
+                  ]}
+                >
+                  <View style={styles.categoryCardTop}>
+                    <View style={[styles.categoryIconCircle, { backgroundColor: badgeColor + '18' }]}>
+                      <Ionicons name={champ.iconName as any} size={16} color={badgeColor} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.categoryTitleRow}>
+                        <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>{champ.title}</Text>
+                        <View style={[styles.champBadgePill, { backgroundColor: badgeColor + '20', borderColor: badgeColor }]}>
+                          <Text style={[styles.champBadgeText, { color: badgeColor }]}>{champ.badge}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.champDevoteeName, { color: theme.colors.text }]}>
+                        {champ.devoteeName}
+                      </Text>
+                      <Text style={[styles.champScoreHighlight, { color: badgeColor }]}>
+                        {champ.valueStr}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.champDetailText, { color: theme.colors.textMuted }]}>
+                    {champ.detail}
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -384,6 +460,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 1,
   },
+  tabsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  tabPill: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  tabPillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  sectionBlock: {
+    gap: 10,
+    marginBottom: 4,
+  },
+  dateHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    marginBottom: 4,
+  },
+  dateHeaderText: {
+    fontSize: 12,
+    color: '#92400E',
+    fontWeight: '500',
+    flex: 1,
+  },
   highlightNoticeBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -394,34 +508,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    marginBottom: 12,
   },
   highlightNoticeText: {
     fontSize: 11.5,
     color: '#92400E',
     fontWeight: '600',
     flex: 1,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-  },
-  tabPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  tabPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  itemsList: {
-    gap: 10,
   },
   honourCard: {
     borderRadius: 12,
@@ -468,7 +560,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     borderWidth: 1,
-    marginBottom: 6,
   },
   categoryHeaderRow: {
     flexDirection: 'row',
@@ -511,27 +602,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 15,
   },
-  monthlySection: {
-    marginTop: 4,
-    gap: 8,
-  },
-  monthlySectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-    paddingHorizontal: 2,
-  },
-  monthlySectionTitle: {
-    fontSize: 12.5,
-    fontWeight: 'bold',
-    color: '#047857',
-  },
-  noChampionsText: {
-    fontSize: 11.5,
-    fontStyle: 'italic',
-    paddingVertical: 6,
-  },
   categoryCard: {
     borderRadius: 12,
     padding: 11,
@@ -548,5 +618,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  emptyNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  emptyNoticeText: {
+    fontSize: 11.5,
+    flex: 1,
+    lineHeight: 16,
   },
 });

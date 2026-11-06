@@ -23,8 +23,8 @@ export const updateService = {
    */
   getCurrentVersion: () => {
     return {
-      version: Constants.expoConfig?.version || '1.0.39',
-      versionCode: Constants.expoConfig?.android?.versionCode || 40,
+      version: Constants.expoConfig?.version || '1.0.40',
+      versionCode: Constants.expoConfig?.android?.versionCode || 41,
     };
   },
 

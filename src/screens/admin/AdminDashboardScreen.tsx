@@ -30,7 +30,6 @@ import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { updateService } from '../../services/updateService';
-import { HonoursCard } from '../../components/HonoursCard';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -438,7 +437,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
             </View>
           )}
 
-          {/* Devotional Honours: First to Fill, Daily Best, Weekly Best, Monthly Best */}
+          {/* Devotional Honours Shortcut */}
           <View style={styles.honoursNavRow}>
             <TouchableOpacity
               style={[styles.honoursNavBtn, { backgroundColor: theme.thickColor }]}
@@ -455,7 +454,6 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
               </View>
             </TouchableOpacity>
           </View>
-          <HonoursCard dateStr={todayStr} refreshTrigger={lastFetchedTimeRef.current} />
 
           {/* Master Admin Sections Grid */}
           <Text style={[styles.sectionsTitle, { color: theme.thickColor }]}>Counselling & Monitoring Modules</Text>

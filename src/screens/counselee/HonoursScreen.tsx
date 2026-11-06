@@ -124,7 +124,7 @@ export const HonoursScreen = ({ navigation }: any) => {
           )}
 
           {/* Full Devotional Honours Card */}
-          <HonoursCard refreshTrigger={refreshTrigger} initialTab="all" />
+          <HonoursCard refreshTrigger={refreshTrigger} initialTab="yesterday" />
 
           {/* Motivational Footer Note */}
           <View style={[styles.footerCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.borderLight }]}>

@@ -61,12 +61,19 @@ export interface HonoursData {
   // Yesterday's honours (shown the next day)
   yesterday: {
     dateStr: string;
+    readableDate: string;
     firstToFill: PerformerInfo | null;
     dailyBest: PerformerInfo | null;
+    championsList: CategoryChampion[];
   };
   // Last week's honours (shown next week)
   lastWeek: {
+    startDate: string;
+    endDate: string;
     weekRangeStr: string;
+    mondayDateFormatted: string;
+    sundayDateFormatted: string;
+    fullDateRangeFormatted: string;
     weeklyBest: PerformerInfo | null;
     championsList: CategoryChampion[];
   };
@@ -116,31 +123,63 @@ function formatTimeToIST(isoString?: string): string {
 }
 
 /**
- * Helper to compute yesterday date string in IST
+ * Format a 'YYYY-MM-DD' date string to 'Thursday, 5 November 2026'
  */
-export function getYesterdayDateIST(referenceDateStr?: string): string {
-  const ref = referenceDateStr ? new Date(referenceDateStr + 'T12:00:00Z') : getNowInIST();
-  ref.setUTCDate(ref.getUTCDate() - 1);
-  return formatDateToString(ref);
+export function formatReadableDate(dateStr: string): string {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.toLocaleDateString('en-IN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 /**
- * Helper to compute last week's Monday-Sunday range
+ * Helper to compute yesterday date string and readable date in IST
+ */
+export function getYesterdayDetailsIST(referenceDateStr?: string): {
+  dateStr: string;
+  readableDate: string;
+} {
+  const ref = referenceDateStr ? new Date(referenceDateStr + 'T12:00:00Z') : getNowInIST();
+  ref.setUTCDate(ref.getUTCDate() - 1);
+  const dateStr = formatDateToString(ref);
+  const readableDate = formatReadableDate(dateStr);
+  return { dateStr, readableDate };
+}
+
+/**
+ * Helper to compute last week's Monday-Sunday range with full readable labels
  */
 export function getLastWeekRangeIST(referenceDateStr?: string): {
   startDate: string;
   endDate: string;
   weekRangeStr: string;
+  mondayDateFormatted: string;
+  sundayDateFormatted: string;
+  fullDateRangeFormatted: string;
 } {
   const today = referenceDateStr || getTodayDateStringIST();
   const currentWeek = getWeekDetails(today);
   const [y, m, d] = currentWeek.startDate.split('-').map(Number);
   const prevMonday = new Date(Date.UTC(y, m - 1, d - 7));
   const lastWeek = getWeekDetails(formatDateToString(prevMonday));
+  const mondayFormatted = formatReadableDate(lastWeek.startDate);
+  const sundayFormatted = formatReadableDate(lastWeek.endDate);
   return {
     startDate: lastWeek.startDate,
     endDate: lastWeek.endDate,
     weekRangeStr: `${lastWeek.startDate} to ${lastWeek.endDate}`,
+    mondayDateFormatted: mondayFormatted,
+    sundayDateFormatted: sundayFormatted,
+    fullDateRangeFormatted: `${mondayFormatted} to ${sundayFormatted}`,
   };
 }
 
@@ -174,8 +213,8 @@ export function getPreviousMonthRangeIST(referenceDateStr?: string): {
 export const performerService = {
   /**
    * Compute comprehensive devotional honours:
-   * 1. Yesterday's Best Performer & First to Submit (Next Day recognition)
-   * 2. Last Week's Best Performer & Category Highlights (Next Week recognition)
+   * 1. Yesterday's Best Performer, First to Submit & Category Leaders (Next Day recognition with exact date)
+   * 2. Last Week's Best Performer & Category Highlights (Next Week recognition with Monday-Sunday dates)
    * 3. Last Month's Category Champions (Chanting, Hearing, Reading, Sleep, Online Reading, Service, Morning Program)
    *    Active prominently for the first 10 days of the new month!
    */
@@ -184,14 +223,14 @@ export const performerService = {
     forceRefresh = false
   ): Promise<HonoursData> => {
     const targetDate = dateStr || getTodayDateStringIST();
-    const cacheKey = `honours_performers_v2_${targetDate}`;
+    const cacheKey = `honours_performers_v3_${targetDate}`;
 
     if (!forceRefresh) {
       const cached = await fastCache.get<HonoursData>(cacheKey);
       if (cached) return cached;
     }
 
-    const yesterdayDate = getYesterdayDateIST(targetDate);
+    const yesterday = getYesterdayDetailsIST(targetDate);
     const lastWeek = getLastWeekRangeIST(targetDate);
     const prevMonth = getPreviousMonthRangeIST(targetDate);
 
@@ -226,11 +265,12 @@ export const performerService = {
     }
 
     // -------------------------------------------------------------
-    // 1. YESTERDAY'S HONOURS (Displayed Next Day)
+    // 1. YESTERDAY'S HONOURS (Displayed Next Day with exact Date)
     // -------------------------------------------------------------
-    const yesterdayEntries = entries.filter((e) => e.date === yesterdayDate);
+    const yesterdayEntries = entries.filter((e) => e.date === yesterday.dateStr);
     let yesterdayFirstToFill: PerformerInfo | null = null;
     let yesterdayDailyBest: PerformerInfo | null = null;
+    const yesterdayChampionsList: CategoryChampion[] = [];
 
     if (yesterdayEntries.length > 0) {
       // First to submit yesterday
@@ -273,6 +313,52 @@ export const performerService = {
           detail: `${top.percentage}% score (${top.dailyTotalScore} marks) • Grade ${top.grade}`,
           highlightCategory: "Yesterday's Best Performer",
         };
+      }
+
+      // Yesterday Category Leaders:
+      // Chanting
+      const topChanterYesterday = [...yesterdayEntries].sort((a, b) => (b.completedRounds || 0) - (a.completedRounds || 0))[0];
+      if (topChanterYesterday && (topChanterYesterday.completedRounds || 0) > 0 && topChanterYesterday.counseleeName) {
+        yesterdayChampionsList.push({
+          category: 'chanting',
+          title: "Yesterday's Chanting Leader",
+          devoteeName: topChanterYesterday.counseleeName,
+          userId: topChanterYesterday.userId,
+          valueStr: `${topChanterYesterday.completedRounds} Rounds`,
+          badge: 'Top Chanting',
+          iconName: 'disc',
+          detail: `Chanted ${topChanterYesterday.completedRounds} rounds on ${yesterday.readableDate}`,
+        });
+      }
+
+      // Reading
+      const topReaderYesterday = [...yesterdayEntries].sort((a, b) => (b.readingMinutes || 0) - (a.readingMinutes || 0))[0];
+      if (topReaderYesterday && (topReaderYesterday.readingMinutes || 0) > 0 && topReaderYesterday.counseleeName) {
+        yesterdayChampionsList.push({
+          category: 'reading',
+          title: "Yesterday's Reading Leader",
+          devoteeName: topReaderYesterday.counseleeName,
+          userId: topReaderYesterday.userId,
+          valueStr: formatMinutesToHours(topReaderYesterday.readingMinutes),
+          badge: 'Top Reading',
+          iconName: 'book',
+          detail: `Read ${formatMinutesToHours(topReaderYesterday.readingMinutes)} of Prabhupada's books`,
+        });
+      }
+
+      // Hearing
+      const topHearerYesterday = [...yesterdayEntries].sort((a, b) => (b.hearingMinutes || 0) - (a.hearingMinutes || 0))[0];
+      if (topHearerYesterday && (topHearerYesterday.hearingMinutes || 0) > 0 && topHearerYesterday.counseleeName) {
+        yesterdayChampionsList.push({
+          category: 'hearing',
+          title: "Yesterday's Hearing Leader",
+          devoteeName: topHearerYesterday.counseleeName,
+          userId: topHearerYesterday.userId,
+          valueStr: formatMinutesToHours(topHearerYesterday.hearingMinutes),
+          badge: 'Top Hearing',
+          iconName: 'headset',
+          detail: `Listened to ${formatMinutesToHours(topHearerYesterday.hearingMinutes)} of katha yesterday`,
+        });
       }
     }
 
@@ -319,7 +405,7 @@ export const performerService = {
     }
 
     // -------------------------------------------------------------
-    // 2. LAST WEEK'S HONOURS (Displayed Next Week)
+    // 2. LAST WEEK'S HONOURS (Displayed Next Week: Monday to Sunday)
     // -------------------------------------------------------------
     const lastWeekEntries = entries.filter(
       (e) => e.date >= lastWeek.startDate && e.date <= lastWeek.endDate && e.counseleeName
@@ -389,7 +475,7 @@ export const performerService = {
           counseleeName: top.counseleeName,
           score: top.totalScore,
           percentage: top.avgPercentage,
-          detail: `Last Week's Champion: ${top.avgPercentage}% avg (${top.totalScore} marks across ${top.daysCount} days)`,
+          detail: `Last Week Champion: ${top.avgPercentage}% avg (${top.totalScore} marks across ${top.daysCount} days)`,
           highlightCategory: "Last Week's Best Performer",
         };
 
@@ -404,7 +490,7 @@ export const performerService = {
             valueStr: `${topChanter.rounds} Rounds`,
             badge: 'Best in Chanting',
             iconName: 'disc',
-            detail: `Chanted ${topChanter.rounds} rounds last week`,
+            detail: `Chanted ${topChanter.rounds} rounds (${lastWeek.startDate} to ${lastWeek.endDate})`,
           });
         }
 
@@ -419,7 +505,7 @@ export const performerService = {
             valueStr: formatMinutesToHours(topReader.reading),
             badge: 'Best in Reading',
             iconName: 'book',
-            detail: `Read ${formatMinutesToHours(topReader.reading)} of Prabhupada's books last week`,
+            detail: `Read ${formatMinutesToHours(topReader.reading)} of Prabhupada's books (${lastWeek.startDate} to ${lastWeek.endDate})`,
           });
         }
 
@@ -434,7 +520,37 @@ export const performerService = {
             valueStr: formatMinutesToHours(topHearer.hearing),
             badge: 'Best in Hearing',
             iconName: 'headset',
-            detail: `Listened to ${formatMinutesToHours(topHearer.hearing)} of katha last week`,
+            detail: `Listened to ${formatMinutesToHours(topHearer.hearing)} of katha (${lastWeek.startDate} to ${lastWeek.endDate})`,
+          });
+        }
+
+        // Last Week Morning Program Top
+        const topMorningWeek = [...weekRankings].sort((a, b) => b.morning - a.morning)[0];
+        if (topMorningWeek && topMorningWeek.morning > 0) {
+          lastWeekChampionsList.push({
+            category: 'morningProgram',
+            title: 'Last Week Morning Program',
+            devoteeName: topMorningWeek.counseleeName,
+            userId: topMorningWeek.userId,
+            valueStr: `${topMorningWeek.morning} Programs`,
+            badge: 'Best in Morning Program',
+            iconName: 'sunny',
+            detail: `Attended ${topMorningWeek.morning} morning programs last week`,
+          });
+        }
+
+        // Last Week Service Top
+        const topServiceWeek = [...weekRankings].sort((a, b) => b.service - a.service)[0];
+        if (topServiceWeek && topServiceWeek.service > 0) {
+          lastWeekChampionsList.push({
+            category: 'service',
+            title: 'Last Week Devotional Service',
+            devoteeName: topServiceWeek.counseleeName,
+            userId: topServiceWeek.userId,
+            valueStr: `${topServiceWeek.service} Seva Sessions`,
+            badge: 'Best in Devotional Service',
+            iconName: 'heart',
+            detail: `Rendered ${topServiceWeek.service} seva sessions last week`,
           });
         }
       }
@@ -447,8 +563,6 @@ export const performerService = {
       (e) => e.date >= prevMonth.startDate && e.date <= prevMonth.endDate && e.counseleeName
     );
 
-    // If previous month has entries, calculate previous month champions.
-    // If not (e.g. app installed recently in November), fallback to current month entries.
     const monthTargetEntries = prevMonthEntries.length > 0 ? prevMonthEntries : entries.filter((e) => e.counseleeName);
     const monthDisplayName = prevMonthEntries.length > 0 ? prevMonth.monthName : currentMonthDetails.monthName;
 
@@ -494,22 +608,13 @@ export const performerService = {
       const nightSleep = calculateSleepDurationMinutes(e.sleepTimeStr, e.wakeUpTimeStr);
       const totalSleep = nightSleep > 0 ? nightSleep + (e.restMinutes || 0) : e.totalSleepMinutes || 0;
       if (totalSleep >= 210 && totalSleep <= 720) {
-        // Between 3.5 hrs and 12 hrs: realistic devotee sleep record
         existing.totalSleepMin += totalSleep;
         existing.sleepDays += 1;
       }
 
-      if (e.onlineReadingAttended || (e.onlineReadingMarks || 0) > 0) {
-        existing.onlineReadingCount += 1;
-      }
-
-      if (e.serviceAttended || (e.serviceMarks || 0) > 0) {
-        existing.serviceCount += 1;
-      }
-
-      if (e.morningProgrammeAttended || (e.morningProgrammeMarks || 0) > 0) {
-        existing.morningCount += 1;
-      }
+      if (e.onlineReadingAttended || (e.onlineReadingMarks || 0) > 0) existing.onlineReadingCount += 1;
+      if (e.serviceAttended || (e.serviceMarks || 0) > 0) existing.serviceCount += 1;
+      if (e.morningProgrammeAttended || (e.morningProgrammeMarks || 0) > 0) existing.morningCount += 1;
 
       existing.totalScore += e.dailyTotalScore || 0;
       existing.sumPercentage += e.percentage || 0;
@@ -703,12 +808,19 @@ export const performerService = {
     const result: HonoursData = {
       motivationalQuote,
       yesterday: {
-        dateStr: yesterdayDate,
+        dateStr: yesterday.dateStr,
+        readableDate: yesterday.readableDate,
         firstToFill: yesterdayFirstToFill,
         dailyBest: yesterdayDailyBest,
+        championsList: yesterdayChampionsList,
       },
       lastWeek: {
+        startDate: lastWeek.startDate,
+        endDate: lastWeek.endDate,
         weekRangeStr: lastWeek.weekRangeStr,
+        mondayDateFormatted: lastWeek.mondayDateFormatted,
+        sundayDateFormatted: lastWeek.sundayDateFormatted,
+        fullDateRangeFormatted: lastWeek.fullDateRangeFormatted,
         weeklyBest: lastWeekBest,
         championsList: lastWeekChampionsList,
       },
