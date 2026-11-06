@@ -272,6 +272,15 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       color: theme.thickColor,
     },
     {
+      id: 'HonoursScreen',
+      title: 'Devotional Honours',
+      subtitle: 'Weekly & Monthly Champions',
+      icon: 'trophy-outline',
+      badge: 'Honours',
+      badgeColor: '#059669',
+      color: theme.thickColor,
+    },
+    {
       id: 'BirthdayReminders',
       title: 'Birthday Reminders',
       subtitle: `${upcomingBirthdaysCount} upcoming in 30 days`,
@@ -430,6 +439,22 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           )}
 
           {/* Devotional Honours: First to Fill, Daily Best, Weekly Best, Monthly Best */}
+          <View style={styles.honoursNavRow}>
+            <TouchableOpacity
+              style={[styles.honoursNavBtn, { backgroundColor: theme.thickColor }]}
+              onPress={() => navigation.navigate('HonoursScreen')}
+              activeOpacity={0.85}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="trophy" size={16} color="#FFFFFF" />
+                <Text style={styles.honoursNavBtnText}>Honours: Devotional Champions</Text>
+              </View>
+              <View style={styles.honoursNavPill}>
+                <Text style={styles.honoursNavPillText}>View Board</Text>
+                <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          </View>
           <HonoursCard dateStr={todayStr} refreshTrigger={lastFetchedTimeRef.current} />
 
           {/* Master Admin Sections Grid */}
@@ -708,5 +733,41 @@ const styles = StyleSheet.create({
   versionCheckBtnText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  honoursNavRow: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  honoursNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+  },
+  honoursNavBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  honoursNavPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  honoursNavPillText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });

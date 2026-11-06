@@ -23,6 +23,7 @@ import { authService } from '../../services/authService';
 import { getTodayDateStringIST, formatMinutesToHours } from '../../utils/dateUtils';
 import { MonthlyReport } from '../../types/report';
 import { useAuth } from '../../context/AuthContext';
+import { MonthlyChampionsBanner } from '../../components/MonthlyChampionsBanner';
 
 export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -173,6 +174,9 @@ export const AdminMonthlyReportsScreen = ({ navigation }: any) => {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Monthly Category Champions (Chanting, Hearing, Reading, Sleep, Online Reading, Service, Morning Program) */}
+          <MonthlyChampionsBanner year={selectedYear} month={selectedMonth} />
 
           {displayedReports.length === 0 ? (
             <View style={styles.emptyContainer}>

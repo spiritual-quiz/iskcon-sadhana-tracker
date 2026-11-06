@@ -24,6 +24,7 @@ import { reminderService } from '../../services/reminderService';
 import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
+import { HonoursCard } from '../../components/HonoursCard';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -262,8 +263,20 @@ export const HomeScreen = ({ navigation }: any) => {
             <Text style={[styles.quoteAuthor, { color: theme.thickColor }]}>— His Divine Grace A.C. Bhaktivedanta Swami Prabhupāda</Text>
           </View>
 
+          {/* Devotional Honours: Yesterday's Best, Last Week & Monthly Champions */}
+          <HonoursCard dateStr={todayStr} />
+
           {/* Navigation Shortcuts */}
           <View style={styles.shortcutsRow}>
+            <TouchableOpacity
+              style={[styles.shortcutCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+              onPress={() => navigation.navigate('Honours')}
+            >
+              <Ionicons name="trophy-outline" size={24} color="#059669" />
+              <Text style={[styles.shortcutTitle, { color: theme.colors.text }]}>Honours</Text>
+              <Text style={[styles.shortcutSubtitle, { color: theme.colors.textMuted }]}>Champions Board</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.shortcutCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
               onPress={() => navigation.navigate('MyReports')}

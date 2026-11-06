@@ -14,6 +14,7 @@ import { CommunityReportsScreen } from '../screens/counselee/CommunityReportsScr
 import { ProfileScreen } from '../screens/counselee/ProfileScreen';
 import { NotificationsScreen } from '../screens/counselee/NotificationsScreen';
 import { SettingsScreen } from '../screens/counselee/SettingsScreen';
+import { HonoursScreen } from '../screens/counselee/HonoursScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -24,6 +25,7 @@ function HomeStack() {
       <Stack.Screen name="HomeScreen" component={HomeScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Honours" component={HonoursScreen} />
       <Stack.Screen name="CommunityReports" component={CommunityReportsScreen} />
       <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
     </Stack.Navigator>
@@ -69,6 +71,8 @@ export const CounseleeTabs = () => {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'DailySadhana') {
             iconName = focused ? 'create' : 'create-outline';
+          } else if (route.name === 'Honours') {
+            iconName = focused ? 'trophy' : 'trophy-outline';
           } else if (route.name === 'MyReports') {
             iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           } else if (route.name === 'Community') {
@@ -83,6 +87,7 @@ export const CounseleeTabs = () => {
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: 'Home' }} />
       <Tab.Screen name="DailySadhana" component={DailySadhanaScreen} options={{ tabBarLabel: 'Sadhana' }} />
+      <Tab.Screen name="Honours" component={HonoursScreen} options={{ tabBarLabel: 'Honours' }} />
       <Tab.Screen name="MyReports" component={MyReportsScreen} options={{ tabBarLabel: 'Reports' }} />
       <Tab.Screen name="Community" component={CommunityReportsScreen} options={{ tabBarLabel: 'Sanga' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />

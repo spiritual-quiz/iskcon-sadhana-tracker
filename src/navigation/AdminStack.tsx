@@ -14,6 +14,7 @@ import { BirthdayRemindersScreen } from '../screens/admin/BirthdayRemindersScree
 import { FollowUpHistoryScreen } from '../screens/admin/FollowUpHistoryScreen';
 import { SadhanaAppreciationScreen } from '../screens/admin/SadhanaAppreciationScreen';
 import { SettingsExportScreen } from '../screens/admin/SettingsExportScreen';
+import { HonoursScreen } from '../screens/counselee/HonoursScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,6 +22,7 @@ export const AdminStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="HonoursScreen" component={HonoursScreen} />
       <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
       <Stack.Screen name="ManageCounselees" component={ManageCounseleesScreen} />
       <Stack.Screen name="PendingRegistrations" component={PendingRegistrationsScreen} />

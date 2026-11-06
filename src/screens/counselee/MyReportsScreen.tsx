@@ -24,6 +24,7 @@ import {
 } from '../../utils/dateUtils';
 import { WeeklyReport, MonthlyReport } from '../../types/report';
 import { SadhanaEntry } from '../../types/sadhana';
+import { MonthlyChampionsBanner } from '../../components/MonthlyChampionsBanner';
 
 export const MyReportsScreen = () => {
   const { user } = useAuth();
@@ -200,6 +201,9 @@ export const MyReportsScreen = () => {
                   satsangaMarks: monthlyReport.satsangaScheduled ? monthlyReport.satsangaMarks : undefined,
                 }}
               />
+
+              {/* Monthly Category Champions (e.g. October shown in November for 10 days) */}
+              <MonthlyChampionsBanner />
 
               {monthlyReport.missingReportDays === monthlyReport.dailyEntries.length && (
                 <View style={styles.noSubmissionsBanner}>
