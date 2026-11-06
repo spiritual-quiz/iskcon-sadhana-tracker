@@ -23,8 +23,8 @@ export const updateService = {
    */
   getCurrentVersion: () => {
     return {
-      version: Constants.expoConfig?.version || '1.0.37',
-      versionCode: Constants.expoConfig?.android?.versionCode || 38,
+      version: Constants.expoConfig?.version || '1.0.38',
+      versionCode: Constants.expoConfig?.android?.versionCode || 39,
     };
   },
 
@@ -153,7 +153,10 @@ export const updateService = {
     // 2. Record this version as applied in persistent storage
     if (versionInfo?.version) {
       await AsyncStorage.setItem(LAST_APPLIED_UPDATE_KEY, versionInfo.version);
+      await AsyncStorage.setItem('bhakti_dismissed_update_version', versionInfo.version);
     }
+    const current = updateService.getCurrentVersion();
+    await AsyncStorage.setItem('bhakti_last_applied_ota_tag', `v${current.version}+ota`);
   },
 
   /**

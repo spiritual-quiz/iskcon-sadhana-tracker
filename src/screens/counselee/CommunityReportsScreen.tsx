@@ -19,6 +19,7 @@ import { authService } from '../../services/authService';
 import { getTodayDateStringIST, getWeekDetails, formatMinutesToHours } from '../../utils/dateUtils';
 import { SharedWeeklySummary } from '../../types/report';
 import { AppreciationCard } from '../../types/appreciation';
+import { HonoursCard } from '../../components/HonoursCard';
 
 export const CommunityReportsScreen = () => {
   const { theme } = useTheme();
@@ -170,6 +171,9 @@ export const CommunityReportsScreen = () => {
             />
           }
         >
+          {/* Devotional Honours: First to Fill, Daily Best, Weekly Best, Monthly Best */}
+          <HonoursCard dateStr={todayStr} />
+
           {activeTab === 'summaries' && (
             <View>
               <View

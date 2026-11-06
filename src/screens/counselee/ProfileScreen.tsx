@@ -120,6 +120,18 @@ export const ProfileScreen = () => {
     }
   };
 
+  const handleClearCache = async () => {
+    try {
+      await authService.clearAppCache();
+      Alert.alert(
+        'Cache Cleared Successfully 🙏',
+        'App memory cache has been cleared and all devotee records will freshly sync from cloud database.'
+      );
+    } catch (e: any) {
+      Alert.alert('Cache Clear', e.message || 'Could not clear cache.');
+    }
+  };
+
   useEffect(() => {
     if (user) {
       setDisplayName(user.displayName || '');
@@ -465,21 +477,32 @@ export const ProfileScreen = () => {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={[styles.bioTestBtn, { borderColor: theme.thickColor, backgroundColor: theme.liteColor }]}
-              onPress={handleCheckUpdates}
-              disabled={isCheckingUpdates}
-              activeOpacity={0.8}
-            >
-              {isCheckingUpdates ? (
-                <ActivityIndicator size="small" color={theme.thickColor} />
-              ) : (
-                <>
-                  <Ionicons name="refresh" size={13} color={theme.thickColor} />
-                  <Text style={[styles.bioTestBtnText, { color: theme.thickColor }]}>Check Updates</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <TouchableOpacity
+                style={[styles.bioTestBtn, { borderColor: theme.thickColor, backgroundColor: theme.liteColor }]}
+                onPress={handleClearCache}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-bin-outline" size={13} color={theme.thickColor} />
+                <Text style={[styles.bioTestBtnText, { color: theme.thickColor }]}>Clear Cache</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.bioTestBtn, { borderColor: theme.thickColor, backgroundColor: theme.liteColor }]}
+                onPress={handleCheckUpdates}
+                disabled={isCheckingUpdates}
+                activeOpacity={0.8}
+              >
+                {isCheckingUpdates ? (
+                  <ActivityIndicator size="small" color={theme.thickColor} />
+                ) : (
+                  <>
+                    <Ionicons name="refresh" size={13} color={theme.thickColor} />
+                    <Text style={[styles.bioTestBtnText, { color: theme.thickColor }]}>Updates</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 

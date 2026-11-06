@@ -52,34 +52,29 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 
   const handleUpdatePress = async () => {
     setStage('downloading');
-    setProgress(12);
+    setProgress(15);
     setErrorMsg(null);
-    notificationService.showUpdateDownloadProgress(12);
 
-    // Smoothly increment progress bar towards 95% during network download
+    // Smoothly increment progress bar towards 95% on screen during download
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     progressTimerRef.current = setInterval(() => {
       setProgress((prev) => {
-        let nextVal = prev;
-        if (prev < 35) nextVal = prev + 7;
-        else if (prev < 70) nextVal = prev + 5;
-        else if (prev < 90) nextVal = prev + 3;
-        else if (prev < 95) nextVal = prev + 1;
-        
-        notificationService.showUpdateDownloadProgress(nextVal);
-        return nextVal;
+        if (prev < 40) return prev + 8;
+        if (prev < 75) return prev + 5;
+        if (prev < 90) return prev + 3;
+        if (prev < 96) return prev + 1;
+        return prev;
       });
-    }, 280);
+    }, 250);
 
     try {
       await onUpdate();
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setProgress(100);
       setStage('completed');
-      await notificationService.showUpdateCompleteNotification();
+      await notificationService.showUpdateCompleteNotification().catch(() => {});
     } catch (e: any) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-      await notificationService.dismissUpdateDownloadProgress();
       setErrorMsg(
         e?.message || 'Could not complete update. Please check your internet connection and try again.'
       );
@@ -280,18 +275,17 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                   </View>
 
                   <Text style={[styles.title, { color: theme.colors.text }]}>
-                    Update Complete! 🎉
+                    Installation Completed! 🎉
                   </Text>
                   <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                    The latest devotional update has been downloaded successfully.
+                    The update package has been downloaded and installed successfully.
                   </Text>
 
                   {/* Action Instruction Box */}
                   <View style={styles.completedNoticeBox}>
                     <Ionicons name="refresh-circle-outline" size={20} color="#15803D" />
                     <Text style={styles.completedNoticeText}>
-                      Please close and reopen the app (or tap Restart Now below) to activate all new
-                      features.
+                      Please tap "Restart App Now" below to launch into the new version.
                     </Text>
                   </View>
 

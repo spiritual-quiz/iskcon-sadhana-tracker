@@ -35,6 +35,7 @@ import {
 import { SadhanaEntry, MonthlySatsangStatus } from '../../types/sadhana';
 import { TimeSelectorModal } from '../../components/TimeSelectorModal';
 import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
+import { HonoursCard } from '../../components/HonoursCard';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -734,6 +735,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               </View>
             </View>
           </View>
+
+          {/* Devotional Honours: First to Fill, Daily Best, Weekly Best, Monthly Best */}
+          <HonoursCard dateStr={selectedDate} />
 
           {/* Section A: Japa Chanting */}
           <View style={styles.card}>

@@ -96,7 +96,27 @@ class FastCacheService {
   }
 
   /**
-   * Clear all cached data
+   * Clear all cached data from memory and persistent storage
+   */
+  async clearAllCache(): Promise<void> {
+    this.memoryCache.clear();
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const storageKeys = allKeys.filter((k) => k.startsWith('bhakti_cache_'));
+      if (storageKeys.length > 0) {
+        if (typeof (AsyncStorage as any).multiRemove === 'function') {
+          await AsyncStorage.multiRemove(storageKeys);
+        } else {
+          await Promise.all(storageKeys.map((k) => AsyncStorage.removeItem(k)));
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  /**
+   * Clear in-memory cache
    */
   clearAll(): void {
     this.memoryCache.clear();

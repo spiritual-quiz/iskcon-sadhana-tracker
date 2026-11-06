@@ -28,7 +28,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadPending(false);
+      loadPending(true);
     }, [])
   );
 
@@ -57,13 +57,12 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
           }
         },
         () => {
-          setPendingUsers([]);
-          setIsLoading(false);
+          loadPending(true);
         }
       );
       return () => unsubscribe();
     } catch {
-      loadPending(false);
+      loadPending(true);
     }
   }, []);
 
@@ -123,6 +122,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadPending(true); }} />}
         >
           {pendingUsers.length === 0 ? (

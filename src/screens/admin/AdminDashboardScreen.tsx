@@ -30,6 +30,7 @@ import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { updateService } from '../../services/updateService';
+import { HonoursCard } from '../../components/HonoursCard';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -144,20 +145,20 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
       // Parallelized instant fetch across all metrics with forceRefresh support
-      const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly] = await Promise.all([
+      const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly, livePending] = await Promise.all([
         authService.getAllUsers(force),
         sadhanaService.getAllEntriesForDate(todayStr),
         monitoringService.getOpenAlerts(),
         localStorageService.getSharedWeeklySummaries(todayStr).catch(() => []),
         localStorageService.getSharedMonthlySummaries(monthId).catch(() => []),
+        authService.getPendingCounselees(true).catch(() => []),
       ]);
 
-      const approved = allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved');
-      const pending = allUsers.filter((u) => u.role === 'counselee' && u.status === 'pending');
-      const reminderReqs = allUsers.filter((u) => u.role === 'counselee' && u.reminderOptOutRequested === true);
-      const targetReqs = allUsers.filter((u) => u.role === 'counselee' && u.targetRoundsRequested && u.targetRoundsRequested > 0);
+      const approved = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
+      const reminderReqs = allUsers.filter((u) => u.role !== 'counsellor' && u.reminderOptOutRequested === true);
+      const targetReqs = allUsers.filter((u) => u.role !== 'counsellor' && u.targetRoundsRequested && u.targetRoundsRequested > 0);
       setApprovedCount(approved.length);
-      setPendingCount(pending.length);
+      setPendingCount(livePending.length);
       setReminderRequestsCount(reminderReqs.length);
       setTargetRequestsCount(targetReqs.length);
 
@@ -266,12 +267,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       title: 'Reports',
       subtitle: 'Daily, Weekly & Monthly Audits',
       icon: 'stats-chart-outline',
-      badge: (dailyLowScoreCount + weeklyLowScoreCount + monthlyLowScoreCount) > 0
-        ? `${dailyLowScoreCount + weeklyLowScoreCount + monthlyLowScoreCount} < 50%`
-        : `${todaySubmissionsCount} today`,
-      badgeColor: (dailyLowScoreCount + weeklyLowScoreCount + monthlyLowScoreCount) > 0
-        ? theme.colors.danger
-        : theme.thickColor,
+      badge: todaySubmissionsCount > 0 ? `${todaySubmissionsCount} Today` : null,
+      badgeColor: theme.thickColor,
       color: theme.thickColor,
     },
     {
@@ -431,6 +428,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
               </View>
             </View>
           )}
+
+          {/* Devotional Honours: First to Fill, Daily Best, Weekly Best, Monthly Best */}
+          <HonoursCard dateStr={todayStr} refreshTrigger={lastFetchedTimeRef.current} />
 
           {/* Master Admin Sections Grid */}
           <Text style={[styles.sectionsTitle, { color: theme.thickColor }]}>Counselling & Monitoring Modules</Text>

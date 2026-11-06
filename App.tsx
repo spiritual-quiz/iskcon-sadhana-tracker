@@ -17,6 +17,7 @@ const AppContent: React.FC = () => {
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const [pendingUpdateInfo, setPendingUpdateInfo] = useState<AppVersionInfo | undefined>(undefined);
   const isUpdatePendingRef = useRef<boolean>(false);
+  const isUpdatingRef = useRef<boolean>(false);
   const isCheckingRef = useRef<boolean>(false);
   const lastCheckTimeRef = useRef<number>(Date.now());
 
@@ -31,7 +32,7 @@ const AppContent: React.FC = () => {
 
     // Check for updates via updateService (handles both Firestore broadcast & native OTA)
     const checkAppUpdates = async () => {
-      if (isCheckingRef.current) return;
+      if (isCheckingRef.current || isUpdatingRef.current || isUpdatePendingRef.current) return;
       isCheckingRef.current = true;
       lastCheckTimeRef.current = Date.now();
       try {
@@ -67,8 +68,13 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleApplyUpdate = async () => {
-    await updateService.fetchAndApplyUpdate(pendingUpdateInfo);
-    isUpdatePendingRef.current = false;
+    isUpdatingRef.current = true;
+    try {
+      await updateService.fetchAndApplyUpdate(pendingUpdateInfo);
+    } finally {
+      isUpdatingRef.current = false;
+      isUpdatePendingRef.current = false;
+    }
   };
 
   const handleRestartApp = async () => {

@@ -372,6 +372,7 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); loadCounselees(true); }} />}
         >
           {activeTab === 'all' ? (

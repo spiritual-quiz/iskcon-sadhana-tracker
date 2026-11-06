@@ -637,15 +637,17 @@ export const authService = {
    * Get all counselees with status === 'pending' awaiting approval
    */
   getPendingCounselees: async (forceRefresh = false): Promise<UserProfile[]> => {
-    // 0. Check in-memory fast cache (0ms instant response)
+    // 0. Only check cache if not force refresh
     if (!forceRefresh) {
       const cached = await fastCache.get<UserProfile[]>('pending_counselees');
       if (cached && cached.length > 0) {
         return cached;
       }
+    } else {
+      await fastCache.invalidate('pending_counselees');
     }
 
-    // 1. Query Firestore (source of truth) with 2000ms timeout
+    // 1. Query Firestore (source of truth) with 2500ms timeout
     try {
       const q = query(
         collection(db, 'users'),
@@ -653,7 +655,7 @@ export const authService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
       ]);
 
       const list: UserProfile[] = [];
@@ -858,5 +860,12 @@ export const authService = {
       success: true,
       message: `Password has been successfully updated for ${cleanEmail}! You can now sign in with your new password.`,
     };
+  },
+
+  /**
+   * Clear all app in-memory & persistent cache
+   */
+  clearAppCache: async (): Promise<void> => {
+    await fastCache.clearAllCache();
   },
 };
