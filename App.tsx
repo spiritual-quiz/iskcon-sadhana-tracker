@@ -53,10 +53,10 @@ const AppContent: React.FC = () => {
     // 1. Initial check on cold mount
     checkAppUpdates();
 
-    // 2. AppState listener: re-check only after 12+ hours to avoid annoying pop-ups
+    // 2. AppState listener: re-check when returning to active state (throttled to 20s)
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        if (Date.now() - lastCheckTimeRef.current > 12 * 60 * 60 * 1000) {
+        if (Date.now() - lastCheckTimeRef.current > 20 * 1000) {
           checkAppUpdates();
         }
       }

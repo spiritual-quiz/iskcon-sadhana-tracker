@@ -63,9 +63,7 @@
         "expo-channel-name": "production"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.29",
     "extra": {
       "eas": {
         "projectId": "a2e04822-3261-4793-ae4b-6240fed77773"

@@ -67,32 +67,27 @@ export const updateService = {
     }
 
     const current = updateService.getCurrentVersion();
-    const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
-    const lastApplied = await AsyncStorage.getItem(LAST_APPLIED_UPDATE_KEY);
 
     // 1. Check native Expo Updates service (primary source for OTA bundles)
     try {
-      if ((Platform.OS as string) !== 'web' && !__DEV__ && Updates?.checkForUpdateAsync) {
+      if ((Platform.OS as string) !== 'web' && Updates.isEnabled && Updates.checkForUpdateAsync) {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
-          const otaVersion = `v${current.version}+ota`;
-          if (lastDismissed !== otaVersion && lastApplied !== otaVersion) {
-            return {
-              isAvailable: true,
-              versionInfo: {
-                version: otaVersion,
-                versionCode: current.versionCode,
-                title: 'New Devotional Update Available',
-                releaseNotes: 'Performance optimizations, notification accuracy, and enhancements.',
-                publishedAt: new Date().toISOString(),
-              },
-              updateSource: 'expo',
-            };
-          }
+          return {
+            isAvailable: true,
+            versionInfo: {
+              version: (update.manifest as any)?.extra?.expoClient?.version || '1.0.40',
+              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || 41,
+              title: 'New Devotional Update Available',
+              releaseNotes: 'Devotional honours, performance optimizations and new features are ready to install.',
+              publishedAt: new Date().toISOString(),
+            },
+            updateSource: 'expo',
+          };
         }
       }
     } catch (e) {
-      // Ignored
+      console.warn('Updates.checkForUpdateAsync error:', e);
     }
 
     // 2. Check Firestore remote version broadcast ONLY IF STRICTLY HIGHER than current versionCode
@@ -106,6 +101,8 @@ export const updateService = {
       if (snap && snap.exists()) {
         const remoteInfo = snap.data() as AppVersionInfo;
         const remoteCode = remoteInfo.versionCode || 0;
+        const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
+        const lastApplied = await AsyncStorage.getItem(LAST_APPLIED_UPDATE_KEY);
 
         // An update is available ONLY IF:
         // 1. Remote versionCode is strictly higher than running app
@@ -142,18 +139,19 @@ export const updateService = {
     onProgress?: (progress: number) => void
   ): Promise<void> => {
     // 1. If native Expo Updates is available, fetch the bundle
-    if ((Platform.OS as string) !== 'web' && Updates?.fetchUpdateAsync) {
+    if ((Platform.OS as string) !== 'web' && Updates.isEnabled && Updates.fetchUpdateAsync) {
       try {
-        await Updates.fetchUpdateAsync();
-      } catch (e) {
-        console.warn('Expo OTA fetch fallback:', e);
+        const fetchResult = await Updates.fetchUpdateAsync();
+        console.log('fetchUpdateAsync result:', fetchResult);
+      } catch (e: any) {
+        console.warn('Expo OTA fetch error:', e);
+        throw new Error(e?.message || 'Could not download update bundle. Please check your internet connection.');
       }
     }
 
     // 2. Record this version as applied in persistent storage
     if (versionInfo?.version) {
       await AsyncStorage.setItem(LAST_APPLIED_UPDATE_KEY, versionInfo.version);
-      await AsyncStorage.setItem('bhakti_dismissed_update_version', versionInfo.version);
     }
     const current = updateService.getCurrentVersion();
     await AsyncStorage.setItem('bhakti_last_applied_ota_tag', `v${current.version}+ota`);

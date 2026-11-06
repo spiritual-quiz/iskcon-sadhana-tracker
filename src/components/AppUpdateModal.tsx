@@ -73,6 +73,17 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
       setProgress(100);
       setStage('completed');
       await notificationService.showUpdateCompleteNotification().catch(() => {});
+
+      // Automatically restart app once installation is done
+      setTimeout(async () => {
+        try {
+          if (onRestart) {
+            await onRestart();
+          }
+        } catch (err) {
+          console.warn('Auto-restart error:', err);
+        }
+      }, 900);
     } catch (e: any) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setErrorMsg(
@@ -267,7 +278,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                 </>
               )}
 
-              {/* STAGE 3: COMPLETED - ASK TO CLOSE & REOPEN OR RESTART */}
+              {/* STAGE 3: COMPLETED - AUTOMATIC RESTART */}
               {stage === 'completed' && (
                 <>
                   <View style={[styles.iconCircle, { backgroundColor: '#15803D' }]}>
@@ -275,7 +286,7 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                   </View>
 
                   <Text style={[styles.title, { color: theme.colors.text }]}>
-                    Installation Completed! 🎉
+                    Update Installed! 🎉
                   </Text>
                   <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
                     The update package has been downloaded and installed successfully.
@@ -283,9 +294,9 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 
                   {/* Action Instruction Box */}
                   <View style={styles.completedNoticeBox}>
-                    <Ionicons name="refresh-circle-outline" size={20} color="#15803D" />
+                    <Ionicons name="sync" size={20} color="#15803D" />
                     <Text style={styles.completedNoticeText}>
-                      Please tap "Restart App Now" below to launch into the new version.
+                      Restarting app now to apply new features...
                     </Text>
                   </View>
 
@@ -298,21 +309,8 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                     >
                       <View style={styles.btnRow}>
                         <Ionicons name="reload" size={18} color="#FFFFFF" />
-                        <Text style={styles.updateButtonText}>Restart App Now</Text>
+                        <Text style={styles.updateButtonText}>Restart Now</Text>
                       </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.closeAppButton}
-                      onPress={handleCloseAndReopenLater}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="exit-outline" size={16} color={theme.colors.textMuted} />
-                      <Text
-                        style={[styles.closeAppButtonText, { color: theme.colors.textMuted }]}
-                      >
-                        Close & Reopen Later
-                      </Text>
                     </TouchableOpacity>
                   </View>
                 </>
