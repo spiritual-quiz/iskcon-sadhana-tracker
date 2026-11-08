@@ -144,6 +144,13 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const [hasLoadedInitial, setHasLoadedInitial] = useState<boolean>(false);
 
+  // Guarantee 6pm and 9pm sadhana reminders are scheduled in Android AlarmManager
+  useEffect(() => {
+    if (user && user.role !== 'counsellor') {
+      notificationService.scheduleDailyReminders(user).catch(() => {});
+    }
+  }, [user]);
+
   // Load entry, week reading attendance, and monthly satsanga for selected date
   useEffect(() => {
     loadDateEntry(selectedDate);

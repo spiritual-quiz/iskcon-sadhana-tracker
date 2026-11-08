@@ -286,7 +286,12 @@ export const sadhanaService = {
       } catch (err) {}
     }
 
-    const results = Array.from(entryMap.values());
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
+
+    const results = Array.from(entryMap.values()).filter(
+      (e) => !deletedSet.has(e.userId?.toLowerCase())
+    );
     if (results.length > 0) {
       // Persist across app updates & offline restarts
       await Promise.all(results.map((e) => localStorageService.saveSadhanaEntry(e)));
@@ -360,7 +365,12 @@ export const sadhanaService = {
       } catch (err) {}
     }
 
-    const results = Array.from(entryMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
+
+    const results = Array.from(entryMap.values())
+      .filter((e) => !deletedSet.has(e.userId?.toLowerCase()))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     if (results.length > 0) {
       // Persist across app updates & offline restarts
       await Promise.all(results.map((e) => localStorageService.saveSadhanaEntry(e)));

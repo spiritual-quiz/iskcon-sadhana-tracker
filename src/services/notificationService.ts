@@ -177,10 +177,10 @@ export const notificationService = {
       }
 
       const reminderId = `sadhana_reminder_${todayStr}`;
-      const title = isPast9pm ? 'Sadhana Reminder (Final Call)' : 'Sadhana Reminder';
+      const title = isPast9pm ? 'Fill Sadhana - Final Call ⚠️' : 'Fill Sadhana - Daily Reminder';
       const body = isPast9pm
-        ? 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is still pending. Please fill it before taking rest.'
-        : 'Hare Krishna! Please remember to fill your daily sadhana card for today.';
+        ? 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is still pending. Please fill sadhana before taking rest.'
+        : 'Hare Krishna! Please remember to fill sadhana card for today.';
 
       if (Notifications.scheduleNotificationAsync) {
         await Notifications.scheduleNotificationAsync({
@@ -298,7 +298,7 @@ export const notificationService = {
   /**
    * Schedules standard daily reminders for 6:00 PM (18:00) and 9:00 PM (21:00) IST,
    * plus a continuous 3-day inactivity alert that triggers even if the app remains closed.
-   * Optimized for zero battery drain (no repetitive wakelocks or loop thrashing).
+   * Optimized for zero battery drain (native Android AlarmManager triggers).
    */
   scheduleDailyReminders: async (user: UserProfile | null): Promise<void> => {
     if (!user || !user.uid || !Notifications) return;
@@ -310,25 +310,32 @@ export const notificationService = {
       const todayStr = getTodayDateStringIST();
       const todayEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);
 
-      // If today is already filled, dismiss today's reminders
+      // If today is already filled, dismiss today's banner notification from the tray
       if (todayEntry) {
         await notificationService.cancelTodayReminders();
-        return;
       }
 
-      // Throttle: avoid re-registering scheduled alarms repeatedly on every focus or render
+      // Check if daily repeating 6pm & 9pm alarms are already registered in Android AlarmManager
       const lastScheduledDate = await AsyncStorage.getItem('bhakti_last_scheduled_alarm_date');
-      if (lastScheduledDate === todayStr) {
-        return;
+      if (Notifications.getAllScheduledNotificationsAsync) {
+        try {
+          const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+          const has6pm = scheduled.some((n: any) => n.identifier === 'sadhana_scheduled_6pm');
+          const has9pm = scheduled.some((n: any) => n.identifier === 'sadhana_scheduled_9pm');
+          if (has6pm && has9pm && lastScheduledDate === todayStr) {
+            return;
+          }
+        } catch {
+          // Continue to scheduling
+        }
       }
-      await AsyncStorage.setItem('bhakti_last_scheduled_alarm_date', todayStr);
 
       // 1. Repeating 6:00 PM Daily Reminder (18:00 IST) - fires even when app is closed
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_6pm',
         content: {
-          title: 'Sadhana Reminder',
-          body: 'Hare Krishna! Please remember to fill your daily sadhana card for today.',
+          title: 'Fill Sadhana - Daily Reminder',
+          body: 'Hare Krishna! Please remember to fill sadhana card for today.',
           sound: 'default',
           vibrate: [0, 250, 250, 250],
           priority: Notifications.AndroidNotificationPriority.MAX,
@@ -336,9 +343,10 @@ export const notificationService = {
           data: { screen: 'DailySadhana' },
         },
         trigger: {
+          type: 'daily',
           hour: 18,
           minute: 0,
-          repeats: true,
+          channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
         },
       });
 
@@ -346,8 +354,8 @@ export const notificationService = {
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_scheduled_9pm',
         content: {
-          title: 'Sadhana Reminder (Final Call)',
-          body: 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is pending. Please fill it before taking rest.',
+          title: 'Fill Sadhana - Final Call ⚠️',
+          body: 'Hare Krishna! It is 9:00 PM. Your daily sadhana card is still pending. Please fill sadhana before taking rest.',
           sound: 'default',
           vibrate: [0, 250, 250, 250],
           priority: Notifications.AndroidNotificationPriority.MAX,
@@ -355,9 +363,10 @@ export const notificationService = {
           data: { screen: 'DailySadhana' },
         },
         trigger: {
+          type: 'daily',
           hour: 21,
           minute: 0,
-          repeats: true,
+          channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
         },
       });
 
@@ -369,8 +378,8 @@ export const notificationService = {
       await Notifications.scheduleNotificationAsync({
         identifier: 'sadhana_inactivity_3days',
         content: {
-          title: 'Sadhana Inactivity Alert (3 Days) ⚠️',
-          body: 'Hare Krishna! You have not submitted your daily sadhana card for 3 consecutive days. Please log your sadhana to maintain your devotional vows.',
+          title: 'Fill Sadhana - 3-Day Inactivity Alert ⚠️',
+          body: 'Hare Krishna! You have not submitted your daily sadhana card for 3 consecutive days. Please fill sadhana to maintain your devotional vows.',
           sound: 'default',
           vibrate: [0, 250, 250, 250],
           priority: Notifications.AndroidNotificationPriority.MAX,
@@ -378,16 +387,21 @@ export const notificationService = {
           data: { screen: 'DailySadhana' },
         },
         trigger: {
+          type: 'date',
           date: day3Target,
+          channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
         },
       });
+
+      await AsyncStorage.setItem('bhakti_last_scheduled_alarm_date', todayStr);
     } catch (e) {
       console.warn('Error scheduling daily reminders:', e);
     }
   },
 
   /**
-   * Cancel today's sadhana reminders immediately (called once the devotee submits today's card)
+   * Cancel/dismiss today's sadhana reminders immediately (called once the devotee submits today's card)
+   * Dismisses banner from status tray while preserving recurring daily alarm schedules for tomorrow.
    */
   cancelTodayReminders: async (): Promise<void> => {
     if (!Notifications) return;
@@ -402,7 +416,6 @@ export const notificationService = {
         await Notifications.cancelScheduledNotificationAsync(reminderId);
         await Notifications.cancelScheduledNotificationAsync(exact6Id);
         await Notifications.cancelScheduledNotificationAsync(exact9Id);
-        await Notifications.cancelScheduledNotificationAsync('sadhana_inactivity_3days');
       }
       if (Notifications.dismissNotificationAsync) {
         await Notifications.dismissNotificationAsync(reminderId);
@@ -545,9 +558,10 @@ export const notificationService = {
             data: { screen: 'MonitoringAlerts' },
           },
           trigger: {
+            type: 'daily',
             hour: 9,
             minute: 30,
-            repeats: true,
+            channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
           },
         });
       } else {

@@ -3,6 +3,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -244,12 +245,30 @@ export const monitoringService = {
       console.warn('Error in dynamic open alerts evaluation:', err);
     }
 
-    const results = Array.from(alertMap.values()).sort((a, b) => {
-      // Prioritize missing_card alerts, then descending missing days
-      if (a.alertType === 'missing_card' && b.alertType !== 'missing_card') return -1;
-      if (b.alertType === 'missing_card' && a.alertType !== 'missing_card') return 1;
-      return (b.consecutiveMissingDays || 0) - (a.consecutiveMissingDays || 0);
-    });
+    // Filter results so ONLY currently approved counselees appear; purge any orphaned alerts
+    let approvedUids = new Set<string>();
+    try {
+      const allUsers = await authService.getAllUsers();
+      approvedUids = new Set(
+        allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved').map((u) => u.uid)
+      );
+    } catch {}
+
+    const results = Array.from(alertMap.values())
+      .filter((a) => {
+        if (approvedUids.size > 0 && !approvedUids.has(a.userId)) {
+          // Asynchronously purge orphaned alert document for deleted student
+          deleteDoc(doc(db, 'monitoring_alerts', a.id)).catch(() => {});
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        // Prioritize missing_card alerts, then descending missing days
+        if (a.alertType === 'missing_card' && b.alertType !== 'missing_card') return -1;
+        if (b.alertType === 'missing_card' && a.alertType !== 'missing_card') return 1;
+        return (b.consecutiveMissingDays || 0) - (a.consecutiveMissingDays || 0);
+      });
 
     await fastCache.set(cacheKey, results, 90);
     return results;

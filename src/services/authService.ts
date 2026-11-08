@@ -610,6 +610,9 @@ export const authService = {
         { name: 'weekly_attendance', field: 'userId' },
         { name: 'monthly_satsanga', field: 'userId' },
         { name: 'notifications', field: 'userId' },
+        { name: 'shared_weekly_summaries', field: 'userId' },
+        { name: 'shared_monthly_summaries', field: 'userId' },
+        { name: 'follow_ups', field: 'userId' },
       ];
 
       for (const col of collectionsToClean) {
@@ -647,6 +650,9 @@ export const authService = {
       await fastCache.invalidate('pending_counselees');
     }
 
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
+
     // 1. Query Firestore (source of truth) with 2500ms timeout
     try {
       const q = query(
@@ -662,7 +668,12 @@ export const authService = {
       if (!snap.empty) {
         for (const d of snap.docs) {
           const u = d.data() as UserProfile;
-          if (u.role !== 'counsellor' && u.status === 'pending') {
+          if (
+            u.role !== 'counsellor' &&
+            u.status === 'pending' &&
+            !deletedSet.has(u.uid.toLowerCase()) &&
+            (!u.email || !deletedSet.has(u.email.toLowerCase()))
+          ) {
             list.push(u);
             await localStorageService.saveUser(u).catch(() => {});
           }
@@ -677,7 +688,13 @@ export const authService = {
     } catch (e) {
       // Offline fallback: only use local storage if Firestore failed
       const localUsers = await localStorageService.getAllUsers();
-      const localPending = localUsers.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
+      const localPending = localUsers.filter(
+        (u) =>
+          u.role !== 'counsellor' &&
+          u.status === 'pending' &&
+          !deletedSet.has(u.uid.toLowerCase()) &&
+          (!u.email || !deletedSet.has(u.email.toLowerCase()))
+      );
       return localPending;
     }
   },
@@ -694,6 +711,8 @@ export const authService = {
       }
     }
 
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
     const map = new Map<string, UserProfile>();
 
     // 1. Load from Firestore first (source of truth) with 2000ms timeout
@@ -705,7 +724,11 @@ export const authService = {
       if (!snap.empty) {
         for (const d of snap.docs) {
           const u = d.data() as UserProfile;
-          if (u.role !== 'counsellor') {
+          if (
+            u.role !== 'counsellor' &&
+            !deletedSet.has(u.uid.toLowerCase()) &&
+            (!u.email || !deletedSet.has(u.email.toLowerCase()))
+          ) {
             map.set(u.uid, u);
             await localStorageService.saveUser(u).catch(() => {});
           }
@@ -719,7 +742,11 @@ export const authService = {
     if (map.size === 0) {
       const localUsers = await localStorageService.getAllUsers();
       for (const u of localUsers) {
-        if (u.role !== 'counsellor') {
+        if (
+          u.role !== 'counsellor' &&
+          !deletedSet.has(u.uid.toLowerCase()) &&
+          (!u.email || !deletedSet.has(u.email.toLowerCase()))
+        ) {
           map.set(u.uid, u);
         }
       }
@@ -744,6 +771,8 @@ export const authService = {
       }
     }
 
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
     const map = new Map<string, UserProfile>();
 
     try {
@@ -754,8 +783,13 @@ export const authService = {
       if (!snap.empty) {
         for (const d of snap.docs) {
           const u = d.data() as UserProfile;
-          map.set(u.uid, u);
-          await localStorageService.saveUser(u).catch(() => {});
+          if (
+            !deletedSet.has(u.uid.toLowerCase()) &&
+            (!u.email || !deletedSet.has(u.email.toLowerCase()))
+          ) {
+            map.set(u.uid, u);
+            await localStorageService.saveUser(u).catch(() => {});
+          }
         }
       }
     } catch (e) {
@@ -765,7 +799,12 @@ export const authService = {
     if (map.size === 0) {
       const localUsers = await localStorageService.getAllUsers();
       for (const u of localUsers) {
-        map.set(u.uid, u);
+        if (
+          !deletedSet.has(u.uid.toLowerCase()) &&
+          (!u.email || !deletedSet.has(u.email.toLowerCase()))
+        ) {
+          map.set(u.uid, u);
+        }
       }
     }
 

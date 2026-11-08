@@ -84,8 +84,14 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
   const loadSingleDayReports = async (forceRefresh = false) => {
     setIsLoading(true);
     try {
-      const data = await sadhanaService.getAllEntriesForDate(selectedDate, forceRefresh);
-      setEntries(data);
+      const [data, allDevotees] = await Promise.all([
+        sadhanaService.getAllEntriesForDate(selectedDate, forceRefresh),
+        authService.getAllCounselees(forceRefresh),
+      ]);
+      const approvedUids = new Set(
+        allDevotees.filter((u) => u.status === 'approved').map((u) => u.uid)
+      );
+      setEntries(data.filter((e) => approvedUids.has(e.userId)));
     } catch (e) {
       console.warn('Error loading single day reports:', e);
     } finally {

@@ -151,10 +151,16 @@ export const localStorageService = {
    */
   getAllEntriesForDate: async (dateStr: string): Promise<SadhanaEntry[]> => {
     try {
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      const deletedSet = new Set(deletedList.map((id) => id.toLowerCase()));
+
       const existingRaw = await AsyncStorage.getItem(KEYS.SADHANA_ENTRIES);
       if (!existingRaw) return [];
       const entries: Record<string, SadhanaEntry> = JSON.parse(existingRaw);
-      return Object.values(entries).filter((e) => e.date === dateStr);
+      return Object.values(entries).filter(
+        (e) => e.date === dateStr && !deletedSet.has(e.userId?.toLowerCase())
+      );
     } catch (e) {
       console.warn('Error loading all entries for date from local storage:', e);
       return [];
@@ -166,11 +172,20 @@ export const localStorageService = {
    */
   getAllEntriesForDateRange: async (startDate: string, endDate: string): Promise<SadhanaEntry[]> => {
     try {
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      const deletedSet = new Set(deletedList.map((id) => id.toLowerCase()));
+
       const existingRaw = await AsyncStorage.getItem(KEYS.SADHANA_ENTRIES);
       if (!existingRaw) return [];
       const entries: Record<string, SadhanaEntry> = JSON.parse(existingRaw);
       return Object.values(entries)
-        .filter((e) => e.date >= startDate && e.date <= endDate)
+        .filter(
+          (e) =>
+            e.date >= startDate &&
+            e.date <= endDate &&
+            !deletedSet.has(e.userId?.toLowerCase())
+        )
         .sort((a, b) => b.date.localeCompare(a.date));
     } catch (e) {
       console.warn('Error loading all entries for date range from local storage:', e);
@@ -509,6 +524,18 @@ export const localStorageService = {
   },
 
   /**
+   * Get all permanently deleted user UIDs and emails (tombstones)
+   */
+  getDeletedUserIds: async (): Promise<string[]> => {
+    try {
+      const deletedRaw = await AsyncStorage.getItem(KEYS.DELETED_USERS);
+      return deletedRaw ? JSON.parse(deletedRaw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Permanently delete a user from local storage and purge all their related records
    */
   deleteUser: async (uid: string, email?: string): Promise<void> => {
@@ -532,8 +559,8 @@ export const localStorageService = {
       }
       if (email && !deletedList.includes(email.toLowerCase())) {
         deletedList.push(email.toLowerCase());
-        await AsyncStorage.setItem(KEYS.DELETED_USERS, JSON.stringify(deletedList));
       }
+      await AsyncStorage.setItem(KEYS.DELETED_USERS, JSON.stringify(deletedList));
 
       // 3. Purge all sadhana entries belonging to this user
       const entriesRaw = await AsyncStorage.getItem(KEYS.SADHANA_ENTRIES);

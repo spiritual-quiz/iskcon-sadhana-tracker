@@ -10,6 +10,7 @@ import {
 import * as Linking from 'expo-linking';
 import { db } from '../config/firebase';
 import { FollowUpRecord, FollowUpChannel, DeliveryStatus } from '../types/monitoring';
+import { localStorageService } from './localStorageService';
 
 export const followUpService = {
   /**
@@ -112,6 +113,11 @@ export const followUpService = {
       q = query(collection(db, 'follow_ups'), orderBy('createdAt', 'desc'));
     }
     const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as FollowUpRecord);
+    const records = snap.docs.map((d) => d.data() as FollowUpRecord);
+
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
+
+    return records.filter((r) => !deletedSet.has(r.userId?.toLowerCase()));
   },
 };

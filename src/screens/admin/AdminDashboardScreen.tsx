@@ -153,25 +153,41 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       ]);
 
       const approved = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
+      const approvedUids = new Set(approved.map((u) => u.uid));
       const pendingDevotees = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
-      const reminderReqs = allUsers.filter((u) => u.role !== 'counsellor' && u.reminderOptOutRequested === true);
-      const targetReqs = allUsers.filter((u) => u.role !== 'counsellor' && u.targetRoundsRequested && u.targetRoundsRequested > 0);
+      const reminderReqs = allUsers.filter(
+        (u) => u.role !== 'counsellor' && u.status === 'approved' && u.reminderOptOutRequested === true
+      );
+      const targetReqs = allUsers.filter(
+        (u) =>
+          u.role !== 'counsellor' &&
+          u.status === 'approved' &&
+          u.targetRoundsRequested &&
+          u.targetRoundsRequested > 0
+      );
       setApprovedCount(approved.length);
       setPendingCount(pendingDevotees.length);
       setReminderRequestsCount(reminderReqs.length);
       setTargetRequestsCount(targetReqs.length);
 
-      setTodaySubmissionsCount(todayEntries.length);
-      const dailyLow = todayEntries.filter((e) => (e.percentage ?? 0) < 50).length;
+      // Filter today's entries by approved counselees only so deleted students never appear
+      const validTodayEntries = todayEntries.filter((e) => approvedUids.has(e.userId));
+      setTodaySubmissionsCount(validTodayEntries.length);
+      const dailyLow = validTodayEntries.filter((e) => (e.percentage ?? 0) < 50).length;
       setDailyLowScoreCount(dailyLow);
 
-      const missing = alerts.filter((a) => a.alertType === 'missing_card');
-      const low = alerts.filter((a) => a.alertType === 'low_score');
+      // Filter alerts by approved counselees only so deleted students never appear
+      const validAlerts = alerts.filter((a) => approvedUids.has(a.userId));
+      const missing = validAlerts.filter((a) => a.alertType === 'missing_card');
+      const low = validAlerts.filter((a) => a.alertType === 'low_score');
       setMissingAlertsCount(missing.length);
       setLowScoreCount(low.length);
 
-      setWeeklyLowScoreCount(sharedWeekly.filter((r) => (r.percentage ?? 0) < 50).length);
-      setMonthlyLowScoreCount(sharedMonthly.filter((r) => (r.percentage ?? 0) < 50).length);
+      // Filter shared weekly and monthly summaries by approved counselees only
+      const validSharedWeekly = sharedWeekly.filter((r) => approvedUids.has(r.userId));
+      const validSharedMonthly = sharedMonthly.filter((r) => approvedUids.has(r.userId));
+      setWeeklyLowScoreCount(validSharedWeekly.filter((r) => (r.percentage ?? 0) < 50).length);
+      setMonthlyLowScoreCount(validSharedMonthly.filter((r) => (r.percentage ?? 0) < 50).length);
 
       const bdays = birthdayService.getUpcomingBirthdays(approved, 30);
       setUpcomingBirthdaysCount(bdays.length);
