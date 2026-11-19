@@ -55,7 +55,7 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
       const approved = all.filter((u) => u.status === 'approved');
       setCounselees(approved);
 
-      const upcoming = birthdayService.getUpcomingBirthdays(approved, 30);
+      const upcoming = birthdayService.getUpcomingBirthdays(approved, 3);
       setReminders(upcoming);
     } catch (e) {
       console.warn('Error fetching birthday data:', e);
@@ -150,7 +150,7 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
         subtitle={
           activeTab === 'all'
             ? `Counselees Birthday Records (${registeredDobCount}/${counselees.length} registered)`
-            : `Upcoming Birthdays (${reminders.length} in next 30 days)`
+            : `Upcoming Birthdays (${reminders.length} in next 3 days)`
         }
         showBack
         onBackPress={() => navigation.goBack()}
@@ -377,7 +377,7 @@ export const BirthdayRemindersScreen = ({ navigation }: any) => {
           {reminders.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="gift-outline" size={54} color={THEME.colors.gold} />
-              <Text style={styles.emptyTitle}>No Birthdays in the Next 30 Days</Text>
+              <Text style={styles.emptyTitle}>No Birthdays in the Next 3 Days</Text>
               <Text style={styles.emptySubtitle}>All devotee birthday milestones are up to date.</Text>
             </View>
           ) : (

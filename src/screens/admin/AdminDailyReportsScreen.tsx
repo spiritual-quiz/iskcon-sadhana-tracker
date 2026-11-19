@@ -48,8 +48,8 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
   // Helper to generate past 7 calendar days starting with today (with offset)
-  const getPast7Days = (offset = 0): { dateStr: string; label: string; dayName: string }[] => {
-    const list: { dateStr: string; label: string; dayName: string }[] = [];
+  const getPast7Days = (offset = 0): { dateStr: string; label: string; dayName: string; dateNum: string }[] => {
+    const list: { dateStr: string; label: string; dayName: string; dateNum: string }[] = [];
     const base = new Date();
     base.setDate(base.getDate() + offset * 7);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -64,7 +64,8 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
       const dateStr = `${y}-${m}-${day}`;
       const dayName = (offset === 0 && i === 0) ? 'Today' : (offset === 0 && i === 1) ? 'Yest' : dayNames[d.getDay()];
       const label = `${d.getDate()} ${monthNames[d.getMonth()]}`;
-      list.push({ dateStr, label, dayName });
+      const dateNum = String(d.getDate());
+      list.push({ dateStr, label, dayName, dateNum });
     }
     return list;
   };
@@ -489,6 +490,9 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                         style={[styles.dayChip, isSelected && styles.dayChipActive]}
                         onPress={() => setSelectedWeekDay(isSelected ? null : d.dateStr)}
                       >
+                        <Text style={[styles.dayChipDateNum, isSelected && styles.dayChipTopActive]}>
+                          {d.dateNum}
+                        </Text>
                         <Text style={[styles.dayChipTop, isSelected && styles.dayChipTopActive]}>
                           {d.dayName}
                         </Text>
@@ -611,7 +615,8 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
 
                             return (
                               <View key={d.dateStr} style={styles.dotCol}>
-                                <Text style={styles.dotDayLabel}>{d.dayName.substring(0, 2)}</Text>
+                                <Text style={styles.dotDateNum}>{d.dateNum}</Text>
+                                <Text style={styles.dotDayLabel}>{d.dayName.substring(0, 3)}</Text>
                                 <View
                                   style={[
                                     styles.dotCircle,
@@ -874,6 +879,12 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.primary,
     borderColor: THEME.colors.primary,
   },
+  dayChipDateNum: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+    marginBottom: 1,
+  },
   dayChipTop: {
     fontSize: 11,
     fontWeight: 'bold',
@@ -1024,6 +1035,12 @@ const styles = StyleSheet.create({
   dotCol: {
     alignItems: 'center',
     flex: 1,
+  },
+  dotDateNum: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: THEME.colors.primaryDark,
+    marginBottom: 1,
   },
   dotDayLabel: {
     fontSize: 9,

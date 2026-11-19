@@ -444,6 +444,14 @@ export const notificationService = {
 
     try {
       const todayStr = getTodayDateStringIST();
+
+      // Guard: strictly throttle admin alerts to run at most ONCE PER DAY on app open
+      const lastRunDate = await AsyncStorage.getItem('bhakti_admin_alerts_last_run_date');
+      if (lastRunDate === todayStr) {
+        return;
+      }
+      await AsyncStorage.setItem('bhakti_admin_alerts_last_run_date', todayStr);
+
       const allUsers = await authService.getAllUsers();
       const counselees = allUsers.filter((u) => u.role === 'counselee');
 
@@ -571,26 +579,29 @@ export const notificationService = {
         }
       }
 
-      // 5. Devotee Birthdays Today (Notified ONCE on birthday)
-      const upcomingBdays = birthdayService.getUpcomingBirthdays(counselees, 1);
-      const todayBdays = upcomingBdays.filter((b) => b.reminderDate === todayStr);
-      if (todayBdays.length > 0) {
-        const key = `admin_birthday_${todayStr}_${todayBdays.map((b) => b.userId).sort().join('_')}`;
-        if (!(await hasAlertBeenNotified(key))) {
-          await markAlertAsNotified(key);
-          await Notifications.scheduleNotificationAsync({
-            identifier: key,
-            content: {
-              title: 'Devotee Birthday Today! 🎉',
-              body: `Hare Krishna! Today is ${todayBdays[0].counseleeName}'s birthday! Wish them devotional blessings.`,
-              sound: 'default',
-              vibrate: [0, 250, 250, 250],
-              priority: Notifications.AndroidNotificationPriority.MAX,
-              channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
-              data: { screen: 'BirthdayReminders' },
-            },
-            trigger: null,
-          });
+      // 5. Devotee Birthdays (Visible & notified 3 days before birthday)
+      const upcomingBdays = birthdayService.getUpcomingBirthdays(counselees, 3);
+      if (upcomingBdays.length > 0) {
+        for (const b of upcomingBdays) {
+          const key = `admin_birthday_3days_${todayStr}_${b.userId}`;
+          if (!(await hasAlertBeenNotified(key))) {
+            await markAlertAsNotified(key);
+            const daysAway = getDaysDifference(todayStr, b.reminderDate);
+            const dayText = daysAway === 0 ? 'today!' : daysAway === 1 ? 'tomorrow!' : `in ${daysAway} days (${b.reminderDate})`;
+            await Notifications.scheduleNotificationAsync({
+              identifier: key,
+              content: {
+                title: 'Devotee Birthday Reminder 🎂',
+                body: `Hare Krishna! ${b.counseleeName}'s birthday is ${dayText}. Wish them devotional blessings!`,
+                sound: 'default',
+                vibrate: [0, 250, 250, 250],
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                channelId: NOTIFICATION_CHANNELS.ADMIN_ALERTS,
+                data: { screen: 'BirthdayReminders' },
+              },
+              trigger: null,
+            });
+          }
         }
       }
     } catch (e) {

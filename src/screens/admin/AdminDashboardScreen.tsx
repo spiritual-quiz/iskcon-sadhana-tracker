@@ -30,6 +30,7 @@ import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { updateService } from '../../services/updateService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -53,6 +54,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
+  const [isMonitoringDismissed, setIsMonitoringDismissed] = useState<boolean>(false);
 
   const alertedPendingUidsRef = useRef<Set<string>>(new Set());
   const lastFetchedTimeRef = useRef<number>(0);
@@ -61,12 +63,43 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
     useCallback(() => {
       // Re-check metrics with cache (<1ms response time) without freezing the UI
       loadDashboardMetrics(false);
+      checkMonitoringDismissed();
     }, [])
   );
+
+  const checkMonitoringDismissed = async () => {
+    try {
+      const dismissedDate = await AsyncStorage.getItem('bhakti_dashboard_monitoring_dismissed_date');
+      if (dismissedDate === todayStr) {
+        setIsMonitoringDismissed(true);
+      } else {
+        setIsMonitoringDismissed(false);
+      }
+    } catch {}
+  };
+
+  const handleDismissMonitoringList = () => {
+    Alert.alert(
+      'Remove Sadhana Monitoring Alert?',
+      'Do you want to remove the sadhana monitoring notification from the dashboard for today?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setIsMonitoringDismissed(true);
+            await AsyncStorage.setItem('bhakti_dashboard_monitoring_dismissed_date', todayStr);
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     // 1. Initial metrics load
     loadDashboardMetrics();
+    checkMonitoringDismissed();
 
     // 2. Real-time listener for newly registered pending counselees from Firestore
     try {
@@ -83,23 +116,30 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
               .filter((u) => u.role !== 'counsellor' && u.status === 'pending');
             setPendingCount(pendingDevotees.length);
 
-            // Find any newly arrived pending devotee who has not been popped up yet
+            // Find any newly arrived pending devotee who has not been popped up yet today
             const unalerted = pendingDevotees.filter((d) => !alertedPendingUidsRef.current.has(d.uid));
             if (unalerted.length > 0) {
               unalerted.forEach((d) => alertedPendingUidsRef.current.add(d.uid));
-              Alert.alert(
-                'New Counselee Registration',
-                `Hare Krishna! ${unalerted[0].displayName}${
-                  unalerted.length > 1 ? ` and ${unalerted.length - 1} more devotee(s)` : ''
-                } registered and are awaiting your approval.`,
-                [
-                  { text: 'Review Later', style: 'cancel' },
-                  {
-                    text: 'Review Now',
-                    onPress: () => navigation.navigate('PendingRegistrations'),
-                  },
-                ]
-              );
+              const checkAndShowPopup = async () => {
+                const todayStrIST = getTodayDateStringIST();
+                const lastPopupDate = await AsyncStorage.getItem('bhakti_admin_pending_popup_date');
+                if (lastPopupDate === todayStrIST) return;
+                await AsyncStorage.setItem('bhakti_admin_pending_popup_date', todayStrIST);
+                Alert.alert(
+                  'New Counselee Registration',
+                  `Hare Krishna! ${unalerted[0].displayName}${
+                    unalerted.length > 1 ? ` and ${unalerted.length - 1} more devotee(s)` : ''
+                  } registered and are awaiting your approval.`,
+                  [
+                    { text: 'Review Later', style: 'cancel' },
+                    {
+                      text: 'Review Now',
+                      onPress: () => navigation.navigate('PendingRegistrations'),
+                    },
+                  ]
+                );
+              };
+              checkAndShowPopup();
             }
           } else {
             setPendingCount(0);
@@ -189,7 +229,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       setWeeklyLowScoreCount(validSharedWeekly.filter((r) => (r.percentage ?? 0) < 50).length);
       setMonthlyLowScoreCount(validSharedMonthly.filter((r) => (r.percentage ?? 0) < 50).length);
 
-      const bdays = birthdayService.getUpcomingBirthdays(approved, 30);
+      const bdays = birthdayService.getUpcomingBirthdays(approved, 3);
       setUpcomingBirthdaysCount(bdays.length);
 
       // Dispatch admin alerts in background without blocking dashboard
@@ -292,6 +332,15 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       color: theme.thickColor,
     },
     {
+      id: 'SadhanaDaysFilled',
+      title: 'Sadhana Days Filled',
+      subtitle: 'Weekly & Monthly Submission Frequency',
+      icon: 'calendar-outline',
+      badge: 'Audit',
+      badgeColor: '#0284C7',
+      color: theme.thickColor,
+    },
+    {
       id: 'HonoursScreen',
       title: 'Devotional Honours',
       subtitle: 'Weekly & Monthly Champions',
@@ -303,7 +352,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
     {
       id: 'BirthdayReminders',
       title: 'Birthday Reminders',
-      subtitle: `${upcomingBirthdaysCount} upcoming in 30 days`,
+      subtitle: `${upcomingBirthdaysCount} upcoming in 3 days`,
       icon: 'gift-outline',
       badge: upcomingBirthdaysCount > 0 ? String(upcomingBirthdaysCount) : null,
       badgeColor: THEME.colors.goldDark,
@@ -426,7 +475,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           </View>
 
           {/* Alert Highlights Banner if any pending, missing, or reminder requests */}
-          {(pendingCount > 0 || missingAlertsCount > 0 || reminderRequestsCount > 0 || targetRequestsCount > 0) && (
+          {(pendingCount > 0 || (missingAlertsCount > 0 && !isMonitoringDismissed) || reminderRequestsCount > 0 || targetRequestsCount > 0) && (
             <View style={styles.attentionBanner}>
               <Ionicons name="alert-circle" size={22} color={THEME.colors.warning} />
               <View style={styles.bannerText}>
@@ -449,10 +498,26 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                     • {pendingCount} new devotee registration(s) awaiting approval
                   </Text>
                 )}
-                {missingAlertsCount > 0 && (
-                  <Text style={styles.bannerItemText}>
-                    • {missingAlertsCount} counselee(s) haven't submitted cards for &gt;3 days
-                  </Text>
+                {missingAlertsCount > 0 && !isMonitoringDismissed && (
+                  <View style={styles.monitoringRow}>
+                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => navigation.navigate('SadhanaMonitoring')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.bannerItemText}>
+                        • {missingAlertsCount} counselee(s) haven't submitted cards for &gt;3 days
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.removeMonitoringBtn}
+                      onPress={handleDismissMonitoringList}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="close-circle-outline" size={13} color="#9A3412" />
+                      <Text style={styles.removeMonitoringBtnText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
@@ -770,5 +835,27 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  monitoringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  removeMonitoringBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF08A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE047',
+  },
+  removeMonitoringBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9A3412',
   },
 });

@@ -25,6 +25,7 @@ import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { HonoursCard } from '../../components/HonoursCard';
+import { authService } from '../../services/authService';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -37,6 +38,8 @@ export const HomeScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
+  const [chantersList, setChantersList] = useState<{ uid: string; name: string; rounds: number }[]>([]);
+  const [showAllChanters, setShowAllChanters] = useState<boolean>(false);
   const lastLoadedAtRef = React.useRef<number>(0);
 
   useEffect(() => {
@@ -98,12 +101,30 @@ export const HomeScreen = ({ navigation }: any) => {
       setWeeklyReport(week);
       setMonthlyReport(month);
 
+      // Fetch approved counselees chanting list (sorted descending by rounds: highest first)
+      try {
+        const allUsers = await authService.getAllCounselees(force);
+        const approved = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
+        const chanters = approved
+          .map((u) => ({
+            uid: u.uid,
+            name: u.displayName || 'Devotee',
+            rounds: u.declaredRounds || 16,
+          }))
+          .sort((a, b) => {
+            if (b.rounds !== a.rounds) return b.rounds - a.rounds; // Highest rounds first
+            return a.name.localeCompare(b.name);
+          });
+        setChantersList(chanters);
+      } catch (err) {
+        console.warn('Failed to load chanters list:', err);
+      }
+
       if (entry) {
         // Today is already filled, ensure reminder notification does NOT come
         await notificationService.cancelTodayReminders();
       } else {
         // Devotee has not filled today's card yet: schedule daily alarms strictly at 6:00 PM and 9:00 PM IST
-        // Alarms will only trigger at those scheduled hours, never immediately when navigating to Home
         await notificationService.setupNotifications();
         await notificationService.scheduleDailyReminders(user);
       }
@@ -262,6 +283,95 @@ export const HomeScreen = ({ navigation }: any) => {
             </Text>
             <Text style={[styles.quoteAuthor, { color: theme.thickColor }]}>— His Divine Grace A.C. Bhaktivedanta Swami Prabhupāda</Text>
           </View>
+
+          {/* Counselees Chanting Commitment List Card (Item 3) */}
+          {chantersList.length > 0 && (
+            <View style={[styles.chantersCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <View style={styles.chantersHeader}>
+                <View style={[styles.chantersIconCircle, { backgroundColor: theme.liteColor }]}>
+                  <Ionicons name="radio-button-on" size={18} color={theme.thickColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.chantersCardTitle, { color: theme.thickColor }]}>Devotees Chanting List 📿</Text>
+                  <Text style={[styles.chantersCardSub, { color: theme.colors.textMuted }]}>
+                    Daily target • Highest rounds first ({chantersList.length} Devotees)
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.chantersListContainer}>
+                {(showAllChanters ? chantersList : chantersList.slice(0, 5)).map((item, index) => {
+                  return (
+                    <View
+                      key={item.uid}
+                      style={[
+                        styles.chanterItemRow,
+                        { borderColor: theme.colors.borderLight },
+                        index === 0 && { backgroundColor: theme.liteColor + '30' },
+                      ]}
+                    >
+                      <View style={styles.chanterRankCol}>
+                        <Text style={[styles.chanterRankText, { color: theme.thickColor }]}>
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.chanterName, { color: theme.colors.text }]}>
+                          {item.name}
+                        </Text>
+                      </View>
+                      <View style={[styles.roundsBadge, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+                        <Ionicons name="sparkles" size={12} color={theme.thickColor} />
+                        <Text style={[styles.roundsBadgeText, { color: theme.thickColor }]}>
+                          {item.rounds} {item.rounds === 1 ? 'Round' : 'Rounds'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {chantersList.length > 5 && (
+                <TouchableOpacity
+                  style={[styles.toggleChantersBtn, { borderColor: theme.thickColor }]}
+                  onPress={() => setShowAllChanters(!showAllChanters)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.toggleChantersBtnText, { color: theme.thickColor }]}>
+                    {showAllChanters ? 'Show Less' : `View All ${chantersList.length} Devotees`}
+                  </Text>
+                  <Ionicons
+                    name={showAllChanters ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={theme.thickColor}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Sadhana Days Filled Audit Option (Item 4) */}
+          <TouchableOpacity
+            style={[
+              styles.auditBannerCard,
+              { backgroundColor: theme.liteColor, borderColor: theme.thickColor },
+            ]}
+            onPress={() => navigation.navigate('SadhanaDaysFilled')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.auditIconCircle, { backgroundColor: theme.thickColor }]}>
+              <Ionicons name="calendar" size={20} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.auditTitle, { color: theme.thickColor }]}>
+                Sadhana Days Filled Audit
+              </Text>
+              <Text style={[styles.auditSubtitle, { color: theme.colors.textMuted }]}>
+                Weekly & monthly submission frequency of all counselees (A to Z)
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.thickColor} />
+          </TouchableOpacity>
 
           {/* Devotional Honours: Yesterday's Best, Last Week & Monthly Champions */}
           <HonoursCard dateStr={todayStr} />
@@ -648,5 +758,117 @@ const styles = StyleSheet.create({
     fontSize: THEME.typography.sizes.xs,
     color: THEME.colors.textMuted,
     marginTop: 2,
+  },
+  chantersCard: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  chantersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  chantersIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chantersCardTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  chantersCardSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  chantersListContainer: {
+    marginTop: 4,
+  },
+  chanterItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderRadius: 8,
+  },
+  chanterRankCol: {
+    width: 28,
+    alignItems: 'center',
+  },
+  chanterRankText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  chanterName: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  roundsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  roundsBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  toggleChantersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  toggleChantersBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  auditBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 14,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  auditIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  auditTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  auditSubtitle: {
+    fontSize: 11,
+    marginTop: 1,
   },
 });

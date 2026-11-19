@@ -61,6 +61,24 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
     setInitialTemplate(template);
   };
 
+  const handleDismissAlert = (alert: MonitoringAlert) => {
+    Alert.alert(
+      'Remove from Monitoring List',
+      `Are you sure you want to remove ${alert.counseleeName}'s alert from the monitoring list?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
+            await monitoringService.dismissAlert(alert.id, alert.userId);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
@@ -152,6 +170,15 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
                   )}
 
                   <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={[styles.dismissAlertBtn, { borderColor: theme.colors.border }]}
+                      onPress={() => handleDismissAlert(al)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={15} color={THEME.colors.danger} />
+                      <Text style={[styles.dismissAlertBtnText, { color: THEME.colors.danger }]}>Remove</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       style={[styles.contactBtn, { backgroundColor: theme.thickColor }]}
                       onPress={() =>
@@ -283,10 +310,26 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
     marginTop: THEME.spacing.md,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceVariant,
+  },
+  dismissAlertBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    backgroundColor: '#FEF2F2',
+  },
+  dismissAlertBtnText: {
+    fontSize: THEME.typography.sizes.xs,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   contactBtn: {
     flexDirection: 'row',

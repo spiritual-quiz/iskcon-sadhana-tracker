@@ -19,9 +19,9 @@ import {
 
 export const birthdayService = {
   /**
-   * Scan counselees and identify birthdays today or upcoming in the next 30 days
+   * Scan counselees and identify birthdays today or upcoming in the next 3 days (default)
    */
-  getUpcomingBirthdays: (counselees: UserProfile[], windowDays: number = 30): BirthdayReminder[] => {
+  getUpcomingBirthdays: (counselees: UserProfile[], windowDays: number = 3): BirthdayReminder[] => {
     const today = getNowInIST();
     const currentYear = today.getFullYear();
     const todayStr = getTodayDateStringIST();

@@ -194,6 +194,19 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
       setHasLoadedInitial(true);
 
+      // Load counsellor-evaluated monthly meeting attendance (managed under Counselor)
+      try {
+        const monthId = date.substring(0, 7);
+        const counsellorMeeting = await attendanceService.getMonthlyMeetingForUser(user.uid, monthId);
+        if (counsellorMeeting) {
+          setMonthlyMeetingAttended(counsellorMeeting.attended || counsellorMeeting.status === 'attended');
+        } else if (entry) {
+          setMonthlyMeetingAttended(entry.monthlyMeetingAttended ?? false);
+        } else {
+          setMonthlyMeetingAttended(false);
+        }
+      } catch {}
+
       // Load weekly reading attendance for Monday through Friday
       const week = getWeekDetails(date);
       const monToFriDates = week.dates.slice(0, 5);
@@ -425,6 +438,16 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   const handleSave = async () => {
     if (!user?.uid) return;
 
+    // Strict restriction: Counselees can only submit for Today or Yesterday
+    const yesterdayStr = getYesterdayStr();
+    if (selectedDate < yesterdayStr) {
+      Alert.alert(
+        'Submission Closed',
+        'You can only fill sadhana for today or yesterday. Sadhana for earlier dates cannot be submitted and is marked as not filled.'
+      );
+      return;
+    }
+
     if (!hasUserEnteredData) {
       Alert.alert(
         'Sadhana Card Pending',
@@ -611,27 +634,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           <TouchableOpacity
             style={[
               styles.datePill,
-              selectedDate === getDayBeforeYesterdayStr() && styles.datePillActive,
-            ]}
-            onPress={() => setSelectedDate(getDayBeforeYesterdayStr())}
-          >
-            <Text
-              style={[
-                styles.datePillText,
-                selectedDate === getDayBeforeYesterdayStr() && styles.datePillTextActive,
-              ]}
-            >
-              2 Days Ago
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.datePill,
               styles.calendarPill,
               selectedDate !== todayStr &&
                 selectedDate !== getYesterdayStr() &&
-                selectedDate !== getDayBeforeYesterdayStr() &&
                 styles.datePillActive,
             ]}
             onPress={() => setShowDatePicker(true)}
@@ -641,8 +646,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               size={13}
               color={
                 selectedDate !== todayStr &&
-                selectedDate !== getYesterdayStr() &&
-                selectedDate !== getDayBeforeYesterdayStr()
+                selectedDate !== getYesterdayStr()
                   ? '#FFFFFF'
                   : THEME.colors.goldDark
               }
@@ -652,26 +656,33 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 styles.datePillText,
                 selectedDate !== todayStr &&
                   selectedDate !== getYesterdayStr() &&
-                  selectedDate !== getDayBeforeYesterdayStr() &&
                   styles.datePillTextActive,
               ]}
             >
-              {selectedDate !== todayStr &&
-              selectedDate !== getYesterdayStr() &&
-              selectedDate !== getDayBeforeYesterdayStr()
+              {selectedDate !== todayStr && selectedDate !== getYesterdayStr()
                 ? selectedDate
-                : 'Custom Day...'}
+                : 'Select Day...'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
 
       {/* Editing Past Date Indicator */}
-      {selectedDate !== todayStr && (
+      {selectedDate === getYesterdayStr() && (
         <View style={styles.pastDateBanner}>
           <Ionicons name="information-circle-outline" size={16} color={THEME.colors.primary} />
           <Text style={styles.pastDateBannerText}>
-            Submitting for past date: <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text>
+            Submitting for yesterday: <Text style={{ fontWeight: 'bold' }}>{selectedDate}</Text>
+          </Text>
+        </View>
+      )}
+
+      {/* Older Date Blocked Notice */}
+      {selectedDate < getYesterdayStr() && (
+        <View style={[styles.pastDateBanner, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
+          <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+          <Text style={[styles.pastDateBannerText, { color: '#991B1B', fontWeight: 'bold', flex: 1 }]}>
+            Submission Closed ({selectedDate}): Only yesterday's sadhana can be backfilled. This date cannot be filled and is marked as not filled.
           </Text>
         </View>
       )}
@@ -1026,20 +1037,6 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </View>
 
             <View style={styles.inputRow}>
-              {/* Bedtime Button */}
-              <View style={styles.halfInput}>
-                <Text style={styles.inputLabel}>Bedtime</Text>
-                <TouchableOpacity
-                  style={styles.timePickerButtonCompact}
-                  onPress={() => setTimePickerTarget('sleep')}
-                >
-                  <Ionicons name="moon" size={14} color={THEME.colors.primary} />
-                  <Text style={styles.timePickerButtonTextCompact}>
-                    {sleepTime ? formatFriendlyTime(sleepTime) : 'Select Bedtime'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
               {/* Wake Up Time Button */}
               <View style={styles.halfInput}>
                 <Text style={styles.inputLabel}>Wake Up</Text>
@@ -1050,6 +1047,20 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                   <Ionicons name="sunny" size={14} color={THEME.colors.goldDark} />
                   <Text style={styles.timePickerButtonTextCompact}>
                     {wakeUpTime ? formatFriendlyTime(wakeUpTime) : 'Select Wake Time'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Bedtime Button */}
+              <View style={styles.halfInput}>
+                <Text style={styles.inputLabel}>Bedtime</Text>
+                <TouchableOpacity
+                  style={styles.timePickerButtonCompact}
+                  onPress={() => setTimePickerTarget('sleep')}
+                >
+                  <Ionicons name="moon" size={14} color={THEME.colors.primary} />
+                  <Text style={styles.timePickerButtonTextCompact}>
+                    {sleepTime ? formatFriendlyTime(sleepTime) : 'Select Bedtime'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1587,7 +1598,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 </View>
               </View>
 
-              {/* Monthly Counsellor Meeting */}
+              {/* Monthly Counsellor Meeting (Recorded Exclusively under Counselor) */}
               <View style={styles.card}>
                 <View style={styles.sectionHeader}>
                   <View style={[styles.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
@@ -1599,13 +1610,13 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                       styles.marksBadge,
                       monthlyMeetingAttended
                         ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
-                        : { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
+                        : { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
                     ]}
                   >
                     <Text
                       style={[
                         styles.marksBadgeText,
-                        monthlyMeetingAttended ? { color: '#15803D' } : { color: '#B91C1C' },
+                        monthlyMeetingAttended ? { color: '#15803D' } : { color: '#6B7280' },
                       ]}
                     >
                       {monthlyMeetingAttended ? '50/50 M' : '0/50 M'}
@@ -1614,56 +1625,28 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 </View>
 
                 <View style={[styles.highlightBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-                  <Ionicons name="chatbubbles-outline" size={15} color="#16A34A" />
+                  <Ionicons name="shield-checkmark-outline" size={15} color="#16A34A" />
                   <Text style={[styles.highlightBadgeText, { color: '#14532D' }]}>
-                    Monthly one-on-one meeting with Counsellor • Attended: 50 marks • Absent: 0 marks (counted towards Monthly Report)
+                    Recorded by Counsellor • Monthly one-on-one meeting details are managed and marked exclusively by your Counsellor.
                   </Text>
                 </View>
 
-                <View style={styles.satsangPillsRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.satsangPill,
-                      monthlyMeetingAttended && styles.satsangPillAttended,
-                    ]}
-                    onPress={() => setMonthlyMeetingAttended(true)}
-                  >
-                    <Ionicons
-                      name={monthlyMeetingAttended ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={16}
-                      color={monthlyMeetingAttended ? '#FFFFFF' : '#15803D'}
-                    />
-                    <Text
-                      style={[
-                        styles.satsangPillText,
-                        monthlyMeetingAttended && styles.satsangPillTextActive,
-                      ]}
-                    >
-                      Attended (50M)
+                <View style={[{ backgroundColor: monthlyMeetingAttended ? '#DCFCE7' : '#F8FAFC', borderColor: monthlyMeetingAttended ? '#86EFAC' : '#E2E8F0', borderWidth: 1, padding: 12, borderRadius: 10, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+                  <Ionicons
+                    name={monthlyMeetingAttended ? 'checkmark-circle' : 'time-outline'}
+                    size={22}
+                    color={monthlyMeetingAttended ? '#15803D' : '#64748B'}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 13, color: monthlyMeetingAttended ? '#15803D' : '#334155' }}>
+                      {monthlyMeetingAttended ? 'Counsellor Status: Attended (50 Marks)' : 'Counsellor Status: Pending / Not Conducted'}
                     </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.satsangPill,
-                      !monthlyMeetingAttended && styles.satsangPillAbsent,
-                    ]}
-                    onPress={() => setMonthlyMeetingAttended(false)}
-                  >
-                    <Ionicons
-                      name={!monthlyMeetingAttended ? 'close-circle' : 'ellipse-outline'}
-                      size={16}
-                      color={!monthlyMeetingAttended ? '#FFFFFF' : '#DC2626'}
-                    />
-                    <Text
-                      style={[
-                        styles.satsangPillText,
-                        !monthlyMeetingAttended && styles.satsangPillTextActive,
-                      ]}
-                    >
-                      Absent (0M)
+                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                      {monthlyMeetingAttended
+                        ? 'Your counsellor has marked your monthly meeting as attended for this month.'
+                        : 'Attendance will be evaluated by your counsellor in the monthly review.'}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </>
@@ -1686,23 +1669,30 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
             </View>
           )}
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: theme.thickColor }, isSaving && styles.submitButtonDisabled]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
-                <Text style={styles.submitButtonText}>
-                  {existingEntry ? 'Update Sadhana Card' : 'Submit Daily Sadhana'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {/* Submit Button or Submission Closed Banner */}
+          {selectedDate < getYesterdayStr() ? (
+            <View style={[styles.submitButton, { backgroundColor: '#9CA3AF' }]}>
+              <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>Submission Closed (Not Filled)</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: theme.thickColor }, isSaving && styles.submitButtonDisabled]}
+              onPress={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
+                  <Text style={styles.submitButtonText}>
+                    {existingEntry ? 'Update Sadhana Card' : 'Submit Daily Sadhana'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </ScrollView>
       )}
 

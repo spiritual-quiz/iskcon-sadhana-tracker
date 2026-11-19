@@ -19,6 +19,7 @@ import { authService } from './authService';
 import { sadhanaService } from './sadhanaService';
 
 import { fastCache } from './fastCacheService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const monitoringService = {
   /**
@@ -254,11 +255,18 @@ export const monitoringService = {
       );
     } catch {}
 
+    const dismissedRaw = await AsyncStorage.getItem('bhakti_dismissed_alerts_uids');
+    const dismissedList: string[] = dismissedRaw ? JSON.parse(dismissedRaw) : [];
+    const dismissedSet = new Set(dismissedList);
+
     const results = Array.from(alertMap.values())
       .filter((a) => {
         if (approvedUids.size > 0 && !approvedUids.has(a.userId)) {
           // Asynchronously purge orphaned alert document for deleted student
           deleteDoc(doc(db, 'monitoring_alerts', a.id)).catch(() => {});
+          return false;
+        }
+        if (dismissedSet.has(a.id) || dismissedSet.has(`${a.userId}_${todayStr}`)) {
           return false;
         }
         return true;
@@ -272,5 +280,27 @@ export const monitoringService = {
 
     await fastCache.set(cacheKey, results, 90);
     return results;
+  },
+
+  /**
+   * Option to dismiss/remove an alert from the sadhana monitoring list
+   */
+  dismissAlert: async (alertId: string, userId?: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(db, 'monitoring_alerts', alertId));
+      const todayStr = getTodayDateStringIST();
+      const raw = await AsyncStorage.getItem('bhakti_dismissed_alerts_uids');
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (userId && !list.includes(`${userId}_${todayStr}`)) {
+        list.push(`${userId}_${todayStr}`);
+      }
+      if (!list.includes(alertId)) {
+        list.push(alertId);
+      }
+      await AsyncStorage.setItem('bhakti_dismissed_alerts_uids', JSON.stringify(list));
+      await fastCache.invalidate(`open_alerts_${todayStr}`);
+    } catch (e) {
+      // Safe fallback
+    }
   },
 };

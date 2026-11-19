@@ -27,11 +27,11 @@ export const PastDateSelectorModal: React.FC<PastDateSelectorModalProps> = ({
 }) => {
   const todayStr = getTodayDateStringIST();
 
-  // Generate the past 30 days
+  // Allowed fill dates: Today and Yesterday only (earlier days cannot be filled)
   const pastDays: { dateStr: string; label: string; subLabel: string; isToday: boolean }[] = [];
   const todayObj = new Date();
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 2; i++) {
     const d = new Date(todayObj);
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
@@ -39,10 +39,6 @@ export const PastDateSelectorModal: React.FC<PastDateSelectorModalProps> = ({
     let label = '';
     if (i === 0) label = 'Today';
     else if (i === 1) label = 'Yesterday';
-    else if (i === 2) label = '2 Days Ago';
-    else {
-      label = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-    }
 
     const subLabel = d.toLocaleDateString('en-IN', {
       weekday: 'long',
@@ -81,7 +77,7 @@ export const PastDateSelectorModal: React.FC<PastDateSelectorModalProps> = ({
               </View>
 
               <Text style={styles.subtitle}>
-                You can submit today’s sadhana or backfill previous days:
+                You can submit today's sadhana or backfill yesterday if you forgot:
               </Text>
 
               <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
