@@ -57,7 +57,6 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
   const [isMonitoringDismissed, setIsMonitoringDismissed] = useState<boolean>(false);
   const [chantersList, setChantersList] = useState<{ uid: string; name: string; rounds: number }[]>([]);
-  const [showAllChanters, setShowAllChanters] = useState<boolean>(false);
 
   const alertedPendingUidsRef = useRef<Set<string>>(new Set());
   const lastFetchedTimeRef = useRef<number>(0);
@@ -527,78 +526,6 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                   </View>
                 )}
               </View>
-            </View>
-          )}
-
-          {/* Counselees' Chanting Rounds Card */}
-          {chantersList.length > 0 && (
-            <View style={[styles.chantersCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-              <View style={styles.chantersHeader}>
-                <View style={[styles.chantersIconCircle, { backgroundColor: theme.liteColor }]}>
-                  <Ionicons name="radio-button-on" size={18} color={theme.thickColor} />
-                </View>
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  onPress={() => navigation.navigate('ChantingRounds')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.chantersCardTitle, { color: theme.thickColor }]}>
-                    Counselees' Chanting Rounds 📿
-                  </Text>
-                  <Text style={[styles.chantersCardSub, { color: theme.colors.textMuted }]}>
-                    Daily target • Highest chanting first ({chantersList.length} Devotees)
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.chantersListContainer}>
-                {chantersList.slice(0, 5).map((item, index) => {
-                  return (
-                    <TouchableOpacity
-                      key={item.uid}
-                      style={[
-                        styles.chanterItemRow,
-                        { borderColor: theme.colors.borderLight },
-                        index === 0 && { backgroundColor: theme.liteColor + '30' },
-                      ]}
-                      onPress={() => navigation.navigate('ChantingRounds')}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.chanterRankCol}>
-                        <Text style={[styles.chanterRankText, { color: theme.thickColor }]}>
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.chanterName, { color: theme.colors.text }]}>
-                          {item.name}
-                        </Text>
-                      </View>
-                      <View style={[styles.roundsBadge, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
-                        <Ionicons name="sparkles" size={12} color={theme.thickColor} />
-                        <Text style={[styles.roundsBadgeText, { color: theme.thickColor }]}>
-                          {item.rounds} {item.rounds === 1 ? 'round' : 'rounds'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <TouchableOpacity
-                style={[styles.toggleChantersBtn, { borderColor: theme.thickColor }]}
-                onPress={() => navigation.navigate('ChantingRounds')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.toggleChantersBtnText, { color: theme.thickColor }]}>
-                  {`View All ${chantersList.length} Counselees' Chanting Targets`}
-                </Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={14}
-                  color={theme.thickColor}
-                />
-              </TouchableOpacity>
             </View>
           )}
 
