@@ -25,6 +25,7 @@ import { authService } from '../../services/authService';
 import { biometricService, BiometricAccount } from '../../services/biometricService';
 import { UserProfile } from '../../types/auth';
 import { isCounsellorIdentifier } from '../../utils/counsellorUtils';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
 
 export const LoginScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -38,6 +39,7 @@ export const LoginScreen = ({ navigation }: any) => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Biometric state
   const [hasBiometricHw, setHasBiometricHw] = useState<boolean>(false);
@@ -151,7 +153,7 @@ export const LoginScreen = ({ navigation }: any) => {
         setEmail(acc.email);
         setPassword('');
         setViewMode('credentials');
-        Alert.alert('Sign In with Password', 'Please enter your password to sign in and update your biometric credentials.');
+        showCrossPlatformAlert('Sign In with Password', 'Please enter your password to sign in and update your biometric credentials.');
       }
     } finally {
       setIsBiometricAuthenticating(false);
@@ -162,8 +164,11 @@ export const LoginScreen = ({ navigation }: any) => {
    * Standard Email & Password Login
    */
   const handleLogin = async () => {
+    setErrorMessage('');
     if (!email.trim() || !password) {
-      Alert.alert('Missing Fields', 'Please enter your email and password.');
+      const msg = 'Please enter your email and password.';
+      setErrorMessage(msg);
+      showCrossPlatformAlert('Missing Fields', msg);
       return;
     }
 
@@ -199,8 +204,9 @@ export const LoginScreen = ({ navigation }: any) => {
       // Clear ONLY password so devotee can re-type correct password without email being wiped out
       setPassword('');
       const msg = err.message || 'Could not verify credentials.';
+      setErrorMessage(msg);
       const isIncorrectPass = msg.toLowerCase().includes('incorrect password');
-      Alert.alert(
+      showCrossPlatformAlert(
         isIncorrectPass ? 'Incorrect Password' : 'Login Failed',
         msg
       );
@@ -232,14 +238,14 @@ export const LoginScreen = ({ navigation }: any) => {
 
       setShowEnrollModal(false);
       if (success) {
-        Alert.alert(
+        showCrossPlatformAlert(
           'Fingerprint Enabled',
           `Fingerprint sign-in is now active for ${pendingLoggedInUser.displayName}. Next time, you can log in instantly with your touch sensor!`
         );
       }
     } catch (err: any) {
       setShowEnrollModal(false);
-      Alert.alert('Touch Sensor', err.message || 'Fingerprint setup cancelled.');
+      showCrossPlatformAlert('Touch Sensor', err.message || 'Fingerprint setup cancelled.');
     } finally {
       setIsEnrollingBio(false);
     }
@@ -252,18 +258,18 @@ export const LoginScreen = ({ navigation }: any) => {
   const handleSendPasswordReset = async () => {
     const targetEmail = resetEmail.trim().toLowerCase();
     if (!targetEmail) {
-      Alert.alert('Missing Email', 'Please enter your registered email address.');
+      showCrossPlatformAlert('Missing Email', 'Please enter your registered email address.');
       return;
     }
 
     // 1. If devotee entered a new password directly in the recovery modal
     if (resetNewPassword) {
       if (resetNewPassword.length < 6) {
-        Alert.alert('Password Too Short', 'Password must be at least 6 characters long.');
+        showCrossPlatformAlert('Password Too Short', 'Password must be at least 6 characters long.');
         return;
       }
       if (resetNewPassword !== resetConfirmPassword) {
-        Alert.alert('Password Mismatch', 'The passwords you entered do not match. Please re-enter them.');
+        showCrossPlatformAlert('Password Mismatch', 'The passwords you entered do not match. Please re-enter them.');
         return;
       }
 
@@ -276,9 +282,9 @@ export const LoginScreen = ({ navigation }: any) => {
         setResetNewPassword('');
         setResetConfirmPassword('');
         setViewMode('credentials');
-        Alert.alert('Password Updated', res.message);
+        showCrossPlatformAlert('Password Updated', res.message);
       } catch (err: any) {
-        Alert.alert('Reset Failed', err.message || 'Could not reset password.');
+        showCrossPlatformAlert('Reset Failed', err.message || 'Could not reset password.');
       } finally {
         setIsSendingReset(false);
       }
@@ -286,7 +292,7 @@ export const LoginScreen = ({ navigation }: any) => {
     }
 
     // 2. Otherwise, perform standard reset or restore default counsellor credentials (Sadhana@108)
-    Alert.alert(
+    showCrossPlatformAlert(
       'Confirm Password Reset',
       isCounsellorIdentifier(targetEmail)
         ? 'Reset counsellor password to default "Sadhana@108"?'
@@ -307,9 +313,9 @@ export const LoginScreen = ({ navigation }: any) => {
               setResetNewPassword('');
               setResetConfirmPassword('');
               setViewMode('credentials');
-              Alert.alert('Password Recovery', res.message);
+              showCrossPlatformAlert('Password Recovery', res.message);
             } catch (err: any) {
-              Alert.alert('Recovery Request Failed', err.message || 'Could not send password reset email.');
+              showCrossPlatformAlert('Recovery Request Failed', err.message || 'Could not send password reset email.');
             } finally {
               setIsSendingReset(false);
             }
@@ -443,7 +449,7 @@ export const LoginScreen = ({ navigation }: any) => {
             <TouchableOpacity
               style={styles.removeBioBtn}
               onPress={() => {
-                Alert.alert(
+                showCrossPlatformAlert(
                   'Remove Saved Fingerprint',
                   `Do you want to remove the saved fingerprint for ${activeAccount.displayName}? You will sign in using email and password.`,
                   [
@@ -475,6 +481,27 @@ export const LoginScreen = ({ navigation }: any) => {
           <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <Text style={[styles.cardTitle, { color: theme.colors.primaryDark }]}>Devotee Login</Text>
 
+            {/* Error Message Alert Box */}
+            {errorMessage ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+                <Text style={styles.errorBoxText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
+            {/* Counsellor Account Recognition Banner */}
+            {isCounsellorIdentifier(email) && (
+              <View style={styles.counsellorBadge}>
+                <Ionicons name="shield-checkmark" size={18} color="#D97706" style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.counsellorBadgeTitle}>Counsellor Account Recognized</Text>
+                  <Text style={styles.counsellorBadgeSubtitle}>
+                    Master default password: <Text style={{ fontWeight: 'bold' }}>Sadhana@108</Text>
+                  </Text>
+                </View>
+              </View>
+            )}
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
               <View style={styles.inputWrapper}>
@@ -486,6 +513,7 @@ export const LoginScreen = ({ navigation }: any) => {
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
+                    setErrorMessage('');
                     AsyncStorage.setItem('bhakti_last_entered_email', text.trim().toLowerCase()).catch(() => {});
                   }}
                   keyboardType="email-address"
@@ -503,7 +531,10 @@ export const LoginScreen = ({ navigation }: any) => {
                   placeholder="Enter your password"
                   placeholderTextColor={THEME.colors.textLight}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setErrorMessage('');
+                  }}
                   secureTextEntry={!showPassword}
                 />
                 <TouchableOpacity
@@ -1269,5 +1300,45 @@ const styles = StyleSheet.create({
   accountItemEmail: {
     fontSize: 11,
     color: '#6B7280',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  errorBoxText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#B91C1C',
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  counsellorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  counsellorBadgeTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  counsellorBadgeSubtitle: {
+    fontSize: 11,
+    color: '#78350F',
+    marginTop: 1,
   },
 });

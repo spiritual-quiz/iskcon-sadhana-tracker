@@ -101,35 +101,52 @@ export const authService = {
       // If entered password does not match local password or default, check remote Firestore settings
       if (!isCounsellorPassword(password, validCounsellorPassword)) {
         try {
-          const docSnap = await getDoc(doc(db, 'app_settings', 'counsellor_auth'));
-          if (docSnap.exists() && docSnap.data()?.password) {
+          const docSnap = await Promise.race([
+            getDoc(doc(db, 'app_settings', 'counsellor_auth')),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+          ]);
+          if (docSnap && docSnap.exists() && docSnap.data()?.password) {
             validCounsellorPassword = docSnap.data().password;
           }
         } catch {}
       }
 
-      // Accept their stored updated password OR the master default 'Sadhana@108' (and normalized variants)
+      const adminProfile: UserProfile = {
+        uid: 'counsellor_admin_uid',
+        email: 'madhavcarandas@gmail.com',
+        displayName: 'Madhav Charan Das',
+        phoneNumber: '+919876543210',
+        role: 'counsellor',
+        status: 'approved',
+        declaredRounds: 16,
+        publicAppreciationConsent: false,
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Accept stored updated password OR master default 'Sadhana@108' (and normalized variants)
       if (isCounsellorPassword(password, validCounsellorPassword)) {
-        const adminProfile: UserProfile = {
-          uid: 'counsellor_admin_uid',
-          email: 'madhavcarandas@gmail.com',
-          displayName: 'Madhav Charan Das',
-          phoneNumber: '+919876543210',
-          role: 'counsellor',
-          status: 'approved',
-          declaredRounds: 16,
-          publicAppreciationConsent: false,
-          createdAt: '2025-01-01T00:00:00.000Z',
-          updatedAt: new Date().toISOString(),
-        };
         await localStorageService.saveUser(adminProfile, password);
         await AsyncStorage.setItem('bhakti_active_session_uid', adminProfile.uid);
         // Persist counsellor profile to Firestore in background
         setDoc(doc(db, 'users', adminProfile.uid), adminProfile, { merge: true }).catch(() => {});
         return adminProfile;
-      } else {
-        throw new Error('Incorrect password. Please verify your credentials or tap "Forgot Password?".');
       }
+
+      // Also check if devotee entered their actual Firebase Auth password for madhavcarandas@gmail.com
+      try {
+        const fbRes = await signInWithEmailAndPassword(auth, 'madhavcarandas@gmail.com', password);
+        if (fbRes?.user) {
+          await localStorageService.saveUser(adminProfile, password);
+          await AsyncStorage.setItem('bhakti_active_session_uid', adminProfile.uid);
+          setDoc(doc(db, 'users', adminProfile.uid), adminProfile, { merge: true }).catch(() => {});
+          return adminProfile;
+        }
+      } catch (fbErr) {
+        // Firebase Auth also rejected
+      }
+
+      throw new Error('Incorrect password. Default counsellor password is "Sadhana@108". Please enter Sadhana@108 or tap "Forgot Password?" to reset.');
     }
 
     try {
