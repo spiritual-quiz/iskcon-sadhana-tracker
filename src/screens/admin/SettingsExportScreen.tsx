@@ -70,7 +70,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   const handleCheckUpdates = async () => {
     setIsCheckingUpdates(true);
     try {
-      const res = await updateService.checkForUpdate();
+      const res = await updateService.checkForUpdate(true);
       if (res.isAvailable && res.versionInfo) {
         updateService.promptUserForUpdate(res.versionInfo);
       } else {

@@ -99,10 +99,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    // 1. Initial metrics load & automatic update check
+    // 1. Initial metrics load
     loadDashboardMetrics();
     checkMonitoringDismissed();
-    updateService.checkAndPromptAutoUpdate();
 
     // 2. Real-time listener for newly registered pending counselees from Firestore
     try {
@@ -267,7 +266,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const handleCheckUpdates = async () => {
     setIsCheckingUpdates(true);
     try {
-      const res = await updateService.checkForUpdate();
+      const res = await updateService.checkForUpdate(true);
       if (res.isAvailable && res.versionInfo) {
         updateService.promptUserForUpdate(res.versionInfo);
       } else {

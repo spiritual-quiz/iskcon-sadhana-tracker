@@ -44,7 +44,6 @@ export const HomeScreen = ({ navigation }: any) => {
   const lastLoadedAtRef = React.useRef<number>(0);
 
   useEffect(() => {
-    updateService.checkAndPromptAutoUpdate();
     const checkPostLoginBio = async () => {
       if (user?.email) {
         const isEnrolled = await biometricService.isUserEnrolled(user.email);

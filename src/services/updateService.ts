@@ -46,8 +46,8 @@ export const updateService = {
    */
   getCurrentVersion: () => {
     return {
-      version: Constants.expoConfig?.version || '1.0.40',
-      versionCode: Constants.expoConfig?.android?.versionCode || 41,
+      version: Constants.expoConfig?.version || '1.0.51',
+      versionCode: Constants.expoConfig?.android?.versionCode || 51,
     };
   },
 
@@ -128,22 +128,28 @@ export const updateService = {
    * 3. Firestore 'app_settings/version_control'
    * Works on both Web and Native mobile.
    */
-  checkForUpdate: async (): Promise<{
+  checkForUpdate: async (isManual: boolean = false): Promise<{
     isAvailable: boolean;
     versionInfo?: AppVersionInfo;
     updateSource: 'github' | 'expo' | 'firestore' | 'none';
   }> => {
     const current = updateService.getCurrentVersion();
+    const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
+    const lastDownloaded = await AsyncStorage.getItem('bhakti_last_downloaded_version');
 
     // 1. Check GitHub latest release first (automatic detection when new release is created on GitHub)
     try {
       const githubRelease = await updateService.getLatestGitHubRelease();
       if (githubRelease && isNewerVersion(githubRelease.version, current.version)) {
-        return {
-          isAvailable: true,
-          versionInfo: githubRelease,
-          updateSource: 'github',
-        };
+        if (!isManual && (githubRelease.version === lastDismissed || githubRelease.version === lastDownloaded)) {
+          // Already handled this version - do not pop up automatically
+        } else {
+          return {
+            isAvailable: true,
+            versionInfo: githubRelease,
+            updateSource: 'github',
+          };
+        }
       }
     } catch (e) {
       console.warn('GitHub release check error:', e);
@@ -157,8 +163,8 @@ export const updateService = {
           return {
             isAvailable: true,
             versionInfo: {
-              version: (update.manifest as any)?.extra?.expoClient?.version || '1.0.50',
-              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || 50,
+              version: (update.manifest as any)?.extra?.expoClient?.version || '1.0.51',
+              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || 51,
               title: 'New Devotional Update Available',
               releaseNotes: 'Devotional honours, performance optimizations and new features are ready to install.',
               publishedAt: new Date().toISOString(),
@@ -179,11 +185,15 @@ export const updateService = {
           isNewerVersion(remoteInfo.version, current.version) ||
           (remoteInfo.versionCode && remoteInfo.versionCode > current.versionCode)
         ) {
-          return {
-            isAvailable: true,
-            versionInfo: remoteInfo,
-            updateSource: 'firestore',
-          };
+          if (!isManual && (remoteInfo.version === lastDismissed || remoteInfo.version === lastDownloaded)) {
+            // Already handled
+          } else {
+            return {
+              isAvailable: true,
+              versionInfo: remoteInfo,
+              updateSource: 'firestore',
+            };
+          }
         }
       }
     } catch (e) {
@@ -206,6 +216,10 @@ export const updateService = {
     onProgress?: (progress: number) => void
   ): Promise<void> => {
     const isWeb = (Platform.OS as string) === 'web';
+
+    if (versionInfo?.version) {
+      await AsyncStorage.setItem('bhakti_last_downloaded_version', versionInfo.version);
+    }
 
     if (isWeb) {
       // On Web: clear cache storage if supported and reload the page

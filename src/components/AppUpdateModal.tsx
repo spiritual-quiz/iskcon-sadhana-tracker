@@ -47,14 +47,8 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
       }
-    } else if (stage === 'idle') {
-      // Automatic update download as requested by user ("The app update also should happen automatically")
-      const autoTimer = setTimeout(() => {
-        handleUpdatePress();
-      }, 1500);
-      return () => clearTimeout(autoTimer);
     }
-  }, [visible, stage]);
+  }, [visible]);
 
   const handleUpdatePress = async () => {
     setStage('downloading');
@@ -79,17 +73,6 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
       setProgress(100);
       setStage('completed');
       await notificationService.showUpdateCompleteNotification().catch(() => {});
-
-      // Automatically restart app once installation is done
-      setTimeout(async () => {
-        try {
-          if (onRestart) {
-            await onRestart();
-          }
-        } catch (err) {
-          console.warn('Auto-restart error:', err);
-        }
-      }, 900);
     } catch (e: any) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setErrorMsg(
@@ -303,9 +286,9 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 
                   {/* Action Instruction Box */}
                   <View style={styles.completedNoticeBox}>
-                    <Ionicons name="sync" size={20} color="#15803D" />
+                    <Ionicons name="checkmark-circle" size={20} color="#15803D" />
                     <Text style={styles.completedNoticeText}>
-                      Restarting app now to apply new features...
+                      Update package processed. Once installed, the new version will be active.
                     </Text>
                   </View>
 
@@ -313,12 +296,12 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                   <View style={styles.actionsContainer}>
                     <TouchableOpacity
                       style={[styles.updateButton, { backgroundColor: '#15803D' }]}
-                      onPress={handleRestartNow}
+                      onPress={onDismiss}
                       activeOpacity={0.8}
                     >
                       <View style={styles.btnRow}>
-                        <Ionicons name="reload" size={18} color="#FFFFFF" />
-                        <Text style={styles.updateButtonText}>Restart Now</Text>
+                        <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.updateButtonText}>Continue to App</Text>
                       </View>
                     </TouchableOpacity>
                   </View>

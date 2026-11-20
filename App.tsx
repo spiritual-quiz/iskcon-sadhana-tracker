@@ -34,14 +34,18 @@ const AppContent: React.FC = () => {
     const checkAppUpdates = async () => {
       if (isCheckingRef.current || isUpdatingRef.current || isUpdatePendingRef.current) return;
       isCheckingRef.current = true;
-      lastCheckTimeRef.current = Date.now();
       try {
         const result = await updateService.checkForUpdate();
-        if (result.isAvailable) {
+        if (result.isAvailable && result.versionInfo?.version) {
+          const v = result.versionInfo.version;
+          const dismissedVer = await AsyncStorage.getItem('bhakti_dismissed_update_version');
+          const downloadedVer = await AsyncStorage.getItem('bhakti_last_downloaded_version');
+          if (v === dismissedVer || v === downloadedVer) {
+            return;
+          }
           isUpdatePendingRef.current = true;
           setPendingUpdateInfo(result.versionInfo);
           setShowUpdateModal(true);
-          await notificationService.triggerAppUpdateNotification();
         }
       } catch (e) {
         // Offline fallback
@@ -50,26 +54,16 @@ const AppContent: React.FC = () => {
       }
     };
 
-    // 1. Initial check on cold mount
+    // Initial check on cold mount only
     checkAppUpdates();
-
-    // 2. AppState listener: re-check when returning to active state (throttled to 20s)
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'active') {
-        if (Date.now() - lastCheckTimeRef.current > 20 * 1000) {
-          checkAppUpdates();
-        }
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
   }, []);
 
   const handleApplyUpdate = async () => {
     isUpdatingRef.current = true;
     try {
+      if (pendingUpdateInfo?.version) {
+        await AsyncStorage.setItem('bhakti_last_downloaded_version', pendingUpdateInfo.version);
+      }
       await updateService.fetchAndApplyUpdate(pendingUpdateInfo);
     } finally {
       isUpdatingRef.current = false;
@@ -86,6 +80,7 @@ const AppContent: React.FC = () => {
     isUpdatePendingRef.current = false;
     if (pendingUpdateInfo?.version) {
       await AsyncStorage.setItem('bhakti_dismissed_update_version', pendingUpdateInfo.version);
+      await AsyncStorage.setItem('bhakti_last_downloaded_version', pendingUpdateInfo.version);
     }
   };
 
