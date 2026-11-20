@@ -2,8 +2,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { showCrossPlatformAlert } from '../utils/alertUtils';
 
 export interface AppVersionInfo {
   version: string;
@@ -15,7 +16,29 @@ export interface AppVersionInfo {
   publishedAt: string;
 }
 
-const LAST_APPLIED_UPDATE_KEY = 'bhakti_last_applied_update_version';
+const GITHUB_REPO = 'spiritual-quiz/iskcon-sadhana-tracker';
+const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+
+export const parseSemver = (v: string): number[] => {
+  return v
+    .replace(/^v/i, '')
+    .trim()
+    .split('.')
+    .map((p) => parseInt(p, 10) || 0);
+};
+
+export const isNewerVersion = (remoteVer: string, currentVer: string): boolean => {
+  const r = parseSemver(remoteVer);
+  const c = parseSemver(currentVer);
+  const len = Math.max(r.length, c.length);
+  for (let i = 0; i < len; i++) {
+    const rv = r[i] ?? 0;
+    const cv = c[i] ?? 0;
+    if (rv > cv) return true;
+    if (rv < cv) return false;
+  }
+  return false;
+};
 
 export const updateService = {
   /**
@@ -26,6 +49,57 @@ export const updateService = {
       version: Constants.expoConfig?.version || '1.0.40',
       versionCode: Constants.expoConfig?.android?.versionCode || 41,
     };
+  },
+
+  /**
+   * Fetch the latest release published on GitHub repository
+   */
+  getLatestGitHubRelease: async (): Promise<AppVersionInfo | null> => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch(GITHUB_LATEST_RELEASE_URL, {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'Bhakti-Unnati-App',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) return null;
+      const data = await res.json();
+
+      const tagName: string = data.tag_name || '';
+      const versionStr = tagName.replace(/^v/i, '').trim();
+
+      // Find APK download asset if present
+      let apkDownloadUrl = '';
+      if (Array.isArray(data.assets) && data.assets.length > 0) {
+        const apkAsset = data.assets.find(
+          (a: any) => typeof a.name === 'string' && a.name.toLowerCase().endsWith('.apk')
+        );
+        if (apkAsset && apkAsset.browser_download_url) {
+          apkDownloadUrl = apkAsset.browser_download_url;
+        }
+      }
+      if (!apkDownloadUrl && versionStr) {
+        apkDownloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/${tagName}/Bhakti-Unnati.apk`;
+      }
+
+      return {
+        version: versionStr,
+        versionCode: parseInt(versionStr.replace(/\./g, ''), 10) || 0,
+        title: data.name || `Bhakti Unnati Update v${versionStr}`,
+        releaseNotes: data.body || 'New features, honours modules, and devotional enhancements are ready.',
+        apkDownloadUrl,
+        publishedAt: data.published_at || new Date().toISOString(),
+      };
+    } catch (e) {
+      // Offline or network error
+      return null;
+    }
   },
 
   /**
@@ -48,27 +122,34 @@ export const updateService = {
   },
 
   /**
-   * Check for updates from:
-   * 1. Expo Updates service (for native OTA updates)
-   * 2. Firestore 'app_settings/version_control' (published by admin / system)
+   * Comprehensive check for updates across:
+   * 1. GitHub Releases API (latest tags and APK builds)
+   * 2. Expo Updates service (for native OTA bundles)
+   * 3. Firestore 'app_settings/version_control'
+   * Works on both Web and Native mobile.
    */
   checkForUpdate: async (): Promise<{
     isAvailable: boolean;
     versionInfo?: AppVersionInfo;
-    updateSource: 'expo' | 'firestore' | 'none';
+    updateSource: 'github' | 'expo' | 'firestore' | 'none';
   }> => {
-    // In PWA / Web, the browser automatically updates assets from GitHub Pages on reload.
-    // Update pop-up is only required on native APK.
-    if ((Platform.OS as string) === 'web') {
-      return {
-        isAvailable: false,
-        updateSource: 'none',
-      };
-    }
-
     const current = updateService.getCurrentVersion();
 
-    // 1. Check native Expo Updates service (primary source for OTA bundles)
+    // 1. Check GitHub latest release first (automatic detection when new release is created on GitHub)
+    try {
+      const githubRelease = await updateService.getLatestGitHubRelease();
+      if (githubRelease && isNewerVersion(githubRelease.version, current.version)) {
+        return {
+          isAvailable: true,
+          versionInfo: githubRelease,
+          updateSource: 'github',
+        };
+      }
+    } catch (e) {
+      console.warn('GitHub release check error:', e);
+    }
+
+    // 2. Check native Expo Updates service (if OTA bundle is available)
     try {
       if ((Platform.OS as string) !== 'web' && Updates.isEnabled && Updates.checkForUpdateAsync) {
         const update = await Updates.checkForUpdateAsync();
@@ -76,8 +157,8 @@ export const updateService = {
           return {
             isAvailable: true,
             versionInfo: {
-              version: (update.manifest as any)?.extra?.expoClient?.version || '1.0.40',
-              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || 41,
+              version: (update.manifest as any)?.extra?.expoClient?.version || '1.0.50',
+              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || 50,
               title: 'New Devotional Update Available',
               releaseNotes: 'Devotional honours, performance optimizations and new features are ready to install.',
               publishedAt: new Date().toISOString(),
@@ -90,29 +171,13 @@ export const updateService = {
       console.warn('Updates.checkForUpdateAsync error:', e);
     }
 
-    // 2. Check Firestore remote version broadcast ONLY IF STRICTLY HIGHER than current versionCode
+    // 3. Check Firestore remote version broadcast
     try {
-      const docRef = doc(db, 'app_settings', 'version_control');
-      const snap = await Promise.race([
-        getDoc(docRef),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
-      ]);
-
-      if (snap && snap.exists()) {
-        const remoteInfo = snap.data() as AppVersionInfo;
-        const remoteCode = remoteInfo.versionCode || 0;
-        const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
-        const lastApplied = await AsyncStorage.getItem(LAST_APPLIED_UPDATE_KEY);
-
-        // An update is available ONLY IF:
-        // 1. Remote versionCode is strictly higher than running app
-        // 2. Remote version string is strictly different from running app
-        // 3. User has NOT already dismissed or applied this version
+      const remoteInfo = await updateService.getLatestBroadcast();
+      if (remoteInfo && remoteInfo.version) {
         if (
-          remoteCode > current.versionCode &&
-          remoteInfo.version !== current.version &&
-          remoteInfo.version !== lastDismissed &&
-          remoteInfo.version !== lastApplied
+          isNewerVersion(remoteInfo.version, current.version) ||
+          (remoteInfo.versionCode && remoteInfo.versionCode > current.versionCode)
         ) {
           return {
             isAvailable: true,
@@ -132,29 +197,69 @@ export const updateService = {
   },
 
   /**
-   * Download and install the update package with progress feedback
+   * Download and apply the update package:
+   * - On Web: clears cache and reloads from GitHub Pages
+   * - On Mobile: initiates complete download of the APK from GitHub release or downloads OTA bundle
    */
   fetchAndApplyUpdate: async (
     versionInfo?: AppVersionInfo,
     onProgress?: (progress: number) => void
   ): Promise<void> => {
-    // 1. If native Expo Updates is available, fetch the bundle
-    if ((Platform.OS as string) !== 'web' && Updates.isEnabled && Updates.fetchUpdateAsync) {
+    const isWeb = (Platform.OS as string) === 'web';
+
+    if (isWeb) {
+      // On Web: clear cache storage if supported and reload the page
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        try {
+          const keys = await window.caches.keys();
+          await Promise.all(keys.map((k) => window.caches.delete(k)));
+        } catch {}
+      }
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+      return;
+    }
+
+    // On Native Android:
+    // If an APK download URL is available from GitHub or Firestore, open it to trigger complete system download
+    const apkUrl = versionInfo?.apkDownloadUrl;
+    if (apkUrl) {
       try {
-        const fetchResult = await Updates.fetchUpdateAsync();
-        console.log('fetchUpdateAsync result:', fetchResult);
-      } catch (e: any) {
-        console.warn('Expo OTA fetch error:', e);
-        throw new Error(e?.message || 'Could not download update bundle. Please check your internet connection.');
+        const supported = await Linking.canOpenURL(apkUrl);
+        if (supported) {
+          await Linking.openURL(apkUrl);
+          showCrossPlatformAlert(
+            'Downloading Update',
+            `Hare Krishna! Bhakti-Unnati.apk (v${versionInfo?.version || 'Latest'}) is downloading in your notification bar.\n\nOnce the download completes, tap the completed notification to install the update.`
+          );
+          return;
+        }
+      } catch (err) {
+        console.warn('Failed to open APK URL:', err);
       }
     }
 
-    // 2. Record this version as applied in persistent storage
-    if (versionInfo?.version) {
-      await AsyncStorage.setItem(LAST_APPLIED_UPDATE_KEY, versionInfo.version);
+    // If native Expo OTA update bundle is available:
+    if (Updates.isEnabled && Updates.fetchUpdateAsync) {
+      try {
+        await Updates.fetchUpdateAsync();
+        showCrossPlatformAlert(
+          'Update Ready',
+          'New update downloaded successfully. Restarting application to apply updates.',
+          [
+            {
+              text: 'Restart Now',
+              onPress: async () => {
+                await updateService.reloadApp();
+              },
+            },
+          ]
+        );
+      } catch (e: any) {
+        throw new Error(e?.message || 'Could not download update bundle. Please check your internet connection.');
+      }
     }
-    const current = updateService.getCurrentVersion();
-    await AsyncStorage.setItem('bhakti_last_applied_ota_tag', `v${current.version}+ota`);
   },
 
   /**
@@ -171,7 +276,57 @@ export const updateService = {
   },
 
   /**
-   * Admin function: Publish software update broadcast to all users
+   * Prompt user with an update modal / alert
+   */
+  promptUserForUpdate: (versionInfo: AppVersionInfo) => {
+    const isWeb = (Platform.OS as string) === 'web';
+    showCrossPlatformAlert(
+      'New Software Update Available',
+      `Hare Krishna! A new software update (v${versionInfo.version}) is now available.\n\n${
+        versionInfo.releaseNotes || 'Includes devotional honours, performance updates, and new features.'
+      }\n\nWould you like to ${isWeb ? 'refresh and update' : 'download and install'} now?`,
+      [
+        { text: 'Later', style: 'cancel' },
+        {
+          text: isWeb ? 'Update Now' : 'Download & Install',
+          onPress: async () => {
+            try {
+              await updateService.fetchAndApplyUpdate(versionInfo);
+            } catch (err: any) {
+              showCrossPlatformAlert('Update Error', err?.message || 'Could not start update download.');
+            }
+          },
+        },
+      ]
+    );
+  },
+
+  /**
+   * Automatically check on app startup for counsellors and counselees.
+   * Prompts user once per day when a new GitHub release is available.
+   */
+  checkAndPromptAutoUpdate: async () => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const lastCheckKey = 'bhakti_last_update_prompt_date';
+      const lastPrompted = await AsyncStorage.getItem(lastCheckKey);
+
+      // Check for updates
+      const res = await updateService.checkForUpdate();
+      if (res.isAvailable && res.versionInfo) {
+        // If not already prompted today, show the notification
+        if (lastPrompted !== todayStr) {
+          await AsyncStorage.setItem(lastCheckKey, todayStr);
+          updateService.promptUserForUpdate(res.versionInfo);
+        }
+      }
+    } catch {
+      // Silent background fail
+    }
+  },
+
+  /**
+   * Admin function: Publish software update broadcast to all users in Firestore
    */
   publishSoftwareUpgrade: async (info: {
     version: string;

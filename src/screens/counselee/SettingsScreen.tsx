@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
 import { updateService } from '../../services/updateService';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
 
 export const SettingsScreen = () => {
   const { user, signOut } = useAuth();
@@ -17,36 +18,16 @@ export const SettingsScreen = () => {
     setIsCheckingUpdates(true);
     try {
       const res = await updateService.checkForUpdate();
-      if (res.isAvailable) {
-        Alert.alert(
-          'New Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.\n\nWould you like to install and restart now?`,
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Install & Restart',
-              onPress: async () => {
-                setIsCheckingUpdates(true);
-                try {
-                  await updateService.fetchAndApplyUpdate(res.versionInfo);
-                  await updateService.reloadApp();
-                } catch (err: any) {
-                  Alert.alert('Update Error', err?.message || 'Failed to download update.');
-                } finally {
-                  setIsCheckingUpdates(false);
-                }
-              },
-            },
-          ]
-        );
+      if (res.isAvailable && res.versionInfo) {
+        updateService.promptUserForUpdate(res.versionInfo);
       } else {
-        Alert.alert(
+        showCrossPlatformAlert(
           'Software Up to Date',
           `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
         );
       }
     } catch (e: any) {
-      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+      showCrossPlatformAlert('Update Check', e.message || 'Could not verify update status.');
     } finally {
       setIsCheckingUpdates(false);
     }

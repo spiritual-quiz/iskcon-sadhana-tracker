@@ -81,7 +81,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
   // Helper for past 7 days with offset support
   const [dailyWeekOffset, setDailyWeekOffset] = useState<number>(0);
   const getPast7Days = (offset = 0) => {
-    const list: { dateStr: string; label: string; dayName: string }[] = [];
+    const list: { dateStr: string; label: string; dayName: string; dateNum: string }[] = [];
     const base = new Date();
     base.setDate(base.getDate() + offset * 7);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -94,9 +94,10 @@ export const AdminReportsScreen = ({ navigation }: any) => {
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${day}`;
-      const dayName = (offset === 0 && i === 0) ? 'Today' : (offset === 0 && i === 1) ? 'Yest' : dayNames[d.getDay()];
+      const dayName = (offset === 0 && i === 0) ? 'Today' : (offset === 0 && i === 1) ? 'Yesterday' : dayNames[d.getDay()];
       const label = `${d.getDate()} ${monthNames[d.getMonth()]}`;
-      list.push({ dateStr, label, dayName });
+      const dateNum = String(d.getDate());
+      list.push({ dateStr, label, dayName, dateNum });
     }
     return list;
   };
@@ -659,6 +660,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                               const isGood = (entry?.percentage ?? 0) >= 50;
                               return (
                                 <View key={day.dateStr} style={styles.dayMiniCol}>
+                                  <Text style={[styles.dayMiniDateNum, { color: theme.thickColor }]}>{day.dateNum}</Text>
                                   <Text style={[styles.dayMiniLabel, { color: theme.colors.textMuted }]}>{day.dayName}</Text>
                                   <View
                                     style={[
@@ -1623,6 +1625,11 @@ const styles = StyleSheet.create({
   dayMiniCol: {
     alignItems: 'center',
     gap: 3,
+  },
+  dayMiniDateNum: {
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 1,
   },
   dayMiniLabel: {
     fontSize: 9.5,

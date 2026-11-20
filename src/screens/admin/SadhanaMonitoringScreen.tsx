@@ -79,6 +79,25 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
     );
   };
 
+  const handleDismissAllAlerts = () => {
+    Alert.alert(
+      'Remove All from Monitoring List',
+      `Are you sure you want to remove all ${alerts.length} counselees from the sadhana monitoring list in one shot?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove All',
+          style: 'destructive',
+          onPress: async () => {
+            const currentAlerts = [...alerts];
+            setAlerts([]);
+            await monitoringService.dismissAllAlerts(currentAlerts);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
@@ -108,6 +127,24 @@ export const SadhanaMonitoringScreen = ({ navigation }: any) => {
               • <Text style={styles.bold}>Needs Encouragement</Text>: Weekly score below 60%. Always use supportive, inspiring words.
             </Text>
           </View>
+
+          {/* Remove All In One Shot Action Bar */}
+          {alerts.length > 0 && (
+            <View style={[styles.bulkActionBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <View style={styles.bulkBadge}>
+                <Ionicons name="pulse" size={14} color="#DC2626" />
+                <Text style={styles.bulkBadgeText}>{alerts.length} Pending Alert(s)</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.removeAllBtn}
+                onPress={handleDismissAllAlerts}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-bin-outline" size={14} color="#DC2626" />
+                <Text style={styles.removeAllBtnText}>Remove All in One Shot</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {alerts.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -316,6 +353,42 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceVariant,
+  },
+  bulkActionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    marginBottom: THEME.spacing.md,
+  },
+  bulkBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bulkBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  removeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 5,
+  },
+  removeAllBtnText: {
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 12,
   },
   dismissAlertBtn: {
     flexDirection: 'row',

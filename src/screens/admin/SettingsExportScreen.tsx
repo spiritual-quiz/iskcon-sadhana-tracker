@@ -21,6 +21,7 @@ import { db } from '../../config/firebase';
 import { authService } from '../../services/authService';
 import { localStorageService } from '../../services/localStorageService';
 import { updateService } from '../../services/updateService';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
 
 export const SettingsExportScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
@@ -70,36 +71,16 @@ export const SettingsExportScreen = ({ navigation }: any) => {
     setIsCheckingUpdates(true);
     try {
       const res = await updateService.checkForUpdate();
-      if (res.isAvailable) {
-        Alert.alert(
-          'New Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.\n\nWould you like to install and restart now?`,
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Install & Restart',
-              onPress: async () => {
-                setIsCheckingUpdates(true);
-                try {
-                  await updateService.fetchAndApplyUpdate(res.versionInfo);
-                  await updateService.reloadApp();
-                } catch (err: any) {
-                  Alert.alert('Update Error', err?.message || 'Failed to download update.');
-                } finally {
-                  setIsCheckingUpdates(false);
-                }
-              },
-            },
-          ]
-        );
+      if (res.isAvailable && res.versionInfo) {
+        updateService.promptUserForUpdate(res.versionInfo);
       } else {
-        Alert.alert(
+        showCrossPlatformAlert(
           'Software Up to Date',
           `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
         );
       }
     } catch {
-      Alert.alert('Update Check', 'Unable to reach update service. Please check your internet connection.');
+      showCrossPlatformAlert('Update Check', 'Unable to reach update service. Please check your internet connection.');
     } finally {
       setIsCheckingUpdates(false);
     }

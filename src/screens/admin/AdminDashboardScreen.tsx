@@ -30,6 +30,7 @@ import { notificationService } from '../../services/notificationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { updateService } from '../../services/updateService';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
@@ -99,9 +100,10 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    // 1. Initial metrics load
+    // 1. Initial metrics load & automatic update check
     loadDashboardMetrics();
     checkMonitoringDismissed();
+    updateService.checkAndPromptAutoUpdate();
 
     // 2. Real-time listener for newly registered pending counselees from Firestore
     try {
@@ -267,36 +269,16 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
     setIsCheckingUpdates(true);
     try {
       const res = await updateService.checkForUpdate();
-      if (res.isAvailable) {
-        Alert.alert(
-          'New Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available with devotional honours and improvements.\n\nWould you like to install it now?`,
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Install & Restart',
-              onPress: async () => {
-                setIsCheckingUpdates(true);
-                try {
-                  await updateService.fetchAndApplyUpdate(res.versionInfo);
-                  await updateService.reloadApp();
-                } catch (err: any) {
-                  Alert.alert('Update Error', err?.message || 'Failed to download update package.');
-                } finally {
-                  setIsCheckingUpdates(false);
-                }
-              },
-            },
-          ]
-        );
+      if (res.isAvailable && res.versionInfo) {
+        updateService.promptUserForUpdate(res.versionInfo);
       } else {
-        Alert.alert(
+        showCrossPlatformAlert(
           'Software Up to Date',
           `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
         );
       }
     } catch (e: any) {
-      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+      showCrossPlatformAlert('Update Check', e.message || 'Could not verify update status.');
     } finally {
       setIsCheckingUpdates(false);
     }
@@ -345,6 +327,15 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       icon: 'stats-chart-outline',
       badge: todaySubmissionsCount > 0 ? `${todaySubmissionsCount} Today` : null,
       badgeColor: theme.thickColor,
+      color: theme.thickColor,
+    },
+    {
+      id: 'ChantingRounds',
+      title: 'Chanting Rounds',
+      subtitle: `${chantersList.length > 0 ? chantersList.length : approvedCount} devotees • Highest first`,
+      icon: 'radio-button-on-outline',
+      badge: 'Rounds',
+      badgeColor: '#D97706',
       color: theme.thickColor,
     },
     {
@@ -546,26 +537,32 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                 <View style={[styles.chantersIconCircle, { backgroundColor: theme.liteColor }]}>
                   <Ionicons name="radio-button-on" size={18} color={theme.thickColor} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => navigation.navigate('ChantingRounds')}
+                  activeOpacity={0.7}
+                >
                   <Text style={[styles.chantersCardTitle, { color: theme.thickColor }]}>
                     Counselees' Chanting Rounds 📿
                   </Text>
                   <Text style={[styles.chantersCardSub, { color: theme.colors.textMuted }]}>
                     Daily target • Highest chanting first ({chantersList.length} Devotees)
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.chantersListContainer}>
-                {(showAllChanters ? chantersList : chantersList.slice(0, 5)).map((item, index) => {
+                {chantersList.slice(0, 5).map((item, index) => {
                   return (
-                    <View
+                    <TouchableOpacity
                       key={item.uid}
                       style={[
                         styles.chanterItemRow,
                         { borderColor: theme.colors.borderLight },
                         index === 0 && { backgroundColor: theme.liteColor + '30' },
                       ]}
+                      onPress={() => navigation.navigate('ChantingRounds')}
+                      activeOpacity={0.7}
                     >
                       <View style={styles.chanterRankCol}>
                         <Text style={[styles.chanterRankText, { color: theme.thickColor }]}>
@@ -583,27 +580,25 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                           {item.rounds} {item.rounds === 1 ? 'round' : 'rounds'}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
 
-              {chantersList.length > 5 && (
-                <TouchableOpacity
-                  style={[styles.toggleChantersBtn, { borderColor: theme.thickColor }]}
-                  onPress={() => setShowAllChanters(!showAllChanters)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.toggleChantersBtnText, { color: theme.thickColor }]}>
-                    {showAllChanters ? 'Show Less' : `View All ${chantersList.length} Counselees`}
-                  </Text>
-                  <Ionicons
-                    name={showAllChanters ? 'chevron-up' : 'chevron-down'}
-                    size={14}
-                    color={theme.thickColor}
-                  />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[styles.toggleChantersBtn, { borderColor: theme.thickColor }]}
+                onPress={() => navigation.navigate('ChantingRounds')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.toggleChantersBtnText, { color: theme.thickColor }]}>
+                  {`View All ${chantersList.length} Counselees' Chanting Targets`}
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={14}
+                  color={theme.thickColor}
+                />
+              </TouchableOpacity>
             </View>
           )}
 

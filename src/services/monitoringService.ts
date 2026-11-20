@@ -303,4 +303,34 @@ export const monitoringService = {
       // Safe fallback
     }
   },
+
+  /**
+   * Option to dismiss/remove ALL alerts from the sadhana monitoring list in one shot
+   */
+  dismissAllAlerts: async (alerts: MonitoringAlert[]): Promise<void> => {
+    try {
+      const todayStr = getTodayDateStringIST();
+      const raw = await AsyncStorage.getItem('bhakti_dismissed_alerts_uids');
+      const list: string[] = raw ? JSON.parse(raw) : [];
+
+      await Promise.all(
+        alerts.map(async (a) => {
+          try {
+            await deleteDoc(doc(db, 'monitoring_alerts', a.id));
+          } catch {}
+          if (a.userId && !list.includes(`${a.userId}_${todayStr}`)) {
+            list.push(`${a.userId}_${todayStr}`);
+          }
+          if (!list.includes(a.id)) {
+            list.push(a.id);
+          }
+        })
+      );
+
+      await AsyncStorage.setItem('bhakti_dismissed_alerts_uids', JSON.stringify(list));
+      await fastCache.invalidate(`open_alerts_${todayStr}`);
+    } catch (e) {
+      // Safe fallback
+    }
+  },
 };

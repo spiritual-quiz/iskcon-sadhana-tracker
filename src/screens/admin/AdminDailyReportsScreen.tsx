@@ -62,7 +62,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       const dateStr = `${y}-${m}-${day}`;
-      const dayName = (offset === 0 && i === 0) ? 'Today' : (offset === 0 && i === 1) ? 'Yest' : dayNames[d.getDay()];
+      const dayName = (offset === 0 && i === 0) ? 'Today' : (offset === 0 && i === 1) ? 'Yesterday' : dayNames[d.getDay()];
       const label = `${d.getDate()} ${monthNames[d.getMonth()]}`;
       const dateNum = String(d.getDate());
       list.push({ dateStr, label, dayName, dateNum });
@@ -616,7 +616,7 @@ export const AdminDailyReportsScreen = ({ navigation }: any) => {
                             return (
                               <View key={d.dateStr} style={styles.dotCol}>
                                 <Text style={styles.dotDateNum}>{d.dateNum}</Text>
-                                <Text style={styles.dotDayLabel}>{d.dayName.substring(0, 3)}</Text>
+                                <Text style={styles.dotDayLabel}>{d.dayName}</Text>
                                 <View
                                   style={[
                                     styles.dotCircle,
