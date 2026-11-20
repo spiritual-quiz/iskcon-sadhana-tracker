@@ -3,6 +3,7 @@ import { SadhanaEntry, WeeklyAttendance, MonthlySatsangaAttendance, MonthlyMeeti
 import { WeeklyReport, MonthlyReport, SharedWeeklySummary, SharedMonthlySummary } from '../types/report';
 import { UserProfile, UserStatus } from '../types/auth';
 import { InvitationCode } from '../types/monitoring';
+import { isCounsellorIdentifier } from '../utils/counsellorUtils';
 
 export interface LocalStoredUser extends UserProfile {
   password?: string;
@@ -436,7 +437,7 @@ export const localStorageService = {
 
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       if (!existingRaw) {
-        if (clean === 'madhavcarandas@gmail.com' && !deletedList.includes('counsellor_admin_uid')) {
+        if (isCounsellorIdentifier(clean) && !deletedList.includes('counsellor_admin_uid')) {
           return {
             uid: 'counsellor_admin_uid',
             email: 'madhavcarandas@gmail.com',
@@ -453,7 +454,7 @@ export const localStorageService = {
         return null;
       }
       const users: Record<string, LocalStoredUser> = JSON.parse(existingRaw);
-      if (clean === 'madhavcarandas@gmail.com' && !deletedList.includes('counsellor_admin_uid')) {
+      if (isCounsellorIdentifier(clean) && !deletedList.includes('counsellor_admin_uid')) {
         const admin = users['counsellor_admin_uid'] || {
           uid: 'counsellor_admin_uid',
           email: 'madhavcarandas@gmail.com',
@@ -678,7 +679,7 @@ export const localStorageService = {
       );
 
       // If counsellor admin is not yet explicitly written into local users
-      if (!targetUid && clean === 'madhavcarandas@gmail.com') {
+      if (!targetUid && isCounsellorIdentifier(clean)) {
         targetUid = 'counsellor_admin_uid';
         users[targetUid] = {
           uid: 'counsellor_admin_uid',

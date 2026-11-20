@@ -188,6 +188,24 @@ describe('Service Logic and Integration Verification', () => {
       expect(counsellor.role).toBe('counsellor');
     });
 
+    test('authenticates counsellor using email aliases and case-insensitive passwords', async () => {
+      // Alias: madhavcharandas@gmail.com (spelled with 'h')
+      const c1 = await authService.signIn('madhavcharandas@gmail.com', 'sadhana@108');
+      expect(c1.role).toBe('counsellor');
+
+      // Alias: counsellor
+      const c2 = await authService.signIn('counsellor', 'Sadhana108');
+      expect(c2.role).toBe('counsellor');
+
+      // Alias: admin
+      const c3 = await authService.signIn('admin', 'Sadhana@108');
+      expect(c3.role).toBe('counsellor');
+
+      // Alias: phone number
+      const c4 = await authService.signIn('+919876543210', 'sadhana');
+      expect(c4.role).toBe('counsellor');
+    });
+
     test('rejects counsellor Madhav Charan Das when given wrong password', async () => {
       await expect(
         authService.signIn('madhavcarandas@gmail.com', 'WrongPassword123')

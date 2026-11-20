@@ -24,6 +24,7 @@ import { validateInvitationCode, redeemInvitationCode } from './invitationServic
 import { localStorageService, LocalStoredUser } from './localStorageService';
 import { fastCache } from './fastCacheService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isCounsellorIdentifier, isCounsellorPassword } from '../utils/counsellorUtils';
 
 export interface RegisterParams {
   email: string;
@@ -92,13 +93,23 @@ export const authService = {
   signIn: async (email: string, password: string): Promise<UserProfile> => {
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Check Counsellor master credentials FIRST (handles counsellor in all environments)
-    if (cleanEmail === 'madhavcarandas@gmail.com') {
-      const localAdmin = await localStorageService.getUserByEmail(cleanEmail);
-      const validCounsellorPassword = localAdmin?.password || 'Sadhana@108';
+    // 1. Check Counsellor master credentials FIRST (handles counsellor in all environments & browser)
+    if (isCounsellorIdentifier(cleanEmail)) {
+      const localAdmin = await localStorageService.getUserByEmail('madhavcarandas@gmail.com');
+      let validCounsellorPassword = localAdmin?.password || 'Sadhana@108';
 
-      // Accept their stored updated password OR the master default 'Sadhana@108'
-      if (password === validCounsellorPassword || password === 'Sadhana@108') {
+      // If entered password does not match local password or default, check remote Firestore settings
+      if (!isCounsellorPassword(password, validCounsellorPassword)) {
+        try {
+          const docSnap = await getDoc(doc(db, 'app_settings', 'counsellor_auth'));
+          if (docSnap.exists() && docSnap.data()?.password) {
+            validCounsellorPassword = docSnap.data().password;
+          }
+        } catch {}
+      }
+
+      // Accept their stored updated password OR the master default 'Sadhana@108' (and normalized variants)
+      if (isCounsellorPassword(password, validCounsellorPassword)) {
         const adminProfile: UserProfile = {
           uid: 'counsellor_admin_uid',
           email: 'madhavcarandas@gmail.com',
@@ -113,6 +124,8 @@ export const authService = {
         };
         await localStorageService.saveUser(adminProfile, password);
         await AsyncStorage.setItem('bhakti_active_session_uid', adminProfile.uid);
+        // Persist counsellor profile to Firestore in background
+        setDoc(doc(db, 'users', adminProfile.uid), adminProfile, { merge: true }).catch(() => {});
         return adminProfile;
       } else {
         throw new Error('Incorrect password. Please verify your credentials or tap "Forgot Password?".');
@@ -189,10 +202,10 @@ export const authService = {
    */
   verifyCredentials: async (email: string, password: string): Promise<boolean> => {
     const cleanEmail = email.trim().toLowerCase();
-    if (cleanEmail === 'madhavcarandas@gmail.com') {
-      const localAdmin = await localStorageService.getUserByEmail(cleanEmail);
+    if (isCounsellorIdentifier(cleanEmail)) {
+      const localAdmin = await localStorageService.getUserByEmail('madhavcarandas@gmail.com');
       const validCounsellorPassword = localAdmin?.password || 'Sadhana@108';
-      return password === validCounsellorPassword || password === 'Sadhana@108';
+      return isCounsellorPassword(password, validCounsellorPassword);
     }
 
     try {
@@ -822,6 +835,16 @@ export const authService = {
     email: string
   ): Promise<{ success: boolean; message: string; isDemoMode?: boolean }> => {
     const cleanEmail = email.trim().toLowerCase();
+
+    // Counsellor master account reset: directly reset to default Sadhana@108
+    if (isCounsellorIdentifier(cleanEmail)) {
+      await authService.resetPasswordDirectly('madhavcarandas@gmail.com', 'Sadhana@108');
+      return {
+        success: true,
+        message: 'Counsellor password has been reset to default "Sadhana@108". You can now sign in with email: madhavcarandas@gmail.com and password: Sadhana@108',
+      };
+    }
+
     if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
       throw new Error('Please enter a valid email address.');
     }
@@ -830,20 +853,11 @@ export const authService = {
     const localUser = await localStorageService.getUserByEmail(cleanEmail);
     const isKnown =
       localUser ||
-      cleanEmail === 'madhavcarandas@gmail.com' ||
+      isCounsellorIdentifier(cleanEmail) ||
       cleanEmail === 'devotee@iskcon.org';
 
     if (!isKnown) {
       throw new Error('No registered account was found with this email address. Please check your spelling or register first.');
-    }
-
-    // Counsellor master account reset: directly reset to default Sadhana@108
-    if (cleanEmail === 'madhavcarandas@gmail.com') {
-      await authService.resetPasswordDirectly(cleanEmail, 'Sadhana@108');
-      return {
-        success: true,
-        message: 'Counsellor password has been reset to default "Sadhana@108". You can now sign in with email: madhavcarandas@gmail.com and password: Sadhana@108',
-      };
     }
 
     try {
@@ -870,8 +884,15 @@ export const authService = {
     email: string,
     newPassword: string
   ): Promise<{ success: boolean; message: string }> => {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
+    let cleanEmail = email.trim().toLowerCase();
+    if (isCounsellorIdentifier(cleanEmail)) {
+      cleanEmail = 'madhavcarandas@gmail.com';
+      // Sync counsellor password to Firestore so web instances have it
+      setDoc(doc(db, 'app_settings', 'counsellor_auth'), {
+        password: newPassword,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true }).catch(() => {});
+    } else if (!cleanEmail || !cleanEmail.includes('@')) {
       throw new Error('Please enter a valid email address.');
     }
     if (!newPassword || newPassword.length < 6) {

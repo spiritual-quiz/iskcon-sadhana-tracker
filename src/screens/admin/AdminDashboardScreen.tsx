@@ -147,8 +147,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
             setPendingCount(0);
           }
         },
-        () => {
+        (error) => {
           // offline listener fallback
+          console.warn('Real-time pending devotees listener warning:', error?.message);
         }
       );
 

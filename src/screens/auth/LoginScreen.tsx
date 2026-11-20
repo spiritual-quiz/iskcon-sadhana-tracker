@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../../services/authService';
 import { biometricService, BiometricAccount } from '../../services/biometricService';
 import { UserProfile } from '../../types/auth';
+import { isCounsellorIdentifier } from '../../utils/counsellorUtils';
 
 export const LoginScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -287,20 +288,20 @@ export const LoginScreen = ({ navigation }: any) => {
     // 2. Otherwise, perform standard reset or restore default counsellor credentials (Sadhana@108)
     Alert.alert(
       'Confirm Password Reset',
-      targetEmail === 'madhavcarandas@gmail.com'
+      isCounsellorIdentifier(targetEmail)
         ? 'Reset counsellor password to default "Sadhana@108"?'
         : `Send password reset link to ${targetEmail}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: targetEmail === 'madhavcarandas@gmail.com' ? 'Reset to Sadhana@108' : 'Send Reset Link',
+          text: isCounsellorIdentifier(targetEmail) ? 'Reset to Sadhana@108' : 'Send Reset Link',
           onPress: async () => {
             setIsSendingReset(true);
             try {
               const res = await authService.sendPasswordReset(targetEmail);
               setShowForgotModal(false);
               setEmail(targetEmail);
-              if (targetEmail === 'madhavcarandas@gmail.com' || res.isDemoMode) {
+              if (isCounsellorIdentifier(targetEmail) || res.isDemoMode) {
                 setPassword('Sadhana@108');
               }
               setResetNewPassword('');

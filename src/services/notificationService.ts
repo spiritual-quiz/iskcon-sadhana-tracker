@@ -64,7 +64,7 @@ const markAlertAsNotified = async (key: string): Promise<void> => {
 };
 
 // Set foreground notification presentation handler with sound enabled
-if (Notifications?.setNotificationHandler) {
+if (Platform?.OS !== 'web' && Notifications?.setNotificationHandler) {
   Notifications.setNotificationHandler({
     handleNotification: async (notification: any) => {
       return {
@@ -81,7 +81,7 @@ export const notificationService = {
    * Initialize notification channels and permissions with WhatsApp/PhonePe heads-up banner & tone
    */
   setupNotifications: async (): Promise<boolean> => {
-    if (!Notifications) return false;
+    if (Platform?.OS === 'web' || !Notifications) return false;
 
     try {
       // 1. Request notification permissions (required for Android 13+ and iOS)
@@ -301,7 +301,7 @@ export const notificationService = {
    * Optimized for zero battery drain (native Android AlarmManager triggers).
    */
   scheduleDailyReminders: async (user: UserProfile | null): Promise<void> => {
-    if (!user || !user.uid || !Notifications) return;
+    if (Platform?.OS === 'web' || !user || !user.uid || !Notifications) return;
     if (user.sadhanaRemindersEnabled === false) return;
 
     try {
@@ -439,7 +439,7 @@ export const notificationService = {
    * 5. Devotee birthday today
    */
   checkAndDispatchAdminAlerts: async (adminUser: UserProfile | null): Promise<void> => {
-    if (!adminUser || adminUser.role !== 'counsellor' || !Notifications) return;
+    if (Platform?.OS === 'web' || !adminUser || adminUser.role !== 'counsellor' || !Notifications) return;
     if (!Notifications.scheduleNotificationAsync) return;
 
     try {
