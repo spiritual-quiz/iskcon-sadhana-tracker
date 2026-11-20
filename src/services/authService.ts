@@ -146,7 +146,7 @@ export const authService = {
         // Firebase Auth also rejected
       }
 
-      throw new Error('Incorrect password. Default counsellor password is "Sadhana@108". Please enter Sadhana@108 or tap "Forgot Password?" to reset.');
+      throw new Error('Incorrect password. Please verify your credentials or tap "Forgot Password?".');
     }
 
     try {
@@ -853,12 +853,12 @@ export const authService = {
   ): Promise<{ success: boolean; message: string; isDemoMode?: boolean }> => {
     const cleanEmail = email.trim().toLowerCase();
 
-    // Counsellor master account reset: directly reset to default Sadhana@108
+    // Counsellor master account reset: directly reset to default
     if (isCounsellorIdentifier(cleanEmail)) {
       await authService.resetPasswordDirectly('madhavcarandas@gmail.com', 'Sadhana@108');
       return {
         success: true,
-        message: 'Counsellor password has been reset to default "Sadhana@108". You can now sign in with email: madhavcarandas@gmail.com and password: Sadhana@108',
+        message: 'Counsellor password has been reset to default for madhavcarandas@gmail.com. You can now sign in with your credentials.',
       };
     }
 
@@ -889,7 +889,7 @@ export const authService = {
       return {
         success: true,
         isDemoMode: true,
-        message: `Password has been reset to default "Sadhana@108" for ${cleanEmail}. You can now sign in with your credentials.`,
+        message: `Password has been reset to default for ${cleanEmail}. You can now sign in with your credentials.`,
       };
     }
   },

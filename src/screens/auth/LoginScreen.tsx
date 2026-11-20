@@ -291,16 +291,16 @@ export const LoginScreen = ({ navigation }: any) => {
       return;
     }
 
-    // 2. Otherwise, perform standard reset or restore default counsellor credentials (Sadhana@108)
+    // 2. Otherwise, perform standard reset or restore default counsellor credentials
     showCrossPlatformAlert(
       'Confirm Password Reset',
       isCounsellorIdentifier(targetEmail)
-        ? 'Reset counsellor password to default "Sadhana@108"?'
+        ? 'Reset counsellor password to default?'
         : `Send password reset link to ${targetEmail}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: isCounsellorIdentifier(targetEmail) ? 'Reset to Sadhana@108' : 'Send Reset Link',
+          text: isCounsellorIdentifier(targetEmail) ? 'Reset to Default' : 'Send Reset Link',
           onPress: async () => {
             setIsSendingReset(true);
             try {
@@ -488,19 +488,6 @@ export const LoginScreen = ({ navigation }: any) => {
                 <Text style={styles.errorBoxText}>{errorMessage}</Text>
               </View>
             ) : null}
-
-            {/* Counsellor Account Recognition Banner */}
-            {isCounsellorIdentifier(email) && (
-              <View style={styles.counsellorBadge}>
-                <Ionicons name="shield-checkmark" size={18} color="#D97706" style={{ marginRight: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.counsellorBadgeTitle}>Counsellor Account Recognized</Text>
-                  <Text style={styles.counsellorBadgeSubtitle}>
-                    Master default password: <Text style={{ fontWeight: 'bold' }}>Sadhana@108</Text>
-                  </Text>
-                </View>
-              </View>
-            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
@@ -775,7 +762,7 @@ export const LoginScreen = ({ navigation }: any) => {
                     />
                     <TextInput
                       style={styles.modalTextInput}
-                      placeholder="Leave blank for default Sadhana@108"
+                      placeholder="Enter new password (optional)"
                       value={resetNewPassword}
                       onChangeText={setResetNewPassword}
                       secureTextEntry={!showResetNewPassword}
