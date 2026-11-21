@@ -106,14 +106,15 @@ export const followUpService = {
     if (userId) {
       q = query(
         collection(db, 'follow_ups'),
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
       );
     } else {
       q = query(collection(db, 'follow_ups'), orderBy('createdAt', 'desc'));
     }
     const snap = await getDocs(q);
-    const records = snap.docs.map((d) => d.data() as FollowUpRecord);
+    const records = snap.docs
+      .map((d) => d.data() as FollowUpRecord)
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
     const deletedIds = await localStorageService.getDeletedUserIds();
     const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));

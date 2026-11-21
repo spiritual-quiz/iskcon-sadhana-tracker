@@ -351,7 +351,7 @@ export const reportService = {
       const q = query(collection(db, 'shared_weekly_summaries'), where('weekId', '==', weekId));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         const results = snap.docs

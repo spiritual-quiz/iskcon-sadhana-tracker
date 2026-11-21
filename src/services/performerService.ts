@@ -253,7 +253,7 @@ export const performerService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         entries = snap.docs.map((d) => d.data() as SadhanaEntry);
@@ -857,7 +857,7 @@ export const performerService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         entries = snap.docs.map((d) => d.data() as SadhanaEntry);

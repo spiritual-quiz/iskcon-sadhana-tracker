@@ -142,7 +142,9 @@ export const monitoringService = {
     const todayStr = getTodayDateStringIST();
     const cacheKey = `open_alerts_${todayStr}`;
 
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await fastCache.invalidate(cacheKey);
+    } else {
       const cached = await fastCache.get<MonitoringAlert[]>(cacheKey);
       if (cached && cached.length > 0) return cached;
     }
@@ -153,12 +155,11 @@ export const monitoringService = {
     try {
       const q = query(
         collection(db, 'monitoring_alerts'),
-        where('status', '==', 'open'),
-        orderBy('createdAt', 'desc')
+        where('status', '==', 'open')
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (snap && !snap.empty) {
         snap.docs.forEach((d) => {
@@ -172,7 +173,7 @@ export const monitoringService = {
 
     // 2. Perform live dynamic audit for 3+ continuous missing days across all approved counselees
     try {
-      const allUsers = await authService.getAllUsers();
+      const allUsers = await authService.getAllUsers(forceRefresh);
       const approved = allUsers.filter((u) => u.role === 'counselee' && u.status === 'approved');
 
       // Date 3 days ago in IST
@@ -190,7 +191,7 @@ export const monitoringService = {
       try {
         recentSnap = await Promise.race([
           getDocs(recentEntriesQuery),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
         ]);
       } catch (e) {
         // Fallback to local entries if offline

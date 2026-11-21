@@ -85,7 +85,7 @@ export const attendanceService = {
           getDoc(doc(db, 'weekly_attendance', morningId)),
           getDoc(doc(db, 'weekly_attendance', serviceId)),
         ]),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
 
       if (classSnap.exists() || morningSnap.exists() || serviceSnap.exists()) {
@@ -167,7 +167,7 @@ export const attendanceService = {
     try {
       const snap = await Promise.race([
         getDoc(doc(db, 'monthly_satsanga', id)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (snap.exists()) {
         const data = snap.data() as MonthlySatsangaAttendance;
@@ -242,7 +242,7 @@ export const attendanceService = {
     try {
       const snap = await Promise.race([
         getDoc(doc(db, 'monthly_meeting', id)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (snap.exists()) {
         const data = snap.data() as MonthlyMeetingAttendance;

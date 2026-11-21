@@ -73,15 +73,20 @@ export const appreciationService = {
    * Get all published appreciation cards (for community feed)
    */
   getPublishedAppreciations: async (): Promise<AppreciationCard[]> => {
-    const q = query(
-      collection(db, 'appreciations'),
-      where('isPublished', '==', true),
-      orderBy('createdAt', 'desc')
-    );
-    const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => d.data() as AppreciationCard)
-      .filter((c) => c.counseleeConsent !== false);
+    try {
+      const q = query(
+        collection(db, 'appreciations'),
+        where('isPublished', '==', true)
+      );
+      const snap = await getDocs(q);
+      return snap.docs
+        .map((d) => d.data() as AppreciationCard)
+        .filter((c) => c.counseleeConsent !== false)
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } catch (e) {
+      console.warn('Error fetching published appreciations:', e);
+      return [];
+    }
   },
 
   /**

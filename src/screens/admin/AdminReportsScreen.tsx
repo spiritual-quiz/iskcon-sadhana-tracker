@@ -194,7 +194,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
       const startDate = `${selectedYear}-${monthStr}-01`;
       const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
-      const entries = await sadhanaService.getEntriesForDateRange(userId, startDate, endDate);
+      const entries = await sadhanaService.getEntriesForDateRange(userId, startDate, endDate, force);
       setDownloadDevoteeEntries(entries);
     } catch (e) {
       console.warn('Error loading devotee download entries:', e);

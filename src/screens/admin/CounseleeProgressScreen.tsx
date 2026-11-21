@@ -121,7 +121,7 @@ export const CounseleeProgressScreen = ({ navigation }: any) => {
       const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
 
       // We load all entries for the whole month for this user
-      const entries = await sadhanaService.getEntriesForDateRange(userId, startDate, endDate);
+      const entries = await sadhanaService.getEntriesForDateRange(userId, startDate, endDate, force);
       setDevoteeEntries(entries);
     } catch (e) {
       console.warn('Error loading devotee entries:', e);

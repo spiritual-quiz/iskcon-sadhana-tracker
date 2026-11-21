@@ -216,7 +216,7 @@ export async function getAllInvitations(): Promise<InvitationCode[]> {
     const q = query(collection(db, 'invitations'), orderBy('createdAt', 'desc'));
     const snap = await Promise.race([
       getDocs(q),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
     ]);
     snap.docs.forEach((d) => {
       const inv = d.data() as InvitationCode;

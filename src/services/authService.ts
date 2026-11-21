@@ -683,7 +683,7 @@ export const authService = {
     const deletedIds = await localStorageService.getDeletedUserIds();
     const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
 
-    // 1. Query Firestore (source of truth) with 2500ms timeout
+    // 1. Query Firestore (source of truth) with 8000ms timeout
     try {
       const q = query(
         collection(db, 'users'),
@@ -691,7 +691,7 @@ export const authService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
 
       const list: UserProfile[] = [];
@@ -734,7 +734,9 @@ export const authService = {
    */
   getAllCounselees: async (forceRefresh = false): Promise<UserProfile[]> => {
     // 0. Memory cache check
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await fastCache.invalidate('all_counselees');
+    } else {
       const cached = await fastCache.get<UserProfile[]>('all_counselees');
       if (cached && cached.length > 0) {
         return cached;
@@ -745,11 +747,11 @@ export const authService = {
     const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
     const map = new Map<string, UserProfile>();
 
-    // 1. Load from Firestore first (source of truth) with 2000ms timeout
+    // 1. Load from Firestore first (source of truth) with 8000ms safe timeout
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         for (const d of snap.docs) {
@@ -794,7 +796,9 @@ export const authService = {
    */
   getAllUsers: async (forceRefresh = false): Promise<UserProfile[]> => {
     // 0. Memory cache check
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await fastCache.invalidate('all_users');
+    } else {
       const cached = await fastCache.get<UserProfile[]>('all_users');
       if (cached && cached.length > 0) {
         return cached;
@@ -808,7 +812,7 @@ export const authService = {
     try {
       const snap = await Promise.race([
         getDocs(collection(db, 'users')),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         for (const d of snap.docs) {

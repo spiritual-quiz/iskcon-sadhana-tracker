@@ -21,6 +21,9 @@ import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestor
 import { db } from '../../config/firebase';
 import { getTodayDateStringIST } from '../../utils/dateUtils';
 import { UserProfile } from '../../types/auth';
+import { SadhanaEntry } from '../../types/sadhana';
+import { MonitoringAlert } from '../../types/monitoring';
+import { SharedWeeklySummary, SharedMonthlySummary } from '../../types/report';
 import { monitoringService } from '../../services/monitoringService';
 import { birthdayService } from '../../services/birthdayService';
 import { authService } from '../../services/authService';
@@ -100,27 +103,51 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    // 1. Initial metrics load
-    loadDashboardMetrics();
+    // 1. Initial metrics load with force = true so fresh database data is loaded immediately
+    loadDashboardMetrics(true);
     checkMonitoringDismissed();
 
-    // 2. Real-time listener for newly registered pending counselees from Firestore
+    let unsubscribeUsers: (() => void) | undefined;
+    let unsubscribeToday: (() => void) | undefined;
+
+    // 2. Real-time listener for all users from Firestore (approved and pending)
     try {
-      const q = query(
+      unsubscribeUsers = onSnapshot(
         collection(db, 'users'),
-        where('status', '==', 'pending')
-      );
-      const unsubscribe = onSnapshot(
-        q,
         (snap) => {
           if (!snap.empty) {
-            const pendingDevotees = snap.docs
-              .map((d) => d.data() as UserProfile)
-              .filter((u) => u.role !== 'counsellor' && u.status === 'pending');
-            setPendingCount(pendingDevotees.length);
+            const all = snap.docs.map((d) => d.data() as UserProfile);
+            const approved = all.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
+            const pending = all.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
+            const reminderReqs = all.filter(
+              (u) => u.role !== 'counsellor' && u.status === 'approved' && u.reminderOptOutRequested === true
+            );
+            const targetReqs = all.filter(
+              (u) =>
+                u.role !== 'counsellor' &&
+                u.status === 'approved' &&
+                u.targetRoundsRequested &&
+                u.targetRoundsRequested > 0
+            );
+            setApprovedCount(approved.length);
+            setPendingCount(pending.length);
+            setReminderRequestsCount(reminderReqs.length);
+            setTargetRequestsCount(targetReqs.length);
+
+            const chanters = approved
+              .map((u) => ({
+                uid: u.uid,
+                name: u.displayName || 'Devotee',
+                rounds: u.declaredRounds || 16,
+              }))
+              .sort((a, b) => {
+                if (b.rounds !== a.rounds) return b.rounds - a.rounds;
+                return a.name.localeCompare(b.name);
+              });
+            setChantersList(chanters);
 
             // Find any newly arrived pending devotee who has not been popped up yet today
-            const unalerted = pendingDevotees.filter((d) => !alertedPendingUidsRef.current.has(d.uid));
+            const unalerted = pending.filter((d) => !alertedPendingUidsRef.current.has(d.uid));
             if (unalerted.length > 0) {
               unalerted.forEach((d) => alertedPendingUidsRef.current.add(d.uid));
               const checkAndShowPopup = async () => {
@@ -144,35 +171,55 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
               };
               checkAndShowPopup();
             }
-          } else {
-            setPendingCount(0);
           }
         },
         (error) => {
-          // offline listener fallback
-          console.warn('Real-time pending devotees listener warning:', error?.message);
+          console.warn('Real-time users listener warning:', error?.message);
         }
       );
+    } catch {}
 
-      const checkPostLoginBio = async () => {
-        if (user?.email) {
-          const isEnrolled = await biometricService.isUserEnrolled(user.email);
-          if (!isEnrolled) {
-            const hw = await biometricService.isHardwareAvailable();
-            if (hw) {
-              setTimeout(() => {
-                setShowAutoBioPrompt(true);
-              }, 800);
-            }
+    // 3. Real-time listener for today's sadhana submissions from Firestore
+    try {
+      const qToday = query(collection(db, 'sadhana_entries'), where('date', '==', todayStr));
+      unsubscribeToday = onSnapshot(
+        qToday,
+        (snap) => {
+          if (!snap.empty) {
+            const entries = snap.docs.map((d) => d.data() as any);
+            setTodaySubmissionsCount(entries.length);
+            const dailyLow = entries.filter((e) => (e.percentage ?? 0) < 50).length;
+            setDailyLowScoreCount(dailyLow);
+          } else {
+            setTodaySubmissionsCount(0);
+            setDailyLowScoreCount(0);
+          }
+        },
+        (error) => {
+          console.warn('Real-time today entries listener warning:', error?.message);
+        }
+      );
+    } catch {}
+
+    const checkPostLoginBio = async () => {
+      if (user?.email) {
+        const isEnrolled = await biometricService.isUserEnrolled(user.email);
+        if (!isEnrolled) {
+          const hw = await biometricService.isHardwareAvailable();
+          if (hw) {
+            setTimeout(() => {
+              setShowAutoBioPrompt(true);
+            }, 800);
           }
         }
-      };
-      checkPostLoginBio();
+      }
+    };
+    checkPostLoginBio();
 
-      return () => unsubscribe();
-    } catch {
-      // offline fallback
-    }
+    return () => {
+      if (unsubscribeUsers) unsubscribeUsers();
+      if (unsubscribeToday) unsubscribeToday();
+    };
   }, []);
 
   const loadDashboardMetrics = async (force = false) => {
@@ -188,13 +235,19 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       const monthId = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
       // Parallelized instant fetch across metrics with forceRefresh support
-      const [allUsers, todayEntries, alerts, sharedWeekly, sharedMonthly] = await Promise.all([
+      const results = await Promise.all([
         authService.getAllUsers(force),
         sadhanaService.getAllEntriesForDate(todayStr, force),
         monitoringService.getOpenAlerts(force),
-        localStorageService.getSharedWeeklySummaries(todayStr).catch(() => []),
-        localStorageService.getSharedMonthlySummaries(monthId).catch(() => []),
+        reportService.getCommunityWeeklySummaries(todayStr).catch(() => []),
+        reportService.getCommunityMonthlySummaries(monthId).catch(() => []),
       ]);
+
+      const allUsers: UserProfile[] = results[0] || [];
+      const todayEntries: SadhanaEntry[] = results[1] || [];
+      const alerts: MonitoringAlert[] = results[2] || [];
+      const sharedWeekly: SharedWeeklySummary[] = results[3] || [];
+      const sharedMonthly: SharedMonthlySummary[] = results[4] || [];
 
       const approved = allUsers.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
       const approvedUids = new Set(approved.map((u) => u.uid));

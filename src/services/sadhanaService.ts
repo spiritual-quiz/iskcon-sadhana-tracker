@@ -181,20 +181,25 @@ export const sadhanaService = {
   getEntriesForDateRange: async (
     userId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
+    forceRefresh = false
   ): Promise<SadhanaEntry[]> => {
     const cacheKey = `user_range_${userId}_${startDate}_${endDate}`;
-    const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
-    if (cached && cached.length > 0) return cached;
+    if (forceRefresh) {
+      await fastCache.invalidate(cacheKey);
+    } else {
+      const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
+      if (cached && cached.length > 0) return cached;
+    }
 
-    // 1. Check local persistent storage first (instant 0ms)
+    // 1. Check local persistent storage
     const localEntries = await localStorageService.getEntriesForDateRange(userId, startDate, endDate);
-    if (localEntries && localEntries.length > 0) {
+    if (!forceRefresh && localEntries && localEntries.length > 0) {
       await fastCache.set(cacheKey, localEntries, 120);
       return localEntries;
     }
 
-    // 2. Query Firestore with fast 1500ms timeout
+    // 2. Query Firestore with safe 8000ms timeout
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
@@ -202,7 +207,7 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         const results = snap.docs
@@ -220,7 +225,7 @@ export const sadhanaService = {
       // Query failed or timeout
     }
 
-    return [];
+    return localEntries || [];
   },
 
   /**
@@ -228,7 +233,9 @@ export const sadhanaService = {
    */
   getAllEntriesForDate: async (dateStr: string, forceRefresh = false): Promise<SadhanaEntry[]> => {
     const cacheKey = `daily_entries_${dateStr}`;
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await fastCache.invalidate(cacheKey);
+    } else {
       const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
       if (cached && cached.length > 0) return cached;
     }
@@ -243,12 +250,12 @@ export const sadhanaService = {
       });
     } catch {}
 
-    // 2. Query Cloud Firestore with fast 2.0s timeout
+    // 2. Query Cloud Firestore with safe 8000ms timeout
     try {
       const q = query(collection(db, 'sadhana_entries'), where('date', '==', dateStr));
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         snap.docs.forEach((d) => {
@@ -306,7 +313,9 @@ export const sadhanaService = {
    */
   getAllEntriesForDateRange: async (startDate: string, endDate: string, forceRefresh = false): Promise<SadhanaEntry[]> => {
     const cacheKey = `range_entries_${startDate}_${endDate}`;
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      await fastCache.invalidate(cacheKey);
+    } else {
       const cached = await fastCache.get<SadhanaEntry[]>(cacheKey);
       if (cached && cached.length > 0) return cached;
     }
@@ -324,7 +333,7 @@ export const sadhanaService = {
       });
     } catch {}
 
-    // 2. Query Cloud Firestore with fast 2.0s timeout
+    // 2. Query Cloud Firestore with safe 8000ms timeout
     try {
       const q = query(
         collection(db, 'sadhana_entries'),
@@ -333,7 +342,7 @@ export const sadhanaService = {
       );
       const snap = await Promise.race([
         getDocs(q),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (!snap.empty) {
         snap.docs.forEach((d) => {

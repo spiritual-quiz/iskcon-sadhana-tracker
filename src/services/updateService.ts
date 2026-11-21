@@ -124,7 +124,7 @@ export const updateService = {
       const docRef = doc(db, 'app_settings', 'version_control');
       const snap = await Promise.race([
         getDoc(docRef),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
       if (snap && snap.exists()) {
         return snap.data() as AppVersionInfo;
