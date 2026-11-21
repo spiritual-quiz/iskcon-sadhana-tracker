@@ -17,6 +17,7 @@ import { SettingsExportScreen } from '../screens/admin/SettingsExportScreen';
 import { HonoursScreen } from '../screens/counselee/HonoursScreen';
 import { SadhanaDaysFilledScreen } from '../screens/counselee/SadhanaDaysFilledScreen';
 import { ChantingRoundsScreen } from '../screens/admin/ChantingRoundsScreen';
+import { CounseleeProgressScreen } from '../screens/admin/CounseleeProgressScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +25,7 @@ export const AdminStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="CounseleeProgress" component={CounseleeProgressScreen} />
       <Stack.Screen name="ChantingRounds" component={ChantingRoundsScreen} />
       <Stack.Screen name="HonoursScreen" component={HonoursScreen} />
       <Stack.Screen name="SadhanaDaysFilled" component={SadhanaDaysFilledScreen} />

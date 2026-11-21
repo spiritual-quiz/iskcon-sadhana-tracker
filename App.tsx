@@ -24,18 +24,20 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     notificationService.setupNotifications();
 
-    // PWA updates automatically in the browser cache upon reload.
-    // Update prompts and OTA checks are strictly for the Android APK.
-    if (Platform.OS === 'web') {
-      return;
-    }
-
-    // Check for updates via updateService (handles both Firestore broadcast & native OTA)
+    // Check for updates via updateService (handles both Web & Native)
+    // Throttled to at most once per 24 hours automatically on cold start to preserve battery
     const checkAppUpdates = async () => {
       if (isCheckingRef.current || isUpdatingRef.current || isUpdatePendingRef.current) return;
       isCheckingRef.current = true;
       try {
-        const result = await updateService.checkForUpdate();
+        const todayDateStr = new Date().toISOString().split('T')[0];
+        const lastAutoDate = await AsyncStorage.getItem('bhakti_last_update_check_date');
+        if (lastAutoDate === todayDateStr) {
+          return;
+        }
+        await AsyncStorage.setItem('bhakti_last_update_check_date', todayDateStr);
+
+        const result = await updateService.checkForUpdate(false);
         if (result.isAvailable && result.versionInfo?.version) {
           const v = result.versionInfo.version;
           const dismissedVer = await AsyncStorage.getItem('bhakti_dismissed_update_version');
@@ -99,6 +101,7 @@ const AppContent: React.FC = () => {
         <RootNavigator />
         <AppUpdateModal
           visible={showUpdateModal}
+          versionInfo={pendingUpdateInfo}
           onUpdate={handleApplyUpdate}
           onRestart={handleRestartApp}
           onDismiss={handleDismissModal}

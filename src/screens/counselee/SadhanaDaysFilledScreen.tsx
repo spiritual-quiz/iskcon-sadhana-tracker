@@ -16,7 +16,12 @@ import { authService } from '../../services/authService';
 import { sadhanaService } from '../../services/sadhanaService';
 import { SadhanaEntry } from '../../types/sadhana';
 import { UserProfile } from '../../types/auth';
-import { getTodayDateStringIST } from '../../utils/dateUtils';
+import {
+  getTodayDateStringIST,
+  getMonthCalendarWeeks,
+  CalendarWeek,
+  MONTH_NAMES_SHORT,
+} from '../../utils/dateUtils';
 
 interface DevoteeFillSummary {
   uid: string;
@@ -33,18 +38,62 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
+  // Month navigation state
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+
+  // Calendar Weeks for selected month
+  const [monthWeeks, setMonthWeeks] = useState<CalendarWeek[]>([]);
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState<number>(1);
+
   const [weeklySummaries, setWeeklySummaries] = useState<DevoteeFillSummary[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<DevoteeFillSummary[]>([]);
-  const [weekRangeLabel, setWeekRangeLabel] = useState<string>('');
-  const [monthLabel, setMonthLabel] = useState<string>('');
 
   const todayStr = getTodayDateStringIST();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    // Generate calendar weeks for selected year/month
+    const weeks = getMonthCalendarWeeks(selectedYear, selectedMonth, todayStr);
+    setMonthWeeks(weeks);
+
+    // Default to the current active week if it exists in this month, else Week 1
+    const currentWeek = weeks.find((w) => w.isCurrentWeek);
+    if (currentWeek) {
+      setSelectedWeekIndex(currentWeek.weekIndex);
+    } else {
+      setSelectedWeekIndex(1);
+    }
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    if (monthWeeks.length > 0) {
+      loadData();
+    }
+  }, [selectedYear, selectedMonth, selectedWeekIndex, monthWeeks.length]);
+
+  const activeWeek = monthWeeks.find((w) => w.weekIndex === selectedWeekIndex) || monthWeeks[0];
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedYear((y) => y - 1);
+      setSelectedMonth(12);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedYear((y) => y + 1);
+      setSelectedMonth(1);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+  };
 
   const loadData = async (force = false) => {
+    if (!activeWeek) return;
     setIsLoading(true);
     try {
       // 1. Fetch all approved counselees
@@ -58,36 +107,17 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
         (a.displayName || 'Devotee').localeCompare(b.displayName || 'Devotee')
       );
 
-      // 2. Compute Weekly (Recent 7 Days)
-      const baseDate = new Date();
-      const past7Dates: string[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(baseDate);
-        d.setDate(d.getDate() - i);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        past7Dates.push(`${y}-${m}-${day}`);
-      }
-      const weekStartDate = past7Dates[0];
-      const weekEndDate = past7Dates[past7Dates.length - 1];
-      setWeekRangeLabel(`${past7Dates[0]} to ${past7Dates[6]} (Past 7 Days)`);
+      // 2. Active Week Range (Monday to Sunday)
+      const weekStartDate = activeWeek.startDate;
+      const weekEndDate = activeWeek.endDate;
 
-      // 3. Compute Monthly (Current Month)
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-      const monthStr = String(currentMonth).padStart(2, '0');
-      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-      const monthStartDate = `${currentYear}-${monthStr}-01`;
-      const monthEndDate = `${currentYear}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
-      const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
-      ];
-      setMonthLabel(`${monthNames[currentMonth - 1]} ${currentYear} (${daysInMonth} Days)`);
+      // 3. Current Month Range
+      const monthStr = String(selectedMonth).padStart(2, '0');
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const monthStartDate = `${selectedYear}-${monthStr}-01`;
+      const monthEndDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
 
-      // 4. Batch query entries
+      // 4. Batch query entries for selected week & month
       const [weekEntries, monthEntries] = await Promise.all([
         sadhanaService.getAllEntriesForDateRange(weekStartDate, weekEndDate, force),
         sadhanaService.getAllEntriesForDateRange(monthStartDate, monthEndDate, force),
@@ -111,14 +141,14 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
         monthUserEntries.get(e.userId)!.add(e.date);
       });
 
-      // 5. Build weekly summaries (A to Z)
+      // 5. Build weekly summaries for this Monday-to-Sunday week
       const weekList: DevoteeFillSummary[] = sortedDevotees.map((d: UserProfile) => {
         const filledDates = weekUserEntries.get(d.uid) || new Set();
         const dayMap: { [dateStr: string]: boolean } = {};
-        past7Dates.forEach((pDate) => {
+        activeWeek.dates.forEach((pDate) => {
           dayMap[pDate] = filledDates.has(pDate);
         });
-        const filledDays = past7Dates.filter((pDate) => filledDates.has(pDate)).length;
+        const filledDays = activeWeek.dates.filter((pDate) => filledDates.has(pDate)).length;
         const percentage = Math.round((filledDays / 7) * 100);
         return {
           uid: d.uid,
@@ -161,12 +191,20 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
   };
 
   const displayedList = activeTab === 'weekly' ? weeklySummaries : monthlySummaries;
+  const monthName = MONTH_NAMES_SHORT[selectedMonth - 1];
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+
+  const dayShortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Header
         title="Sadhana Days Filled"
-        subtitle={activeTab === 'weekly' ? weekRangeLabel : monthLabel}
+        subtitle={
+          activeTab === 'weekly'
+            ? `${activeWeek ? `${activeWeek.label}: ${activeWeek.rangeLabel}` : 'Weekly Breakdown'}`
+            : `${monthName} ${selectedYear} (${daysInMonth} Days)`
+        }
         showBack
         onBackPress={() => navigation.goBack()}
       />
@@ -192,7 +230,7 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
               { color: activeTab === 'weekly' ? '#FFFFFF' : theme.colors.textMuted },
             ]}
           >
-            Weekly (Recent 7 Days)
+            Weekly (Mon - Sun)
           </Text>
         </TouchableOpacity>
 
@@ -220,13 +258,75 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
+      {/* Month Navigator Header */}
+      <View style={[styles.monthNavRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <TouchableOpacity style={styles.monthNavBtn} onPress={handlePrevMonth} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={18} color={theme.thickColor} />
+        </TouchableOpacity>
+        <View style={styles.monthLabelCenter}>
+          <Ionicons name="calendar-sharp" size={15} color={theme.thickColor} />
+          <Text style={[styles.monthLabelText, { color: theme.colors.text }]}>
+            {monthName} {selectedYear}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.monthNavBtn} onPress={handleNextMonth} activeOpacity={0.7}>
+          <Ionicons name="chevron-forward" size={18} color={theme.thickColor} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Under Weekly: Week 1, Week 2, Week 3, Week 4, Week 5 Tabs */}
+      {activeTab === 'weekly' && monthWeeks.length > 0 && (
+        <View style={styles.weekPillsWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekPillsScroll}>
+            {monthWeeks.map((w) => {
+              const isSelected = w.weekIndex === selectedWeekIndex;
+              return (
+                <TouchableOpacity
+                  key={w.weekIndex}
+                  style={[
+                    styles.weekPill,
+                    {
+                      backgroundColor: isSelected ? theme.thickColor : theme.colors.card,
+                      borderColor: isSelected ? theme.thickColor : theme.colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedWeekIndex(w.weekIndex)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.weekPillContent}>
+                    <Text
+                      style={[
+                        styles.weekPillTitle,
+                        { color: isSelected ? '#FFFFFF' : theme.colors.text },
+                      ]}
+                    >
+                      {w.label} {w.isCurrentWeek && '• Current'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.weekPillSub,
+                        { color: isSelected ? 'rgba(255,255,255,0.85)' : theme.colors.textMuted },
+                      ]}
+                    >
+                      {w.rangeLabel}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Sub-header info banner */}
       <View style={[styles.infoBanner, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
         <Ionicons name="information-circle-outline" size={18} color={theme.thickColor} />
         <Text style={[styles.infoBannerText, { color: theme.thickColor }]}>
           {activeTab === 'weekly'
-            ? `Showing recent week sadhana submission frequency. Sorted ascending (A to Z) across ${weeklySummaries.length} devotees.`
-            : `Showing whole month sadhana submission count. Sorted ascending (A to Z) across ${monthlySummaries.length} devotees.`}
+            ? activeWeek
+              ? `Showing ${activeWeek.label} (${activeWeek.rangeLabel}, Mon-Sun). Sorted A to Z across ${weeklySummaries.length} devotees.`
+              : 'Weekly calendar view (Mon to Sun).'
+            : `Showing full month (${monthName} ${selectedYear}) submission count. Sorted A to Z across ${monthlySummaries.length} devotees.`}
         </Text>
       </View>
 
@@ -251,7 +351,6 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
             </View>
           ) : (
             displayedList.map((item, index) => {
-              const isFull = item.filledDays === item.totalDays;
               const isGood = item.percentage >= 70;
               const isAvg = item.percentage >= 40 && item.percentage < 70;
 
@@ -295,6 +394,52 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
                       </Text>
                     </View>
                   </View>
+
+                  {/* If Weekly: Show 7-Day Checklist Row (Monday to Sunday) */}
+                  {activeTab === 'weekly' && activeWeek && (
+                    <View style={styles.dayStripRow}>
+                      {activeWeek.dates.map((dateStr, dIdx) => {
+                        const isFilled = !!item.dayMap[dateStr];
+                        const dayNum = dateStr.split('-')[2];
+                        const dayLetter = dayShortNames[dIdx];
+                        return (
+                          <View
+                            key={dateStr}
+                            style={[
+                              styles.dayChip,
+                              {
+                                backgroundColor: isFilled ? '#DCFCE7' : '#F3F4F6',
+                                borderColor: isFilled ? '#86EFAC' : '#E5E7EB',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.dayChipLetter,
+                                { color: isFilled ? '#15803D' : '#6B7280' },
+                              ]}
+                            >
+                              {dayLetter}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.dayChipNum,
+                                { color: isFilled ? '#15803D' : '#9CA3AF' },
+                              ]}
+                            >
+                              {dayNum}
+                            </Text>
+                            <Ionicons
+                              name={isFilled ? 'checkmark-circle' : 'close-circle-outline'}
+                              size={12}
+                              color={isFilled ? '#16A34A' : '#D1D5DB'}
+                              style={{ marginTop: 2 }}
+                            />
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
 
                   {/* Progress Bar */}
                   <View style={styles.progressContainer}>
@@ -351,6 +496,56 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  monthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  monthNavBtn: {
+    padding: 6,
+    borderRadius: 6,
+  },
+  monthLabelCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  monthLabelText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  weekPillsWrapper: {
+    marginTop: 10,
+  },
+  weekPillsScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  weekPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekPillContent: {
+    alignItems: 'center',
+  },
+  weekPillTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  weekPillSub: {
+    fontSize: 10,
+    marginTop: 2,
   },
   infoBanner: {
     flexDirection: 'row',
@@ -442,6 +637,32 @@ const styles = StyleSheet.create({
   daysBadgeText: {
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  dayStripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  dayChip: {
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    minWidth: 38,
+  },
+  dayChipLetter: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  dayChipNum: {
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 1,
   },
   progressContainer: {
     marginTop: 10,

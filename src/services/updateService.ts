@@ -42,12 +42,26 @@ export const isNewerVersion = (remoteVer: string, currentVer: string): boolean =
 
 export const updateService = {
   /**
-   * Get the current locally running version and versionCode
+   * Get the current locally running version and versionCode.
+   * On Native Android/iOS, uses Constants.nativeAppVersion to reflect the true installed APK version.
    */
   getCurrentVersion: () => {
+    const isNative = (Platform.OS as string) !== 'web';
+    let nativeVer = '';
+    let nativeCode = 0;
+    if (isNative) {
+      nativeVer = (Constants as any).nativeAppVersion || '';
+      if ((Constants as any).nativeBuildVersion) {
+        nativeCode = parseInt((Constants as any).nativeBuildVersion, 10) || 0;
+      }
+    }
+
+    const version = nativeVer || Constants.expoConfig?.version || '1.0.40';
+    const versionCode = nativeCode || Constants.expoConfig?.android?.versionCode || 40;
+
     return {
-      version: Constants.expoConfig?.version || '1.0.51',
-      versionCode: Constants.expoConfig?.android?.versionCode || 51,
+      version,
+      versionCode,
     };
   },
 
@@ -222,33 +236,38 @@ export const updateService = {
     }
 
     if (isWeb) {
-      // On Web: clear cache storage if supported and reload the page
+      // On Web: clear cache storage and service workers, then reload with cache-busting query
       if (typeof window !== 'undefined' && 'caches' in window) {
         try {
           const keys = await window.caches.keys();
           await Promise.all(keys.map((k) => window.caches.delete(k)));
         } catch {}
       }
+      if (typeof navigator !== 'undefined' && (navigator as any).serviceWorker) {
+        try {
+          const regs = await (navigator as any).serviceWorker.getRegistrations();
+          for (const reg of regs) {
+            await reg.unregister();
+          }
+        } catch {}
+      }
       if (typeof window !== 'undefined') {
-        window.location.reload();
+        const url = new URL(window.location.href);
+        url.searchParams.set('t', Date.now().toString());
+        window.location.href = url.toString();
       }
       return;
     }
 
     // On Native Android:
     // If an APK download URL is available from GitHub or Firestore, open it to trigger complete system download
-    const apkUrl = versionInfo?.apkDownloadUrl;
+    const apkUrl =
+      versionInfo?.apkDownloadUrl ||
+      'https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest/download/Bhakti-Unnati.apk';
     if (apkUrl) {
       try {
-        const supported = await Linking.canOpenURL(apkUrl);
-        if (supported) {
-          await Linking.openURL(apkUrl);
-          showCrossPlatformAlert(
-            'Downloading Update',
-            `Hare Krishna! Bhakti-Unnati.apk (v${versionInfo?.version || 'Latest'}) is downloading in your notification bar.\n\nOnce the download completes, tap the completed notification to install the update.`
-          );
-          return;
-        }
+        await Linking.openURL(apkUrl);
+        return;
       } catch (err) {
         console.warn('Failed to open APK URL:', err);
       }

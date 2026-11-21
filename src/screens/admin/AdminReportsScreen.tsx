@@ -9,7 +9,10 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Platform,
+  Share,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../../constants/theme';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,6 +29,9 @@ import {
   getWeekDetails,
   formatMinutesToHours,
   calculateSleepDurationMinutes,
+  getMonthCalendarWeeks,
+  CalendarWeek,
+  MONTH_NAMES_SHORT,
 } from '../../utils/dateUtils';
 import { SadhanaEntry } from '../../types/sadhana';
 import { UserProfile } from '../../types/auth';
@@ -44,8 +50,8 @@ export const AdminReportsScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
 
-  // Active Top Tab: Daily | Weekly | Monthly
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  // Active Top Tab: Daily | Weekly | Monthly | Download
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly' | 'download'>('daily');
 
   // Search box state (filters all 3 tabs in real-time)
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -123,6 +129,16 @@ export const AdminReportsScreen = ({ navigation }: any) => {
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
   const [monthlyFilterMode, setMonthlyFilterMode] = useState<'all' | 'lowScore'>('all');
 
+  // -------------------------------------------------------------
+  // DOWNLOAD PROGRESS TAB STATE (Item 6)
+  // -------------------------------------------------------------
+  const [downloadSelectedDevotee, setDownloadSelectedDevotee] = useState<UserProfile | null>(null);
+  const [downloadSubTab, setDownloadSubTab] = useState<'week' | 'month'>('week');
+  const [downloadMonthWeeks, setDownloadMonthWeeks] = useState<CalendarWeek[]>([]);
+  const [downloadSelectedWeekIndex, setDownloadSelectedWeekIndex] = useState<number>(1);
+  const [downloadDevoteeEntries, setDownloadDevoteeEntries] = useState<SadhanaEntry[]>([]);
+  const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
+
   // Load data when tab changes or parameters change
   useEffect(() => {
     if (activeTab === 'daily') {
@@ -131,8 +147,59 @@ export const AdminReportsScreen = ({ navigation }: any) => {
       loadWeeklyData();
     } else if (activeTab === 'monthly') {
       loadMonthlyData();
+    } else if (activeTab === 'download') {
+      loadDownloadData();
     }
   }, [activeTab, dailyViewMode, selectedDailyDate, dailyWeekOffset, selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    const weeks = getMonthCalendarWeeks(selectedYear, selectedMonth, todayStr);
+    setDownloadMonthWeeks(weeks);
+    const curr = weeks.find((w) => w.isCurrentWeek);
+    if (curr) {
+      setDownloadSelectedWeekIndex(curr.weekIndex);
+    } else {
+      setDownloadSelectedWeekIndex(1);
+    }
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    if (downloadSelectedDevotee) {
+      loadDownloadDevoteeEntries(downloadSelectedDevotee.uid);
+    }
+  }, [downloadSelectedDevotee, selectedYear, selectedMonth]);
+
+  const loadDownloadData = async (forceRefresh = false) => {
+    setIsLoading(true);
+    try {
+      const devotees = await authService.getAllCounselees(forceRefresh);
+      const approved = devotees
+        .filter((u) => u.status === 'approved' && u.role !== 'counsellor')
+        .sort((a, b) => (a.displayName || 'Devotee').localeCompare(b.displayName || 'Devotee'));
+      setAllCounselees(approved);
+      if (!downloadSelectedDevotee && approved.length > 0) {
+        setDownloadSelectedDevotee(approved[0]);
+      }
+    } catch (e) {
+      console.warn('Error loading download tab data:', e);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const loadDownloadDevoteeEntries = async (userId: string, force = false) => {
+    try {
+      const monthStr = String(selectedMonth).padStart(2, '0');
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const startDate = `${selectedYear}-${monthStr}-01`;
+      const endDate = `${selectedYear}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
+      const entries = await sadhanaService.getEntriesForDateRange(userId, startDate, endDate);
+      setDownloadDevoteeEntries(entries);
+    } catch (e) {
+      console.warn('Error loading devotee download entries:', e);
+    }
+  };
 
   // -------------------------------------------------------------
   // DATA LOADERS
@@ -215,6 +282,299 @@ export const AdminReportsScreen = ({ navigation }: any) => {
     if (activeTab === 'daily') loadDailyData(true);
     else if (activeTab === 'weekly') loadWeeklyData();
     else if (activeTab === 'monthly') loadMonthlyData();
+    else if (activeTab === 'download') {
+      loadDownloadData(true);
+      if (downloadSelectedDevotee) {
+        loadDownloadDevoteeEntries(downloadSelectedDevotee.uid, true);
+      }
+    }
+  };
+
+  const filteredDevoteesForDownload = useMemo(() => {
+    if (!searchQuery.trim()) return allCounselees;
+    const q = searchQuery.toLowerCase();
+    return allCounselees.filter(
+      (c) =>
+        (c.displayName || '').toLowerCase().includes(q) ||
+        (c.phoneNumber || '').toLowerCase().includes(q)
+    );
+  }, [allCounselees, searchQuery]);
+
+  const downloadEntryMap = useMemo(() => {
+    const map = new Map<string, SadhanaEntry>();
+    downloadDevoteeEntries.forEach((e) => map.set(e.date, e));
+    return map;
+  }, [downloadDevoteeEntries]);
+
+  const downloadActiveWeek =
+    downloadMonthWeeks.find((w) => w.weekIndex === downloadSelectedWeekIndex) || downloadMonthWeeks[0];
+
+  const downloadAllMonthDates = useMemo(() => {
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const monthStr = String(selectedMonth).padStart(2, '0');
+    const list: string[] = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      list.push(`${selectedYear}-${monthStr}-${String(i).padStart(2, '0')}`);
+    }
+    return list;
+  }, [selectedYear, selectedMonth]);
+
+  const downloadTargetDates =
+    downloadSubTab === 'week' ? (downloadActiveWeek ? downloadActiveWeek.dates : []) : downloadAllMonthDates;
+
+  const downloadStats = useMemo(() => {
+    let filled = 0;
+    let totalRounds = 0;
+    let totalMorningRounds = 0;
+    let totalHearing = 0;
+    let totalReading = 0;
+    let totalSleepMin = 0;
+    let totalScore = 0;
+    let mangalaCount = 0;
+
+    downloadTargetDates.forEach((dStr) => {
+      const e = downloadEntryMap.get(dStr);
+      if (e) {
+        filled++;
+        totalRounds += e.completedRounds ?? 0;
+        totalHearing += e.hearingMinutes ?? 0;
+        totalReading += e.readingMinutes ?? 0;
+        totalScore += e.percentage ?? 0;
+        if (e.morningProgrammeAttended) mangalaCount++;
+        totalSleepMin += calculateSleepDurationMinutes(e.sleepTimeStr, e.wakeUpTimeStr);
+      }
+    });
+
+    const totalDays = downloadTargetDates.length || 1;
+    const overallPercentage = Math.round(totalScore / totalDays);
+    const avgSleep = filled > 0 ? formatMinutesToHours(Math.round(totalSleepMin / filled)) : 'N/A';
+
+    return {
+      filled,
+      totalDays,
+      totalRounds,
+      totalMorningRounds,
+      totalHearing,
+      totalReading,
+      overallPercentage,
+      mangalaCount,
+      avgSleep,
+      avgWake: '—',
+      avgBed: '—',
+    };
+  }, [downloadTargetDates, downloadEntryMap]);
+
+  const escapeCsv = (str: any) => {
+    if (str === null || str === undefined) return '""';
+    const s = String(str).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const handleDownloadExcel = async () => {
+    if (!downloadSelectedDevotee) {
+      Alert.alert('Selection Required', 'Please select a counselee to export their report.');
+      return;
+    }
+    setIsExportingCsv(true);
+    try {
+      const devName = downloadSelectedDevotee.displayName || 'Devotee';
+      const devPhone = downloadSelectedDevotee.phoneNumber || 'N/A';
+      const devEmail = downloadSelectedDevotee.email || 'N/A';
+      const devTarget = downloadSelectedDevotee.declaredRounds || 16;
+
+      const isWeekMode = downloadSubTab === 'week';
+      const curWeek = downloadMonthWeeks.find((w) => w.weekIndex === downloadSelectedWeekIndex) || downloadMonthWeeks[0];
+      const periodLabel = isWeekMode
+        ? `Week ${curWeek.weekIndex} (${curWeek.rangeLabel})`
+        : `Full Month ${monthNames[selectedMonth - 1]} ${selectedYear}`;
+
+      const targetDates = isWeekMode ? curWeek.dates : downloadAllMonthDates;
+
+      // Build CSV Lines
+      const lines: string[] = [];
+      lines.push(`Bhakti Unnati - Counselee Sadhana Progress Report`);
+      lines.push(`Counselee Name:,${escapeCsv(devName)},Mobile Number:,${escapeCsv(devPhone)}`);
+      lines.push(`Email:,${escapeCsv(devEmail)},Target Rounds:,${escapeCsv(devTarget)}`);
+      lines.push(`Report Period:,${escapeCsv(periodLabel)},Generated On:,${escapeCsv(new Date().toLocaleString())}`);
+      lines.push(''); // blank line
+
+      // Table Header
+      lines.push(
+        [
+          'Date',
+          'Day',
+          'Wake Up Time',
+          'Bed Time',
+          'Sleep Duration',
+          'Chanting Target',
+          'Chanting Completed',
+          'Morning Rounds',
+          'Hearing (Minutes)',
+          'Hearing Topic/Speaker',
+          'Reading (Minutes)',
+          'Reading Book',
+          'Mangala Aarti',
+          'Other Seva / Slokas',
+          'Daily Score %',
+          'Grade',
+        ]
+          .map(escapeCsv)
+          .join(',')
+      );
+
+      let totalFilled = 0;
+      let totalRounds = 0;
+      let totalHearing = 0;
+      let totalReading = 0;
+      let totalSleepMin = 0;
+      let totalPercentage = 0;
+      let validScoreCount = 0;
+
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      targetDates.forEach((dStr) => {
+        const e = downloadEntryMap.get(dStr);
+        const [y, m, d] = dStr.split('-').map(Number);
+        const dObj = new Date(y, m - 1, d);
+        const dayName = dayNames[dObj.getDay()];
+
+        if (e) {
+          totalFilled++;
+          const score = e.percentage ?? 0;
+          totalPercentage += score;
+          validScoreCount++;
+
+          const rounds = e.completedRounds ?? 0;
+          totalRounds += rounds;
+
+          const hearMin = e.hearingMinutes ?? 0;
+          totalHearing += hearMin;
+
+          const readMin = e.readingMinutes ?? 0;
+          totalReading += readMin;
+
+          const sleepMin = calculateSleepDurationMinutes(e.sleepTimeStr, e.wakeUpTimeStr);
+          totalSleepMin += sleepMin;
+
+          const grade = e.grade || (score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 50 ? 'C' : 'D');
+
+          lines.push(
+            [
+              dStr,
+              dayName,
+              e.wakeUpTimeStr || 'N/A',
+              e.sleepTimeStr || 'N/A',
+              formatMinutesToHours(sleepMin),
+              e.declaredRounds || devTarget,
+              rounds,
+              e.completionTimeStr || 'N/A',
+              hearMin,
+              'Spiritual Hearing',
+              readMin,
+              "Prabhupada's Books",
+              e.morningProgrammeAttended ? 'Yes' : 'No',
+              e.serviceAttended ? 'Service Attended' : 'N/A',
+              `${score}%`,
+              grade,
+            ]
+              .map(escapeCsv)
+              .join(',')
+          );
+        } else {
+          lines.push(
+            [
+              dStr,
+              dayName,
+              'Not Filled',
+              'Not Filled',
+              'N/A',
+              devTarget,
+              0,
+              'N/A',
+              0,
+              'N/A',
+              0,
+              'N/A',
+              'No',
+              'N/A',
+              '0%',
+              'Not Submitted',
+            ]
+              .map(escapeCsv)
+              .join(',')
+          );
+        }
+      });
+
+      // Summary row
+      const avgPercentage = validScoreCount > 0 ? Math.round(totalPercentage / targetDates.length) : 0;
+      const finalGrade =
+        avgPercentage >= 80
+          ? 'A (Excellent)'
+          : avgPercentage >= 65
+          ? 'B (Good)'
+          : avgPercentage >= 50
+          ? 'C (Average)'
+          : 'D (Needs Guidance)';
+      const avgSleepStr =
+        totalFilled > 0 ? formatMinutesToHours(Math.round(totalSleepMin / totalFilled)) : 'N/A';
+
+      lines.push('');
+      lines.push(
+        [
+          'SUMMARY TOTALS / AVERAGES',
+          `Filled ${totalFilled} / ${targetDates.length} Days`,
+          '',
+          '',
+          `Avg Sleep: ${avgSleepStr}`,
+          '',
+          `Total Rounds: ${totalRounds}`,
+          '',
+          `Total Hearing: ${totalHearing}m`,
+          '',
+          `Total Reading: ${totalReading}m`,
+          '',
+          '',
+          '',
+          `Final Consistency: ${avgPercentage}%`,
+          finalGrade,
+        ]
+          .map(escapeCsv)
+          .join(',')
+      );
+
+      const csvString = lines.join('\r\n');
+      const sanitizedName = devName.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `${sanitizedName}_Sadhana_${
+        isWeekMode ? `Week${curWeek.weekIndex}` : `Month_${monthNames[selectedMonth - 1]}`
+      }_${selectedYear}.csv`;
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('Download Complete', `Excel spreadsheet "${fileName}" downloaded successfully.`);
+      } else {
+        await Share.share({
+          title: fileName,
+          message: csvString,
+        }).catch(() => {
+          Clipboard.setStringAsync(csvString);
+          Alert.alert('Copied to Clipboard', `CSV report for ${devName} copied to clipboard.`);
+        });
+      }
+    } catch (err: any) {
+      Alert.alert('Export Error', err?.message || 'Could not generate excel spreadsheet.');
+    } finally {
+      setIsExportingCsv(false);
+    }
   };
 
   // Helper date shifting for Single Day view
@@ -395,10 +755,18 @@ export const AdminReportsScreen = ({ navigation }: any) => {
         onBackPress={() => navigation.goBack()}
       />
 
-      {/* 3 Main Tabs: Daily, Weekly, Monthly (Matches Counselee layout) */}
+      {/* 4 Main Tabs: Daily, Weekly, Monthly, Download */}
       <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        {(['daily', 'weekly', 'monthly'] as const).map((tab) => {
+        {(['daily', 'weekly', 'monthly', 'download'] as const).map((tab) => {
           const isActive = activeTab === tab;
+          const label =
+            tab === 'daily'
+              ? 'Daily'
+              : tab === 'weekly'
+              ? 'Weekly'
+              : tab === 'monthly'
+              ? 'Monthly'
+              : 'Download';
           return (
             <TouchableOpacity
               key={tab}
@@ -416,7 +784,7 @@ export const AdminReportsScreen = ({ navigation }: any) => {
                   isActive && { fontWeight: 'bold' },
                 ]}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)} Reports
+                {label}
               </Text>
             </TouchableOpacity>
           );
@@ -1438,6 +1806,314 @@ export const AdminReportsScreen = ({ navigation }: any) => {
               )}
             </View>
           )}
+
+          {/* ========================================================= */}
+          {/* TAB 4: DOWNLOAD PROGRESS (EXCEL / SPREADSHEET)             */}
+          {/* ========================================================= */}
+          {activeTab === 'download' && (
+            <View style={{ marginTop: 8 }}>
+              {/* Devotee Selection Horizontal Chips */}
+              <Text style={[styles.sectionSubtitle, { color: theme.thickColor, marginBottom: 8 }]}>
+                Select Counselee to View & Download Progress Sheet:
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                {filteredDevoteesForDownload.map((devotee) => {
+                  const isSelected = downloadSelectedDevotee?.uid === devotee.uid;
+                  return (
+                    <TouchableOpacity
+                      key={devotee.uid}
+                      style={[
+                        styles.downloadDevoteeChip,
+                        {
+                          backgroundColor: isSelected ? theme.thickColor : theme.colors.card,
+                          borderColor: isSelected ? theme.thickColor : theme.colors.border,
+                        },
+                      ]}
+                      onPress={() => setDownloadSelectedDevotee(devotee)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.downloadChipAvatar, { backgroundColor: isSelected ? '#FFFFFF' : theme.liteColor }]}>
+                        <Text style={[styles.downloadChipAvatarText, { color: theme.thickColor }]}>
+                          {(devotee.displayName || 'D')[0].toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.downloadChipText,
+                          { color: isSelected ? '#FFFFFF' : theme.colors.text },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {devotee.displayName || 'Devotee'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {downloadSelectedDevotee ? (
+                <>
+                  {/* Counselee Info & Excel Download Button Bar */}
+                  <View style={[styles.downloadHeaderCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.downloadDevoteeName, { color: theme.colors.text }]}>
+                        {downloadSelectedDevotee.displayName || 'Devotee'}
+                      </Text>
+                      <Text style={[styles.downloadDevoteePhone, { color: theme.colors.textMuted }]}>
+                        📞 {downloadSelectedDevotee.phoneNumber || 'No phone'} • 📿 Target: {downloadSelectedDevotee.declaredRounds || 16} rounds
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.downloadExcelActionBtn, { backgroundColor: theme.thickColor }]}
+                      onPress={handleDownloadExcel}
+                      disabled={isExportingCsv}
+                      activeOpacity={0.8}
+                    >
+                      {isExportingCsv ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="download-outline" size={16} color="#FFFFFF" />
+                          <Text style={styles.downloadExcelActionBtnText}>Download Excel</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Month Selector Bar */}
+                  <View style={[styles.dateSelectorBar, { backgroundColor: theme.colors.card, borderColor: theme.colors.border, marginTop: 10 }]}>
+                    <TouchableOpacity onPress={() => shiftMonth(-1)} style={styles.dateArrowBtn}>
+                      <Ionicons name="chevron-back" size={20} color={theme.thickColor} />
+                    </TouchableOpacity>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[styles.dateSelectorTitle, { color: theme.colors.text }]}>
+                        {monthNames[selectedMonth - 1]} {selectedYear}
+                      </Text>
+                      <Text style={[styles.dateSelectorSubtitle, { color: theme.colors.textMuted }]}>
+                        Select Week 1 to 4/5 or Monthly Report tab below
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => shiftMonth(1)} style={styles.dateArrowBtn}>
+                      <Ionicons name="chevron-forward" size={20} color={theme.thickColor} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Week 1, Week 2, Week 3, Week 4, Week 5 + Monthly Report Tabs */}
+                  <View style={styles.downloadWeekTabBar}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {downloadMonthWeeks.map((w) => {
+                        const isSelected = downloadSubTab === 'week' && downloadSelectedWeekIndex === w.weekIndex;
+                        return (
+                          <TouchableOpacity
+                            key={w.weekIndex}
+                            style={[
+                              styles.downloadWeekTabBtn,
+                              {
+                                backgroundColor: isSelected ? theme.thickColor : theme.colors.card,
+                                borderColor: isSelected ? theme.thickColor : theme.colors.border,
+                              },
+                            ]}
+                            onPress={() => {
+                              setDownloadSubTab('week');
+                              setDownloadSelectedWeekIndex(w.weekIndex);
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={[styles.downloadWeekTabTitle, { color: isSelected ? '#FFFFFF' : theme.colors.text }]}>
+                              {w.label} {w.isCurrentWeek && '• Current'}
+                            </Text>
+                            <Text style={[styles.downloadWeekTabSub, { color: isSelected ? 'rgba(255,255,255,0.85)' : theme.colors.textMuted }]}>
+                              {w.rangeLabel}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+
+                      {/* Monthly Tab */}
+                      <TouchableOpacity
+                        style={[
+                          styles.downloadWeekTabBtn,
+                          {
+                            backgroundColor: downloadSubTab === 'month' ? theme.thickColor : theme.colors.card,
+                            borderColor: downloadSubTab === 'month' ? theme.thickColor : theme.colors.border,
+                          },
+                        ]}
+                        onPress={() => setDownloadSubTab('month')}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.downloadWeekTabTitle, { color: downloadSubTab === 'month' ? '#FFFFFF' : theme.colors.text }]}>
+                          Monthly Report
+                        </Text>
+                        <Text style={[styles.downloadWeekTabSub, { color: downloadSubTab === 'month' ? 'rgba(255,255,255,0.85)' : theme.colors.textMuted }]}>
+                          {monthNames[selectedMonth - 1]} (Whole Month)
+                        </Text>
+                      </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+
+                  {/* Detailed Data Sheet View (Week or Month) */}
+                  <View style={[styles.downloadSheetCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                    <View style={styles.downloadSheetHeaderRow}>
+                      <Text style={[styles.downloadSheetTitle, { color: theme.thickColor }]}>
+                        {downloadSubTab === 'week'
+                          ? `${downloadActiveWeek?.label}: ${downloadActiveWeek?.rangeLabel} (Monday to Sunday)`
+                          : `Full Month: ${monthNames[selectedMonth - 1]} ${selectedYear}`}
+                      </Text>
+                      <Text style={[styles.downloadSheetSub, { color: theme.colors.textMuted }]}>
+                        {downloadTargetDates.length} days • Scroll horizontally to view hearing, reading & sleep times
+                      </Text>
+                    </View>
+
+                    {/* Table Headers */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                      <View>
+                        <View style={[styles.tableGridHeader, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
+                          <Text style={[styles.thCell, { width: 95 }]}>Date & Day</Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>Wake Up</Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>Bed Time</Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>Sleep Hrs</Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>Chanting</Text>
+                          <Text style={[styles.thCell, { width: 95 }]}>Completion</Text>
+                          <Text style={[styles.thCell, { width: 90 }]}>Hearing</Text>
+                          <Text style={[styles.thCell, { width: 90 }]}>Reading</Text>
+                          <Text style={[styles.thCell, { width: 75 }]}>Morning Pgm</Text>
+                          <Text style={[styles.thCell, { width: 75 }]}>Service</Text>
+                          <Text style={[styles.thCell, { width: 90 }]}>Score %</Text>
+                        </View>
+
+                        {downloadTargetDates.map((dateStr) => {
+                          const e = downloadEntryMap.get(dateStr);
+                          const hasEntry = !!e;
+                          const [y, m, d] = dateStr.split('-').map(Number);
+                          const dObj = new Date(y, m - 1, d);
+                          const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dObj.getDay()];
+                          const score = e ? e.percentage ?? 0 : 0;
+                          const sleepMin = e ? calculateSleepDurationMinutes(e.sleepTimeStr, e.wakeUpTimeStr) : 0;
+
+                          return (
+                            <View key={dateStr} style={[styles.tableGridRow, { borderBottomColor: theme.colors.borderLight || '#F3F4F6' }]}>
+                              <View style={[styles.tdCellBox, { width: 95 }]}>
+                                <Text style={[styles.tdTextBold, { color: theme.colors.text }]}>{dayName} {d}</Text>
+                                <Text style={[styles.tdTextSub, { color: theme.colors.textMuted }]}>{dateStr}</Text>
+                              </View>
+                              <Text style={[styles.tdCell, { width: 85, color: hasEntry ? theme.colors.text : '#9CA3AF' }]}>
+                                {hasEntry ? formatFriendlyTime(e?.wakeUpTimeStr) : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 85, color: hasEntry ? theme.colors.text : '#9CA3AF' }]}>
+                                {hasEntry ? formatFriendlyTime(e?.sleepTimeStr) : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 85, color: hasEntry ? theme.colors.text : '#9CA3AF' }]}>
+                                {hasEntry ? formatMinutesToHours(sleepMin) : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 85, fontWeight: 'bold', color: hasEntry ? theme.thickColor : '#9CA3AF' }]}>
+                                {hasEntry ? `${e?.completedRounds ?? 0} rnds` : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 95, color: hasEntry ? theme.colors.text : '#9CA3AF' }]}>
+                                {hasEntry && e?.completionTimeStr ? formatFriendlyTime(e.completionTimeStr) : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 90, color: hasEntry ? theme.colors.text : '#9CA3AF' }]}>
+                                {hasEntry ? `${e?.hearingMinutes ?? 0}m` : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 90, color: hasEntry ? theme.colors.text : '#9CA3AF' }]}>
+                                {hasEntry ? `${e?.readingMinutes ?? 0}m` : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 75, color: e?.morningProgrammeAttended ? '#16A34A' : '#9CA3AF' }]}>
+                                {hasEntry ? (e?.morningProgrammeAttended ? 'Yes' : 'No') : '—'}
+                              </Text>
+                              <Text style={[styles.tdCell, { width: 75, color: e?.serviceAttended ? '#16A34A' : '#9CA3AF' }]}>
+                                {hasEntry ? (e?.serviceAttended ? 'Yes' : 'No') : '—'}
+                              </Text>
+                              <View style={[styles.tdCellBox, { width: 90 }]}>
+                                <View
+                                  style={[
+                                    styles.tableScoreBadge,
+                                    {
+                                      backgroundColor: hasEntry
+                                        ? score >= 70
+                                          ? '#DCFCE7'
+                                          : score >= 50
+                                          ? '#FEF3C7'
+                                          : '#FEE2E2'
+                                        : '#F3F4F6',
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.tableScoreBadgeText,
+                                      {
+                                        color: hasEntry
+                                          ? score >= 70
+                                          ? '#15803D'
+                                          : score >= 50
+                                          ? '#B45309'
+                                          : '#DC2626'
+                                          : '#9CA3AF',
+                                      },
+                                    ]}
+                                  >
+                                    {hasEntry ? `${score}%` : 'Not Filled'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          );
+                        })}
+
+                        {/* Summary Bottom Row */}
+                        <View style={[styles.tableGridSummary, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
+                          <Text style={[styles.thCellBold, { width: 95, color: theme.thickColor }]}>
+                            Summary
+                          </Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>
+                            {downloadStats.avgWake}
+                          </Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>
+                            {downloadStats.avgBed}
+                          </Text>
+                          <Text style={[styles.thCell, { width: 85 }]}>
+                            {downloadStats.avgSleep}
+                          </Text>
+                          <Text style={[styles.thCellBold, { width: 85, color: theme.thickColor }]}>
+                            {downloadStats.totalRounds} rnds
+                          </Text>
+                          <Text style={[styles.thCell, { width: 95 }]}>
+                            {downloadStats.totalMorningRounds} rnds
+                          </Text>
+                          <Text style={[styles.thCell, { width: 90 }]}>
+                            {downloadStats.totalHearing}m
+                          </Text>
+                          <Text style={[styles.thCell, { width: 110 }]}>—</Text>
+                          <Text style={[styles.thCell, { width: 90 }]}>
+                            {downloadStats.totalReading}m
+                          </Text>
+                          <Text style={[styles.thCell, { width: 110 }]}>—</Text>
+                          <Text style={[styles.thCell, { width: 75 }]}>
+                            {downloadStats.mangalaCount}/{downloadTargetDates.length}
+                          </Text>
+                          <View style={[styles.tdCellBox, { width: 90 }]}>
+                            <View style={[styles.tableScoreBadge, { backgroundColor: theme.thickColor }]}>
+                              <Text style={[styles.tableScoreBadgeText, { color: '#FFFFFF', fontWeight: 'bold' }]}>
+                                {downloadStats.overallPercentage}%
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    </ScrollView>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.emptyDevoteePrompt}>
+                  <Ionicons name="people-outline" size={36} color={theme.colors.textMuted} />
+                  <Text style={[styles.emptyPromptText, { color: theme.colors.textMuted }]}>
+                    Please select a counselee above to view and download their progress sheet.
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
       )}
     </View>
@@ -1866,5 +2542,166 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: 'bold',
     marginBottom: 2,
+  },
+  downloadDevoteeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  downloadChipAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadChipAvatarText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  downloadChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    maxWidth: 130,
+  },
+  downloadHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  downloadDevoteeName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  downloadDevoteePhone: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  downloadExcelActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  downloadExcelActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  downloadWeekTabBar: {
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  downloadWeekTabBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadWeekTabTitle: {
+    fontSize: 11.5,
+    fontWeight: 'bold',
+  },
+  downloadWeekTabSub: {
+    fontSize: 9.5,
+    marginTop: 2,
+  },
+  downloadSheetCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 20,
+  },
+  downloadSheetHeaderRow: {
+    marginBottom: 10,
+  },
+  downloadSheetTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  downloadSheetSub: {
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  tableGridHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  tableGridRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+  },
+  tableGridSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  thCell: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  thCellBold: {
+    fontSize: 11.5,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  tdCell: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  tdCellBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tdTextBold: {
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  tdTextSub: {
+    fontSize: 9,
+  },
+  tableScoreBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  tableScoreBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  emptyDevoteePrompt: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyPromptText: {
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

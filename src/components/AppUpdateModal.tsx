@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,18 +6,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Alert,
   Linking,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { notificationService } from '../services/notificationService';
+import { AppVersionInfo } from '../services/updateService';
 
 export type UpdateModalStage = 'idle' | 'downloading' | 'completed' | 'error';
 
 interface AppUpdateModalProps {
   visible: boolean;
+  versionInfo?: AppVersionInfo;
   onUpdate: () => Promise<void>;
   onRestart?: () => Promise<void>;
   onDismiss: () => void;
@@ -27,6 +27,7 @@ interface AppUpdateModalProps {
 
 export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
   visible,
+  versionInfo,
   onUpdate,
   onRestart,
   onDismiss,
@@ -35,87 +36,52 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const [stage, setStage] = useState<UpdateModalStage>('idle');
-  const [progress, setProgress] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const progressTimerRef = useRef<any>(null);
+  const isWeb = Platform.OS === 'web';
 
   useEffect(() => {
     if (!visible) {
       setStage('idle');
-      setProgress(0);
       setErrorMsg(null);
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
     }
   }, [visible]);
 
   const handleUpdatePress = async () => {
+    if (isWeb) {
+      setStage('downloading');
+      try {
+        await onUpdate();
+      } catch (e: any) {
+        setErrorMsg(e?.message || 'Could not update web application.');
+        setStage('error');
+      }
+      return;
+    }
+
+    // On Native Android:
     setStage('downloading');
-    setProgress(15);
-    setErrorMsg(null);
-
-    // Smoothly increment progress bar towards 95% on screen during download
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    progressTimerRef.current = setInterval(() => {
-      setProgress((prev) => {
-        if (prev < 40) return prev + 8;
-        if (prev < 75) return prev + 5;
-        if (prev < 90) return prev + 3;
-        if (prev < 96) return prev + 1;
-        return prev;
-      });
-    }, 250);
-
     try {
       await onUpdate();
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-      setProgress(100);
-      setStage('completed');
-      await notificationService.showUpdateCompleteNotification().catch(() => {});
     } catch (e: any) {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setErrorMsg(
-        e?.message || 'Could not complete update. Please check your internet connection and try again.'
+        e?.message || 'Could not launch APK download. Please check your internet connection.'
       );
       setStage('error');
     }
   };
 
-  const handleRestartNow = async () => {
-    if (onRestart) {
-      try {
-        await onRestart();
-      } catch (e: any) {
-        Alert.alert(
-          'Restart Requested',
-          'Please close Bhakti Unnati from your Recent Apps window and open it again to apply updates.'
-        );
-      }
-    } else {
-      Alert.alert(
-        'Update Applied',
-        'Please swipe away the app from your Recent Apps screen and reopen to use the new version.',
-        [{ text: 'OK', onPress: onDismiss }]
-      );
-    }
+  const handleOpenReleasePage = () => {
+    const url =
+      versionInfo?.apkDownloadUrl ||
+      'https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest';
+    Linking.openURL(url);
   };
 
-  const handleCloseAndReopenLater = () => {
-    Alert.alert(
-      'Update Ready!',
-      'The update bundle is safely downloaded. When you swipe away the app from Recent Apps and reopen it, all changes will be active.',
-      [{ text: 'Got It', onPress: onDismiss }]
-    );
-  };
-
-  const handleDownloadApkDirectly = () => {
-    Linking.openURL('https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest');
-  };
-
-  if (Platform.OS === 'web' || !visible) {
+  if (!visible) {
     return null;
   }
+
+  const newVersionStr = versionInfo?.version ? `v${versionInfo.version}` : 'Latest';
 
   return (
     <Modal
@@ -145,80 +111,74 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                   <Text style={[styles.title, { color: theme.colors.text }]}>
                     New Update Available!
                   </Text>
+                  <Text style={[styles.versionBadge, { color: theme.thickColor }]}>
+                    Version {newVersionStr}
+                  </Text>
                   <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
                     {updateMessage ||
-                      'A fresh version of Bhakti Unnati is ready with new devotional features and optimizations.'}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: theme.thickColor, fontWeight: '600', marginBottom: 12 }}>
-                    Starting automatic update...
+                      versionInfo?.releaseNotes ||
+                      'A fresh release of Bhakti Unnati is ready with devotional enhancements, graphical analytics and reports.'}
                   </Text>
 
                   {/* Highlights Box */}
                   <View
                     style={[
                       styles.highlightsBox,
-                      {
-                        backgroundColor: theme.liteColor,
-                        borderColor: theme.colors.borderLight,
-                      },
+                      { backgroundColor: theme.liteColor, borderColor: theme.thickColor },
                     ]}
                   >
-                    {updateMessage ? (
-                      <View style={styles.featureItem}>
-                        <Ionicons name="sparkles" size={16} color={theme.thickColor} />
-                        <Text style={[styles.featureText, { color: theme.colors.text, fontWeight: '600' }]}>
-                          {updateMessage}
-                        </Text>
-                      </View>
-                    ) : (
-                      <>
-                        <View style={styles.featureItem}>
-                          <Ionicons name="notifications-outline" size={16} color={theme.thickColor} />
-                          <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                            Single notification pop-up with persistent Sadhana Monitoring status
-                          </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                          <Ionicons name="battery-charging-outline" size={16} color={theme.thickColor} />
-                          <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                            Zero background battery drain: eliminated wakelocks & redundant loops
-                          </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                          <Ionicons name="alarm-outline" size={16} color={theme.thickColor} />
-                          <Text style={[styles.featureText, { color: theme.colors.text }]}>
-                            Closed-app alerts: 3-day inactivity notifications & 6 PM / 9 PM reminders
-                          </Text>
-                        </View>
-                      </>
-                    )}
+                    <View style={styles.highlightRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={theme.thickColor} />
+                      <Text style={[styles.highlightText, { color: theme.colors.text }]}>
+                        {isWeb ? 'Refreshes latest cloud features instantly' : 'Complete APK package from GitHub'}
+                      </Text>
+                    </View>
+                    <View style={styles.highlightRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={theme.thickColor} />
+                      <Text style={[styles.highlightText, { color: theme.colors.text }]}>
+                        Zero data loss & preserves all sadhana entries
+                      </Text>
+                    </View>
                   </View>
 
-                  {/* Buttons */}
-                  <View style={styles.actionsContainer}>
+                  {/* Actions */}
+                  <View style={styles.actionRow}>
+                    {!isMandatory && (
+                      <TouchableOpacity
+                        style={[
+                          styles.cancelButton,
+                          { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                        ]}
+                        onPress={onDismiss}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.cancelButtonText, { color: theme.colors.textMuted }]}>
+                          Later
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                       style={[styles.updateButton, { backgroundColor: theme.thickColor }]}
                       onPress={handleUpdatePress}
                       activeOpacity={0.8}
                     >
-                      <View style={styles.btnRow}>
-                        <Ionicons name="cloud-download-outline" size={18} color="#FFFFFF" />
-                        <Text style={styles.updateButtonText}>Update Now</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Ionicons
+                          name={isWeb ? 'refresh-outline' : 'cloud-download-outline'}
+                          size={18}
+                          color="#FFFFFF"
+                        />
+                        <Text style={styles.updateButtonText}>
+                          {isWeb ? 'Update & Reload' : 'Download Update'}
+                        </Text>
                       </View>
                     </TouchableOpacity>
-
-                    {!isMandatory && (
-                      <TouchableOpacity style={styles.laterButton} onPress={onDismiss}>
-                        <Text style={[styles.laterButtonText, { color: theme.colors.textMuted }]}>
-                          Later
-                        </Text>
-                      </TouchableOpacity>
-                    )}
                   </View>
                 </>
               )}
 
-              {/* STAGE 2: DOWNLOADING WITH PROGRESS BAR */}
+              {/* STAGE 2: DOWNLOADING / INSTRUCTIONS */}
               {stage === 'downloading' && (
                 <>
                   <View style={[styles.iconCircle, { backgroundColor: theme.thickColor }]}>
@@ -226,133 +186,104 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
                   </View>
 
                   <Text style={[styles.title, { color: theme.colors.text }]}>
-                    Downloading Update...
-                  </Text>
-                  <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                    Please wait a moment while the update bundle is downloaded and verified.
+                    {isWeb ? 'Updating Application...' : 'Downloading Update'}
                   </Text>
 
-                  {/* Visual Animated Progress Bar */}
-                  <View
-                    style={[
-                      styles.progressBarTrack,
-                      { backgroundColor: theme.colors.borderLight || '#E2E8F0' },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          width: `${progress}%`,
-                          backgroundColor: theme.thickColor,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  {/* Progress Percent & Status */}
-                  <View style={styles.progressInfoRow}>
-                    <Text style={[styles.progressStatusText, { color: theme.colors.textMuted }]}>
-                      {progress < 40
-                        ? 'Fetching latest package...'
-                        : progress < 85
-                        ? 'Validating app resources...'
-                        : 'Finalizing installation...'}
+                  {isWeb ? (
+                    <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+                      Clearing browser cache and reloading the latest build...
                     </Text>
-                    <Text style={[styles.progressPercentText, { color: theme.thickColor }]}>
-                      {progress}%
-                    </Text>
-                  </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+                        Bhakti-Unnati.apk ({newVersionStr}) is downloading in your notification bar.
+                      </Text>
 
-                  <Text style={[styles.doNotCloseText, { color: theme.colors.textMuted }]}>
-                    Keep the app open while the progress reaches 100%.
-                  </Text>
-                </>
-              )}
-
-              {/* STAGE 3: COMPLETED - AUTOMATIC RESTART */}
-              {stage === 'completed' && (
-                <>
-                  <View style={[styles.iconCircle, { backgroundColor: '#15803D' }]}>
-                    <Ionicons name="checkmark-done-circle" size={34} color="#FFFFFF" />
-                  </View>
-
-                  <Text style={[styles.title, { color: theme.colors.text }]}>
-                    Update Installed! 🎉
-                  </Text>
-                  <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                    The update package has been downloaded and installed successfully.
-                  </Text>
-
-                  {/* Action Instruction Box */}
-                  <View style={styles.completedNoticeBox}>
-                    <Ionicons name="checkmark-circle" size={20} color="#15803D" />
-                    <Text style={styles.completedNoticeText}>
-                      Update package processed. Once installed, the new version will be active.
-                    </Text>
-                  </View>
-
-                  {/* Buttons */}
-                  <View style={styles.actionsContainer}>
-                    <TouchableOpacity
-                      style={[styles.updateButton, { backgroundColor: '#15803D' }]}
-                      onPress={onDismiss}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.btnRow}>
-                        <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />
-                        <Text style={styles.updateButtonText}>Continue to App</Text>
+                      {/* Step-by-step guidance card */}
+                      <View
+                        style={[
+                          styles.stepsCard,
+                          { backgroundColor: theme.liteColor, borderColor: theme.thickColor },
+                        ]}
+                      >
+                        <Text style={[styles.stepsTitle, { color: theme.thickColor }]}>
+                          Next Steps to Install:
+                        </Text>
+                        <View style={styles.stepItem}>
+                          <Text style={[styles.stepNum, { backgroundColor: theme.thickColor }]}>1</Text>
+                          <Text style={[styles.stepText, { color: theme.colors.text }]}>
+                            Swipe down your top notification panel.
+                          </Text>
+                        </View>
+                        <View style={styles.stepItem}>
+                          <Text style={[styles.stepNum, { backgroundColor: theme.thickColor }]}>2</Text>
+                          <Text style={[styles.stepText, { color: theme.colors.text }]}>
+                            Wait for <Text style={{ fontWeight: 'bold' }}>Bhakti-Unnati.apk</Text> to finish downloading (100%).
+                          </Text>
+                        </View>
+                        <View style={styles.stepItem}>
+                          <Text style={[styles.stepNum, { backgroundColor: theme.thickColor }]}>3</Text>
+                          <Text style={[styles.stepText, { color: theme.colors.text }]}>
+                            Tap the completed download and select <Text style={{ fontWeight: 'bold' }}>Install / Update</Text>.
+                          </Text>
+                        </View>
                       </View>
-                    </TouchableOpacity>
-                  </View>
+
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity
+                          style={[
+                            styles.cancelButton,
+                            { borderColor: theme.colors.border, backgroundColor: theme.colors.surface },
+                          ]}
+                          onPress={handleOpenReleasePage}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.cancelButtonText, { color: theme.thickColor }]}>
+                            Re-download APK
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.updateButton, { backgroundColor: theme.thickColor }]}
+                          onPress={onDismiss}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.updateButtonText}>Done / Installing</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
                 </>
               )}
 
-              {/* STAGE 4: ERROR WITH RETRY & DIRECT APK LINK */}
+              {/* STAGE 3: ERROR */}
               {stage === 'error' && (
                 <>
                   <View style={[styles.iconCircle, { backgroundColor: '#DC2626' }]}>
-                    <Ionicons name="alert-circle" size={32} color="#FFFFFF" />
+                    <Ionicons name="alert-circle" size={30} color="#FFFFFF" />
                   </View>
-
                   <Text style={[styles.title, { color: theme.colors.text }]}>
-                    Update Not Applied
+                    Update Check
                   </Text>
                   <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                    {errorMsg || 'Could not verify or download the update bundle.'}
+                    {errorMsg || 'Could not complete update. Please check your internet connection.'}
                   </Text>
-
-                  <View style={styles.actionsContainer}>
-                    <TouchableOpacity
-                      style={[styles.updateButton, { backgroundColor: theme.thickColor }]}
-                      onPress={handleUpdatePress}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.btnRow}>
-                        <Ionicons name="refresh" size={18} color="#FFFFFF" />
-                        <Text style={styles.updateButtonText}>Try Again</Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.apkButton, { borderColor: theme.thickColor }]}
-                      onPress={handleDownloadApkDirectly}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="download-outline" size={16} color={theme.thickColor} />
-                      <Text style={[styles.apkButtonText, { color: theme.thickColor }]}>
-                        Download APK Directly
-                      </Text>
-                    </TouchableOpacity>
-
-                    {!isMandatory && (
-                      <TouchableOpacity style={styles.laterButton} onPress={onDismiss}>
-                        <Text style={[styles.laterButtonText, { color: theme.colors.textMuted }]}>
-                          Dismiss
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                  <TouchableOpacity
+                    style={[styles.updateButton, { backgroundColor: theme.thickColor, marginTop: 14 }]}
+                    onPress={handleOpenReleasePage}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.updateButtonText}>Open GitHub Releases</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, { marginTop: 8, borderColor: theme.colors.border }]}
+                    onPress={onDismiss}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.cancelButtonText, { color: theme.colors.textMuted }]}>
+                      Dismiss
+                    </Text>
+                  </TouchableOpacity>
                 </>
               )}
             </View>
@@ -366,171 +297,129 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
   dialogCard: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 380,
     borderRadius: 20,
     padding: 22,
     alignItems: 'center',
-    borderWidth: 1.5,
-    elevation: 10,
+    borderWidth: 1,
+    elevation: 8,
     shadowColor: '#000',
     shadowOpacity: 0.25,
-    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
   },
   iconCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    alignItems: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
-    marginBottom: 14,
-    elevation: 4,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   title: {
-    fontSize: 18.5,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 6,
+  },
+  versionBadge: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 12.5,
+    fontSize: 13,
     textAlign: 'center',
-    lineHeight: 18,
     marginBottom: 14,
-    paddingHorizontal: 8,
+    lineHeight: 18,
   },
   highlightsBox: {
     width: '100%',
     borderRadius: 12,
-    borderWidth: 1,
     padding: 12,
     marginBottom: 16,
-    gap: 8,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featureText: {
-    fontSize: 11.5,
-    fontWeight: '500',
-    flex: 1,
-    lineHeight: 16,
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 12,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  progressInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 10,
-  },
-  progressStatusText: {
-    fontSize: 11.5,
-    fontStyle: 'italic',
-  },
-  progressPercentText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  doNotCloseText: {
-    fontSize: 11,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  completedNoticeBox: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
+    gap: 8,
   },
-  completedNoticeText: {
+  highlightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  highlightText: {
     fontSize: 12,
-    color: '#166534',
     flex: 1,
-    lineHeight: 17,
     fontWeight: '500',
   },
-  actionsContainer: {
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
     width: '100%',
-    gap: 8,
+    marginTop: 4,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   updateButton: {
-    width: '100%',
-    paddingVertical: 13,
+    flex: 1.4,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 2,
   },
-  btnRow: {
+  updateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  stepsCard: {
+    width: '100%',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    gap: 8,
+  },
+  stepsTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  stepItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  updateButtonText: {
+  stepNum: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  closeAppButton: {
-    width: '100%',
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  closeAppButtonText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-  },
-  apkButton: {
-    width: '100%',
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  apkButtonText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  laterButton: {
-    width: '100%',
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  laterButtonText: {
-    fontSize: 12.5,
-    fontWeight: '600',
+  stepText: {
+    fontSize: 11,
+    flex: 1,
+    lineHeight: 15,
   },
 });

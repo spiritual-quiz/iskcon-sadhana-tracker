@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -270,9 +271,19 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       if (res.isAvailable && res.versionInfo) {
         updateService.promptUserForUpdate(res.versionInfo);
       } else {
+        const isWeb = Platform.OS === 'web';
         showCrossPlatformAlert(
           'Software Up to Date',
-          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
+          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`,
+          isWeb
+            ? [
+                { text: 'OK' },
+                {
+                  text: 'Refresh Cache',
+                  onPress: () => updateService.reloadApp(),
+                },
+              ]
+            : [{ text: 'OK' }]
         );
       }
     } catch (e: any) {
@@ -325,6 +336,15 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       icon: 'stats-chart-outline',
       badge: todaySubmissionsCount > 0 ? `${todaySubmissionsCount} Today` : null,
       badgeColor: theme.thickColor,
+      color: theme.thickColor,
+    },
+    {
+      id: 'CounseleeProgress',
+      title: 'Counselee Progress',
+      subtitle: 'Visual graphs: Mon-Sun & Day 1-31',
+      icon: 'trending-up-outline',
+      badge: 'Graphs',
+      badgeColor: '#10B981',
       color: theme.thickColor,
     },
     {

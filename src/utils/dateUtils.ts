@@ -292,6 +292,71 @@ export function getMonthDetails(year: number, month: number): { monthId: string;
   return { monthId, monthName, dates };
 }
 
+export interface CalendarWeek {
+  weekIndex: number;
+  label: string;
+  rangeLabel: string;
+  startDate: string;
+  endDate: string;
+  dates: string[];
+  isCurrentWeek: boolean;
+}
+
+/**
+ * Returns all Monday-Sunday calendar weeks spanning the given month.
+ * If the month starts mid-week, Week 1 begins on the preceding Monday (e.g. from the previous month).
+ */
+export function getMonthCalendarWeeks(year: number, month: number, todayDateStr?: string): CalendarWeek[] {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const dayOfWeek = firstDay.getDay(); // 0 is Sun, 1 is Mon...
+  const daysBack = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
+  const currentMonday = new Date(year, month - 1, 1 - daysBack);
+  
+  const today = todayDateStr || getTodayDateStringIST();
+  const weeks: CalendarWeek[] = [];
+  let wIdx = 1;
+
+  while (true) {
+    const monday = new Date(currentMonday);
+    const sunday = new Date(currentMonday);
+    sunday.setDate(sunday.getDate() + 6);
+    
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(currentMonday);
+      d.setDate(d.getDate() + i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${dd}`);
+    }
+    
+    const fmt = (d: Date) => `${d.getDate()} ${MONTH_NAMES_SHORT[d.getMonth()]}`;
+    const startDate = dates[0];
+    const endDate = dates[6];
+    const isCurrentWeek = today >= startDate && today <= endDate;
+
+    weeks.push({
+      weekIndex: wIdx,
+      label: `Week ${wIdx}`,
+      rangeLabel: `${fmt(monday)} - ${fmt(sunday)}`,
+      startDate,
+      endDate,
+      dates,
+      isCurrentWeek,
+    });
+    
+    if (sunday >= lastDay) {
+      break;
+    }
+    
+    currentMonday.setDate(currentMonday.getDate() + 7);
+    wIdx++;
+  }
+  return weeks;
+}
+
 /**
  * Calculates calendar days between two YYYY-MM-DD strings
  */
