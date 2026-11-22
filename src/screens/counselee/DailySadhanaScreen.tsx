@@ -35,6 +35,7 @@ import {
 import { SadhanaEntry, MonthlySatsangStatus } from '../../types/sadhana';
 import { TimeSelectorModal } from '../../components/TimeSelectorModal';
 import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -448,10 +449,38 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       return;
     }
 
-    if (!hasUserEnteredData) {
-      Alert.alert(
-        'Sadhana Card Pending',
-        'Please enter your sadhana details (such as chanting, reading, hearing, or sleep) before submitting.'
+    // Mandatory validation: Counselees must fill all columns before submitting
+    const missedFields: string[] = [];
+    if (!completedRounds || completedRounds.trim() === '') {
+      missedFields.push('Completed Rounds (Japa)');
+    }
+    if (!completionTime || completionTime.trim() === '') {
+      missedFields.push('Japa Completion Time');
+    }
+    if (readingMinutes === undefined || readingMinutes === null || readingMinutes.trim() === '') {
+      missedFields.push('Reading Duration (enter minutes or 0)');
+    }
+    if (hearingMinutes === undefined || hearingMinutes === null || hearingMinutes.trim() === '') {
+      missedFields.push('Hearing Duration (enter minutes or 0)');
+    }
+    if (!wakeUpTime || wakeUpTime.trim() === '') {
+      missedFields.push('Wake Up Time');
+    }
+    if (!sleepTime || sleepTime.trim() === '') {
+      missedFields.push('Bedtime / Sleep Time');
+    }
+    if (restMinutes === undefined || restMinutes === null || restMinutes.trim() === '') {
+      missedFields.push('Daytime Rest (enter minutes or 0)');
+    }
+    if (existingEntry && !correctionReason.trim()) {
+      missedFields.push('Correction / Update Reason');
+    }
+
+    if (missedFields.length > 0) {
+      showCrossPlatformAlert(
+        'Incomplete Sadhana Card',
+        'Please fill all columns before submitting your sadhana card. The following field(s) were missed:\n\n' +
+          missedFields.map((f) => `• ${f}`).join('\n')
       );
       return;
     }
@@ -463,14 +492,6 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
     if (numCompleted < 0 || numReading < 0 || numHearing < 0) {
       Alert.alert('Invalid Input', 'Values cannot be negative.');
-      return;
-    }
-
-    if (existingEntry && !correctionReason.trim()) {
-      Alert.alert(
-        'Correction Note Required',
-        'You are updating an existing entry for this date. Please enter a brief reason for the update.'
-      );
       return;
     }
 
@@ -955,7 +976,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               />
               {/* Quick duration chips */}
               <View style={styles.quickDurationRow}>
-                {['15', '30', '45', '60'].map((mins) => (
+                {['0', '15', '30', '45', '60'].map((mins) => (
                   <TouchableOpacity
                     key={mins}
                     style={[styles.durChip, readingMinutes === mins && styles.durChipActive]}
@@ -1001,7 +1022,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 placeholderTextColor={THEME.colors.textMuted}
               />
               <View style={styles.quickDurationRow}>
-                {['15', '30', '45', '60'].map((mins) => (
+                {['0', '15', '30', '45', '60'].map((mins) => (
                   <TouchableOpacity
                     key={mins}
                     style={[styles.durChip, hearingMinutes === mins && styles.durChipActive]}

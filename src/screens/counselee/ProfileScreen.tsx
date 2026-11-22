@@ -88,7 +88,7 @@ export const ProfileScreen = () => {
   const handleCheckUpdates = async () => {
     setIsCheckingUpdates(true);
     try {
-      const res = await updateService.checkForUpdate();
+      const res = await updateService.checkForUpdate(true);
       if (res.isAvailable) {
         Alert.alert(
           'New Update Available',

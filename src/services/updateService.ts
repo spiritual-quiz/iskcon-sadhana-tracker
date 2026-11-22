@@ -16,6 +16,9 @@ export interface AppVersionInfo {
   publishedAt: string;
 }
 
+export const APP_CURRENT_VERSION = '1.0.54';
+export const APP_CURRENT_BUILD = 54;
+
 const GITHUB_REPO = 'spiritual-quiz/iskcon-sadhana-tracker';
 const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
@@ -56,8 +59,8 @@ export const updateService = {
       }
     }
 
-    const version = nativeVer || Constants.expoConfig?.version || '1.0.40';
-    const versionCode = nativeCode || Constants.expoConfig?.android?.versionCode || 40;
+    const version = nativeVer || Constants.expoConfig?.version || APP_CURRENT_VERSION;
+    const versionCode = nativeCode || Constants.expoConfig?.android?.versionCode || APP_CURRENT_BUILD;
 
     return {
       version,
@@ -147,6 +150,14 @@ export const updateService = {
     versionInfo?: AppVersionInfo;
     updateSource: 'github' | 'expo' | 'firestore' | 'none';
   }> => {
+    // On web, updates are served directly by the web server; never pop up automatic update prompts
+    if ((Platform.OS as string) === 'web' && !isManual) {
+      return {
+        isAvailable: false,
+        updateSource: 'none',
+      };
+    }
+
     const current = updateService.getCurrentVersion();
     const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
     const lastDownloaded = await AsyncStorage.getItem('bhakti_last_downloaded_version');
@@ -177,8 +188,8 @@ export const updateService = {
           return {
             isAvailable: true,
             versionInfo: {
-              version: (update.manifest as any)?.extra?.expoClient?.version || '1.0.51',
-              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || 51,
+              version: (update.manifest as any)?.extra?.expoClient?.version || APP_CURRENT_VERSION,
+              versionCode: (update.manifest as any)?.extra?.expoClient?.android?.versionCode || APP_CURRENT_BUILD,
               title: 'New Devotional Update Available',
               releaseNotes: 'Devotional honours, performance optimizations and new features are ready to install.',
               publishedAt: new Date().toISOString(),

@@ -27,6 +27,8 @@ const AppContent: React.FC = () => {
     // Check for updates via updateService (handles both Web & Native)
     // Throttled to at most once per 24 hours automatically on cold start to preserve battery
     const checkAppUpdates = async () => {
+      // Automatic update checking is only for native mobile APK/OTA updates, never for website
+      if ((Platform.OS as string) === 'web') return;
       if (isCheckingRef.current || isUpdatingRef.current || isUpdatePendingRef.current) return;
       isCheckingRef.current = true;
       try {
