@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -17,15 +16,18 @@ import { useTheme } from '../../context/ThemeContext';
 import { Header } from '../../components/Header';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
+import { UserProfile } from '../../types/auth';
 import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
 import { authService } from '../../services/authService';
 import { validateInvitationCode } from '../../services/invitationService';
 import { biometricService } from '../../services/biometricService';
 import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { updateService } from '../../services/updateService';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
+import { Platform } from 'react-native';
 
 export const ProfileScreen = () => {
-  const { user, reloadUser, signOut } = useAuth();
+  const { user, reloadUser, updateUserProfile, signOut } = useAuth();
   const { theme, openThemePicker } = useTheme();
   const currentAppVersion = updateService.getCurrentVersion();
   const [isCheckingUpdates, setIsCheckingUpdates] = useState<boolean>(false);
@@ -55,19 +57,19 @@ export const ProfileScreen = () => {
     try {
       const acc = await biometricService.authenticateWithFingerprint(user.email);
       if (acc) {
-        Alert.alert(
+        showCrossPlatformAlert(
           'Touch Sensor Verified',
           `Hare Krishna! Touch sensor authenticated successfully for ${user.displayName || user.email}.`
         );
       }
     } catch (e: any) {
-      Alert.alert('Touch Sensor Test', e.message || 'Sensor test was cancelled.');
+      showCrossPlatformAlert('Touch Sensor Test', e.message || 'Sensor test was cancelled.');
     }
   };
 
   const handleRemoveBiometric = async () => {
     if (!user?.email) return;
-    Alert.alert(
+    showCrossPlatformAlert(
       'Disable Fingerprint',
       `Are you sure you want to disable fingerprint sign-in for ${user.displayName || user.email}?`,
       [
@@ -76,9 +78,9 @@ export const ProfileScreen = () => {
           text: 'Disable',
           style: 'destructive',
           onPress: async () => {
-            await biometricService.removeUserBiometric(user.email);
+            await biometricService.removeUserBiometric(user.email!);
             setIsBiometricEnrolled(false);
-            Alert.alert('Fingerprint Disabled', 'Fingerprint sign-in has been disabled for this account.');
+            showCrossPlatformAlert('Fingerprint Disabled', 'Fingerprint sign-in has been disabled for this account.');
           },
         },
       ]
@@ -88,37 +90,35 @@ export const ProfileScreen = () => {
   const handleCheckUpdates = async () => {
     setIsCheckingUpdates(true);
     try {
+      const liveVersion = updateService.getCurrentVersion();
       const res = await updateService.checkForUpdate(true);
-      if (res.isAvailable) {
-        Alert.alert(
-          'New Update Available',
-          `A new software update (${res.versionInfo?.version || 'Latest'}) is available.\n\nWould you like to install and restart now?`,
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Install & Restart',
-              onPress: async () => {
-                setIsCheckingUpdates(true);
-                try {
-                  await updateService.fetchAndApplyUpdate(res.versionInfo);
-                  await updateService.reloadApp();
-                } catch (err: any) {
-                  Alert.alert('Update Error', err?.message || 'Failed to download update.');
-                } finally {
-                  setIsCheckingUpdates(false);
-                }
-              },
-            },
-          ]
-        );
+      if (res.isAvailable && res.versionInfo) {
+        updateService.promptUserForUpdate(res.versionInfo);
       } else {
-        Alert.alert(
-          'Software Up to Date',
-          `Hare Krishna! You are running the latest software version: v${currentAppVersion.version} (Build #${currentAppVersion.versionCode}).`
-        );
+        const isWeb = (Platform.OS as string) === 'web';
+        if (isWeb) {
+          showCrossPlatformAlert(
+            'Software Up to Date',
+            `Hare Krishna! You are running the latest software version: v${liveVersion.version} (Build #${liveVersion.versionCode}).\n\nYour application is loaded directly from the web server.`,
+            [
+              { text: 'OK', style: 'cancel' },
+              {
+                text: 'Refresh Web App',
+                onPress: async () => {
+                  await updateService.reloadApp();
+                },
+              },
+            ]
+          );
+        } else {
+          showCrossPlatformAlert(
+            'Software Up to Date',
+            `Hare Krishna! You are running the latest software version: v${liveVersion.version} (Build #${liveVersion.versionCode}).`
+          );
+        }
       }
     } catch (e: any) {
-      Alert.alert('Update Check', e.message || 'Could not verify update status.');
+      showCrossPlatformAlert('Update Check', e.message || 'Could not verify update status.');
     } finally {
       setIsCheckingUpdates(false);
     }
@@ -127,12 +127,12 @@ export const ProfileScreen = () => {
   const handleClearCache = async () => {
     try {
       await authService.clearAppCache();
-      Alert.alert(
+      showCrossPlatformAlert(
         'Cache Cleared Successfully 🙏',
         'App memory cache has been cleared and all devotee records will freshly sync from cloud database.'
       );
     } catch (e: any) {
-      Alert.alert('Cache Clear', e.message || 'Could not clear cache.');
+      showCrossPlatformAlert('Cache Clear', e.message || 'Could not clear cache.');
     }
   };
 
@@ -171,7 +171,7 @@ export const ProfileScreen = () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission Needed', 'Please allow gallery access to select your devotee profile photo.');
+        showCrossPlatformAlert('Permission Needed', 'Please allow gallery access to select your devotee profile photo.');
         return;
       }
 
@@ -186,44 +186,55 @@ export const ProfileScreen = () => {
         const selectedUri = result.assets[0].uri;
         setPhotoUrl(selectedUri);
         if (user?.uid) {
-          await authService.updatePermittedProfile(user.uid, {
+          await updateUserProfile({
             photoURL: selectedUri,
           });
           await reloadUser();
-          Alert.alert('Photo Updated', 'Your profile photo has been updated successfully!');
+          showCrossPlatformAlert('Photo Updated', 'Your profile photo has been updated successfully!');
         }
       }
     } catch (e: any) {
-      Alert.alert('Photo Error', e.message || 'Could not select photo.');
+      showCrossPlatformAlert('Photo Error', e.message || 'Could not select photo.');
     }
   };
 
   const handleSavePermitted = async () => {
     if (!user?.uid) return;
+    if (!displayName.trim()) {
+      showCrossPlatformAlert('Required Field', 'Please enter your devotee full name.');
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      showCrossPlatformAlert('Required Field', 'Please enter your mobile phone number.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const rounds = parseInt(declaredRounds, 10) || 16;
       const targetChanged = rounds !== (user.declaredRounds || 16);
 
-      await authService.updatePermittedProfile(user.uid, {
+      const updates: Partial<UserProfile> = {
         displayName: displayName.trim(),
         phoneNumber: phoneNumber.trim(),
         photoURL: photoUrl || undefined,
-      });
+      };
+
+      await updateUserProfile(updates);
 
       if (targetChanged) {
         await authService.requestTargetRoundsChange(user.uid, rounds);
         await reloadUser();
-        Alert.alert(
+        showCrossPlatformAlert(
           'Target Change Requested',
           `Profile details saved. Your request to change chanting target to ${rounds} rounds has been submitted for counsellor approval.`
         );
       } else {
         await reloadUser();
-        Alert.alert('Profile Updated', 'Your profile details have been saved successfully.');
+        showCrossPlatformAlert('Profile Updated', 'Your profile details have been saved successfully.');
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Could not update profile.');
+      showCrossPlatformAlert('Error', err.message || 'Could not update profile.');
     } finally {
       setIsSaving(false);
     }

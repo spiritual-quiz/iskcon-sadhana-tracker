@@ -651,15 +651,14 @@ export const localStorageService = {
     try {
       const existingRaw = await AsyncStorage.getItem(KEYS.USERS);
       const users: Record<string, LocalStoredUser> = existingRaw ? JSON.parse(existingRaw) : {};
-      const baseUser = users[uid] || (await localStorageService.getUser(uid));
-      if (baseUser) {
-        users[uid] = {
-          ...baseUser,
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        };
-        await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
-      }
+      const baseUser = users[uid] || (await localStorageService.getUser(uid)) || ({ uid } as LocalStoredUser);
+      users[uid] = {
+        ...baseUser,
+        ...updates,
+        uid: baseUser.uid || uid,
+        updatedAt: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
     } catch (e) {
       console.warn('Error updating user in local storage:', e);
     }

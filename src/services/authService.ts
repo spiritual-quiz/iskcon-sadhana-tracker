@@ -4,6 +4,7 @@ import {
   signOut as fbSignOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  updateProfile,
   User,
 } from 'firebase/auth';
 import {
@@ -365,7 +366,7 @@ export const authService = {
       const userRef = doc(db, 'users', uid);
       const snap = await Promise.race([
         getDoc(userRef),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
       ]);
       if (snap.exists()) {
         const profile = snap.data() as UserProfile;
@@ -379,7 +380,7 @@ export const authService = {
         const q = query(collection(db, 'users'), where('email', '==', targetEmail));
         const snapEmail = await Promise.race([
           getDocs(q),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
         ]);
         if (!snapEmail.empty) {
           const profile = snapEmail.docs[0].data() as UserProfile;
@@ -402,14 +403,37 @@ export const authService = {
   ) => {
     try {
       const userRef = doc(db, 'users', uid);
-      await updateDoc(userRef, {
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      });
+      await setDoc(
+        userRef,
+        {
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
     } catch (e) {
       // Gracefully fall back to local storage in offline/hybrid mode
+      console.warn('Error saving profile updates to Firestore:', e);
     }
+
+    try {
+      if (auth.currentUser && (updates.displayName || updates.photoURL)) {
+        await updateProfile(auth.currentUser, {
+          displayName: updates.displayName || auth.currentUser.displayName,
+          photoURL: updates.photoURL || auth.currentUser.photoURL,
+        });
+      }
+    } catch (authErr) {
+      console.warn('Error updating Firebase auth profile:', authErr);
+    }
+
     await localStorageService.updateUser(uid, updates);
+
+    // Invalidate users caches so counsellor dashboard and reports immediately reflect changes
+    fastCache.invalidate('all_users');
+    fastCache.invalidate('all_counselees');
+    fastCache.invalidate('pending_counselees');
+    fastCache.invalidate('community_summaries');
   },
 
   /**

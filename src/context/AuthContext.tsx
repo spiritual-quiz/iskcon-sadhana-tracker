@@ -9,6 +9,7 @@ interface AuthContextType extends AuthState {
   register: (params: RegisterParams) => Promise<void>;
   signOut: () => Promise<void>;
   reloadUser: () => Promise<UserProfile | null>;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   updateDeclaredRounds: (newRounds: number) => Promise<void>;
   requestDeclaredRoundsChange: (newRounds: number) => Promise<void>;
   cancelDeclaredRoundsRequest: () => Promise<void>;
@@ -81,6 +82,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return null;
   };
 
+  const updateUserProfile = async (updates: Partial<UserProfile>) => {
+    if (!user?.uid) return;
+    try {
+      await authService.updatePermittedProfile(user.uid, updates);
+    } catch (e) {
+      console.warn('Error updating user profile:', e);
+    }
+    setUser((prev) => (prev ? { ...prev, ...updates, updatedAt: new Date().toISOString() } : prev));
+  };
+
   const updateDeclaredRounds = async (newRounds: number) => {
     if (!user?.uid) return;
     try {
@@ -130,6 +141,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         register,
         signOut,
         reloadUser,
+        updateUserProfile,
         updateDeclaredRounds,
         requestDeclaredRoundsChange,
         cancelDeclaredRoundsRequest,
