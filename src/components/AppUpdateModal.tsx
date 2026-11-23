@@ -71,9 +71,11 @@ export const AppUpdateModal: React.FC<AppUpdateModalProps> = ({
   };
 
   const handleOpenReleasePage = () => {
+    const cleanVer = (versionInfo?.version || '').replace(/^v/i, '').trim();
+    const targetTag = cleanVer ? `v${cleanVer}` : 'v1.0.59';
     const url =
       versionInfo?.apkDownloadUrl ||
-      'https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest';
+      `https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/tag/${targetTag}`;
     Linking.openURL(url);
   };
 

@@ -16,8 +16,8 @@ export interface AppVersionInfo {
   publishedAt: string;
 }
 
-export const APP_CURRENT_VERSION = '1.0.58';
-export const APP_CURRENT_BUILD = 58;
+export const APP_CURRENT_VERSION = '1.0.59';
+export const APP_CURRENT_BUILD = 59;
 
 const GITHUB_REPO = 'spiritual-quiz/iskcon-sadhana-tracker';
 const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
@@ -76,10 +76,13 @@ export const updateService = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-      const res = await fetch(GITHUB_LATEST_RELEASE_URL, {
+      // Add cache-busting timestamp and no-cache headers to prevent stale mobile HTTP responses
+      const res = await fetch(`${GITHUB_LATEST_RELEASE_URL}?t=${Date.now()}`, {
         headers: {
           Accept: 'application/vnd.github.v3+json',
           'User-Agent': 'Bhakti-Unnati-App',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
         },
         signal: controller.signal,
       });
@@ -102,7 +105,7 @@ export const updateService = {
         }
       }
       if (!apkDownloadUrl && versionStr) {
-        apkDownloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/${tagName}/Bhakti-Unnati.apk`;
+        apkDownloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${versionStr}/Bhakti-Unnati.apk`;
       }
 
       return {
@@ -272,9 +275,12 @@ export const updateService = {
 
     // On Native Android:
     // If an APK download URL is available from GitHub or Firestore, open it to trigger complete system download
+    const cleanVer = (versionInfo?.version || '').replace(/^v/i, '').trim();
+    const targetTag = cleanVer ? `v${cleanVer}` : 'v1.0.59';
     const apkUrl =
       versionInfo?.apkDownloadUrl ||
-      'https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest/download/Bhakti-Unnati.apk';
+      `https://github.com/${GITHUB_REPO}/releases/download/${targetTag}/Bhakti-Unnati.apk`;
+
     if (apkUrl) {
       try {
         await Linking.openURL(apkUrl);
@@ -324,24 +330,50 @@ export const updateService = {
    */
   promptUserForUpdate: (versionInfo: AppVersionInfo) => {
     const isWeb = (Platform.OS as string) === 'web';
+    const cleanVer = (versionInfo.version || '').replace(/^v/i, '').trim();
+    const targetTag = cleanVer ? `v${cleanVer}` : 'v1.0.59';
+    const releasePageUrl = `https://github.com/${GITHUB_REPO}/releases/tag/${targetTag}`;
+
     showCrossPlatformAlert(
       'New Software Update Available',
       `Hare Krishna! A new software update (v${versionInfo.version}) is now available.\n\n${
         versionInfo.releaseNotes || 'Includes devotional honours, performance updates, and new features.'
       }\n\nWould you like to ${isWeb ? 'refresh and update' : 'download and install'} now?`,
-      [
-        { text: 'Later', style: 'cancel' },
-        {
-          text: isWeb ? 'Update Now' : 'Download & Install',
-          onPress: async () => {
-            try {
-              await updateService.fetchAndApplyUpdate(versionInfo);
-            } catch (err: any) {
-              showCrossPlatformAlert('Update Error', err?.message || 'Could not start update download.');
-            }
-          },
-        },
-      ]
+      isWeb
+        ? [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Update Now',
+              onPress: async () => {
+                try {
+                  await updateService.fetchAndApplyUpdate(versionInfo);
+                } catch (err: any) {
+                  showCrossPlatformAlert('Update Error', err?.message || 'Could not update.');
+                }
+              },
+            },
+          ]
+        : [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Release Page',
+              onPress: async () => {
+                try {
+                  await Linking.openURL(releasePageUrl);
+                } catch {}
+              },
+            },
+            {
+              text: 'Download & Install',
+              onPress: async () => {
+                try {
+                  await updateService.fetchAndApplyUpdate(versionInfo);
+                } catch (err: any) {
+                  showCrossPlatformAlert('Update Error', err?.message || 'Could not start update download.');
+                }
+              },
+            },
+          ]
     );
   },
 
