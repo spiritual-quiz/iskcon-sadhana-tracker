@@ -67,6 +67,8 @@ export interface SadhanaEntry {
   // Metadata & Status
   isComplete: boolean;
   isZeroScore: boolean;
+  submittedByDevotee?: boolean; // true when counselee has explicitly submitted their sadhana
+  correctionReason?: string;
   auditHistory?: AuditRecord[];
   createdAt: string;
   updatedAt: string;

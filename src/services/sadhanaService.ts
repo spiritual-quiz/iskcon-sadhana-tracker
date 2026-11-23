@@ -29,6 +29,7 @@ export const sadhanaService = {
     input: SadhanaInput;
     modifiedBy: string;
     correctionReason?: string;
+    submittedByDevotee?: boolean;
   }): Promise<SadhanaEntry> => {
     const dateStr = params.date || getTodayDateStringIST();
     const entryId = `${params.userId}_${dateStr}`;
@@ -108,6 +109,11 @@ export const sadhanaService = {
       grade: evaluation.grade,
       isComplete: evaluation.isComplete,
       isZeroScore: evaluation.isZeroScore,
+      submittedByDevotee:
+        params.submittedByDevotee !== undefined
+          ? params.submittedByDevotee
+          : (prevData?.submittedByDevotee ?? true),
+      correctionReason: params.correctionReason,
       auditHistory,
       createdAt: prevData ? (prevData.createdAt || nowIso) : nowIso,
       updatedAt: nowIso,
@@ -447,6 +453,7 @@ export const sadhanaService = {
         },
         modifiedBy: params.modifiedBy,
         correctionReason: 'Updated Online Reading Session attendance',
+        submittedByDevotee: existing.submittedByDevotee ?? false,
       });
     } else {
       return await sadhanaService.saveDailySadhana({
@@ -466,6 +473,7 @@ export const sadhanaService = {
         },
         modifiedBy: params.modifiedBy,
         correctionReason: 'Recorded Online Reading Session attendance',
+        submittedByDevotee: false,
       });
     }
   },

@@ -92,6 +92,18 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
 
   const [correctionReason, setCorrectionReason] = useState<string>('');
   const [existingEntry, setExistingEntry] = useState<SadhanaEntry | null>(null);
+
+  // An entry is considered an already submitted card ONLY if it was previously filled and submitted by devotee
+  const isAlreadySubmitted = Boolean(
+    existingEntry &&
+      (existingEntry.submittedByDevotee === true ||
+        (existingEntry.submittedByDevotee !== false &&
+          existingEntry.createdAt &&
+          existingEntry.dailyTotalScore !== undefined &&
+          existingEntry.completionTimeStr &&
+          existingEntry.completedRounds !== undefined &&
+          existingEntry.correctionReason !== 'Recorded Online Reading Session attendance'))
+  );
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
@@ -162,7 +174,17 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     try {
       const entry = await sadhanaService.getDailyEntry(user.uid, date);
       setExistingEntry(entry);
-      if (entry) {
+      const isDevoteeSubmittedEntry = Boolean(
+        entry &&
+          (entry.submittedByDevotee === true ||
+            (entry.submittedByDevotee !== false &&
+              entry.createdAt &&
+              entry.dailyTotalScore !== undefined &&
+              entry.completionTimeStr &&
+              entry.completedRounds !== undefined &&
+              entry.correctionReason !== 'Recorded Online Reading Session attendance'))
+      );
+      if (isDevoteeSubmittedEntry && entry) {
         setDeclaredRounds(String(entry.declaredRounds));
         setCompletedRounds(String(entry.completedRounds));
         setCompletionTime(entry.completionTimeStr || '');
@@ -186,10 +208,10 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setSleepTime(''); // Empty until devotee selects
         setWakeUpTime(''); // Empty until devotee selects
         setRestMinutes(''); // Empty until devotee enters
-        setOnlineReadingAttended(false);
-        setMorningProgrammeAttended(false);
-        setServiceAttended(false);
-        setMonthlyMeetingAttended(false);
+        setOnlineReadingAttended(entry?.onlineReadingAttended ?? false);
+        setMorningProgrammeAttended(entry?.morningProgrammeAttended ?? false);
+        setServiceAttended(entry?.serviceAttended ?? false);
+        setMonthlyMeetingAttended(entry?.monthlyMeetingAttended ?? false);
         setCorrectionReason('');
       }
 
@@ -333,7 +355,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   // Has the devotee entered any sadhana data for this date?
   // Marks should only be calculated after the devotee actually enters their details.
   const hasUserEnteredData = Boolean(
-    existingEntry ||
+    isAlreadySubmitted ||
     completedRounds.trim() !== '' ||
     completionTime.trim() !== '' ||
     readingMinutes.trim() !== '' ||
@@ -472,8 +494,8 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     if (restMinutes === undefined || restMinutes === null || restMinutes.trim() === '') {
       missedFields.push('Daytime Rest (enter minutes or 0)');
     }
-    if (existingEntry && !correctionReason.trim()) {
-      missedFields.push('Correction / Update Reason');
+    if (isAlreadySubmitted && !correctionReason.trim()) {
+      missedFields.push('Correction / Update Reason (required when updating an already submitted card)');
     }
 
     if (missedFields.length > 0) {
@@ -517,9 +539,10 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         },
         modifiedBy: user.uid,
         correctionReason: correctionReason.trim() || undefined,
+        submittedByDevotee: true,
       });
 
-      setExistingEntry(saved);
+      setExistingEntry({ ...saved, submittedByDevotee: true });
       const todayStr = getTodayDateStringIST();
       if (selectedDate === todayStr) {
         await notificationService.cancelTodayReminders();
@@ -1674,7 +1697,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
           )}
 
           {/* Audit Reason if Editing Existing */}
-          {existingEntry && (
+          {isAlreadySubmitted && (
             <View style={styles.card}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="pencil-outline" size={18} color={THEME.colors.warning} />
@@ -1708,7 +1731,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
                 <>
                   <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
                   <Text style={styles.submitButtonText}>
-                    {existingEntry ? 'Update Sadhana Card' : 'Submit Daily Sadhana'}
+                    {isAlreadySubmitted ? 'Update Sadhana Card' : 'Submit Daily Sadhana'}
                   </Text>
                 </>
               )}
