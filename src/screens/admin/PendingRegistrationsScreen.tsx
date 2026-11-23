@@ -28,7 +28,7 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadPending(true);
+      loadPending(false);
     }, [])
   );
 
@@ -68,6 +68,9 @@ export const PendingRegistrationsScreen = ({ navigation }: any) => {
 
   const loadPending = async (force = false) => {
     try {
+      if (pendingUsers.length === 0) {
+        setIsLoading(true);
+      }
       const data = await authService.getPendingCounselees(force);
       setPendingUsers(data);
     } catch (e) {

@@ -32,6 +32,9 @@ export const ChantingRoundsScreen = ({ navigation }: any) => {
 
   const loadDevotees = async (force: boolean = false) => {
     try {
+      if (devotees.length === 0) {
+        setIsLoading(true);
+      }
       const allUsers = await authService.getAllUsers(force);
       const approved = allUsers.filter(
         (u) => u.role !== 'counsellor' && u.status === 'approved'

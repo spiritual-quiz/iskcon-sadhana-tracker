@@ -20,7 +20,7 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
-import { UserProfile, UserRole, UserStatus } from '../types/auth';
+import { UserProfile, UserRole, UserStatus, AdminCreateDevoteeParams } from '../types/auth';
 import { validateInvitationCode, redeemInvitationCode } from './invitationService';
 import { localStorageService, LocalStoredUser } from './localStorageService';
 import { fastCache } from './fastCacheService';
@@ -437,6 +437,86 @@ export const authService = {
   },
 
   /**
+   * Counsellor/Admin: Update all profile details of any counselee
+   */
+  adminUpdateDevoteeProfile: async (
+    uid: string,
+    updates: Partial<UserProfile>
+  ): Promise<void> => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await setDoc(
+        userRef,
+        {
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn('Error updating devotee profile in Firestore:', e);
+    }
+
+    await localStorageService.updateUser(uid, updates);
+
+    // Invalidate users caches
+    fastCache.invalidate('all_users');
+    fastCache.invalidate('all_counselees');
+    fastCache.invalidate('pending_counselees');
+    fastCache.invalidate('community_summaries');
+  },
+
+  /**
+   * Counsellor/Admin: Add a new devotee directly
+   */
+  adminCreateDevotee: async (
+    params: AdminCreateDevoteeParams
+  ): Promise<UserProfile> => {
+    const cleanEmail = params.email.trim().toLowerCase();
+    const cleanPhone = params.phoneNumber.trim();
+    const cleanWhatsapp = (params.whatsappNumber || cleanPhone).trim();
+    const uid = `devotee_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const nowIso = new Date().toISOString();
+
+    const newProfile: UserProfile = {
+      uid,
+      email: cleanEmail,
+      displayName: params.displayName.trim(),
+      phoneNumber: cleanPhone,
+      whatsappNumber: cleanWhatsapp,
+      role: 'counselee',
+      status: params.status || 'approved',
+      declaredRounds: params.declaredRounds || 16,
+      dateOfBirth: params.dateOfBirth?.trim() || undefined,
+      iskconConnectDate: params.iskconConnectDate?.trim() || undefined,
+      invitationCode: params.invitationCode?.trim() || undefined,
+      invitationName: params.invitationName?.trim() || undefined,
+      publicAppreciationConsent: true,
+      sadhanaRemindersEnabled: true,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    // 1. Save to local storage with default password
+    await localStorageService.saveUser(newProfile, params.password || 'Sadhana@108');
+
+    // 2. Save to Firestore
+    try {
+      const userRef = doc(db, 'users', uid);
+      await setDoc(userRef, newProfile, { merge: true });
+    } catch (e) {
+      console.warn('Error creating devotee in Firestore:', e);
+    }
+
+    // 3. Invalidate caches so the new devotee appears instantly across all tabs
+    fastCache.invalidate('all_users');
+    fastCache.invalidate('all_counselees');
+    fastCache.invalidate('pending_counselees');
+
+    return newProfile;
+  },
+
+  /**
    * Counselee: Request counsellor approval to update daily chanting target rounds
    */
   requestTargetRoundsChange: async (uid: string, targetRounds: number) => {
@@ -757,7 +837,10 @@ export const authService = {
    * Get all counselees (approved, pending, and disabled)
    */
   getAllCounselees: async (forceRefresh = false): Promise<UserProfile[]> => {
-    // 0. Memory cache check
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
+
+    // 0. Fast local retrieval (0ms latency, eliminates card opening delays)
     if (forceRefresh) {
       await fastCache.invalidate('all_counselees');
     } else {
@@ -765,10 +848,25 @@ export const authService = {
       if (cached && cached.length > 0) {
         return cached;
       }
+      const localUsers = await localStorageService.getAllUsers();
+      const localCounselees = localUsers
+        .filter(
+          (u) =>
+            u.role !== 'counsellor' &&
+            !deletedSet.has(u.uid.toLowerCase()) &&
+            (!u.email || !deletedSet.has(u.email.toLowerCase()))
+        )
+        .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+      if (localCounselees.length > 0) {
+        await fastCache.set('all_counselees', localCounselees, 30);
+        // Silent background sync so cloud changes sync seamlessly without blocking UI
+        setTimeout(() => {
+          authService.getAllCounselees(true).catch(() => {});
+        }, 150);
+        return localCounselees;
+      }
     }
 
-    const deletedIds = await localStorageService.getDeletedUserIds();
-    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
     const map = new Map<string, UserProfile>();
 
     // 1. Load from Firestore first (source of truth) with 8000ms safe timeout
@@ -819,7 +917,10 @@ export const authService = {
    * Get all registered users
    */
   getAllUsers: async (forceRefresh = false): Promise<UserProfile[]> => {
-    // 0. Memory cache check
+    const deletedIds = await localStorageService.getDeletedUserIds();
+    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
+
+    // 0. Fast local retrieval (0ms latency, eliminates card opening delays)
     if (forceRefresh) {
       await fastCache.invalidate('all_users');
     } else {
@@ -827,10 +928,21 @@ export const authService = {
       if (cached && cached.length > 0) {
         return cached;
       }
+      const localUsers = await localStorageService.getAllUsers();
+      const filtered = localUsers.filter(
+        (u) =>
+          !deletedSet.has(u.uid.toLowerCase()) &&
+          (!u.email || !deletedSet.has(u.email.toLowerCase()))
+      );
+      if (filtered.length > 0) {
+        await fastCache.set('all_users', filtered, 30);
+        setTimeout(() => {
+          authService.getAllUsers(true).catch(() => {});
+        }, 150);
+        return filtered;
+      }
     }
 
-    const deletedIds = await localStorageService.getDeletedUserIds();
-    const deletedSet = new Set(deletedIds.map((id) => id.toLowerCase()));
     const map = new Map<string, UserProfile>();
 
     try {

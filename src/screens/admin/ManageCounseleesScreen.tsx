@@ -23,10 +23,12 @@ import { FollowUpModal } from '../../components/FollowUpModal';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { UserProfile, UserStatus } from '../../types/auth';
-import { calculateAge, calculateConnectionDuration } from '../../utils/dateUtils';
+import { calculateAge, calculateConnectionDuration, formatDateToDevoteeFormat } from '../../utils/dateUtils';
 import { authService } from '../../services/authService';
 import { getAllInvitations } from '../../services/invitationService';
 import { InvitationCode } from '../../types/monitoring';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
+import { DateSelectorModal } from '../../components/DateSelectorModal';
 
 export const ManageCounseleesScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
@@ -45,14 +47,50 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
   const [directEditDevotee, setDirectEditDevotee] = useState<UserProfile | null>(null);
   const [directEditRounds, setDirectEditRounds] = useState<string>('16');
 
+  // Edit devotee profile modal
+  const [editingDevotee, setEditingDevotee] = useState<UserProfile | null>(null);
+  const [editName, setEditName] = useState<string>('');
+  const [editPhone, setEditPhone] = useState<string>('');
+  const [editWhatsapp, setEditWhatsapp] = useState<string>('');
+  const [editDobIso, setEditDobIso] = useState<string>('');
+  const [editDobDisplay, setEditDobDisplay] = useState<string>('');
+  const [editConnectIso, setEditConnectIso] = useState<string>('');
+  const [editConnectDisplay, setEditConnectDisplay] = useState<string>('');
+  const [editRounds, setEditRounds] = useState<string>('16');
+  const [editStatus, setEditStatus] = useState<UserStatus>('approved');
+  const [editReminders, setEditReminders] = useState<boolean>(true);
+  const [showEditDobPicker, setShowEditDobPicker] = useState<boolean>(false);
+  const [showEditConnectPicker, setShowEditConnectPicker] = useState<boolean>(false);
+  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
+
+  // Add devotee modal
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [addName, setAddName] = useState<string>('');
+  const [addEmail, setAddEmail] = useState<string>('');
+  const [addPassword, setAddPassword] = useState<string>('');
+  const [addPhone, setAddPhone] = useState<string>('');
+  const [addWhatsapp, setAddWhatsapp] = useState<string>('');
+  const [addDobIso, setAddDobIso] = useState<string>('');
+  const [addDobDisplay, setAddDobDisplay] = useState<string>('');
+  const [addConnectIso, setAddConnectIso] = useState<string>('');
+  const [addConnectDisplay, setAddConnectDisplay] = useState<string>('');
+  const [addRounds, setAddRounds] = useState<string>('16');
+  const [addInvitationCode, setAddInvitationCode] = useState<string>('');
+  const [showAddDobPicker, setShowAddDobPicker] = useState<boolean>(false);
+  const [showAddConnectPicker, setShowAddConnectPicker] = useState<boolean>(false);
+  const [isCreatingDevotee, setIsCreatingDevotee] = useState<boolean>(false);
+
   useFocusEffect(
     useCallback(() => {
-      loadCounselees(true);
+      loadCounselees(false);
     }, [])
   );
 
   const loadCounselees = async (force = false) => {
     try {
+      if (counselees.length === 0) {
+        setIsLoading(true);
+      }
       const [data, invs] = await Promise.all([
         authService.getAllCounselees(force),
         getAllInvitations().catch(() => []),
@@ -64,6 +102,142 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const handleOpenEditModal = (devotee: UserProfile) => {
+    setEditingDevotee(devotee);
+    setEditName(devotee.displayName || '');
+    setEditPhone(devotee.phoneNumber || '');
+    setEditWhatsapp(devotee.whatsappNumber || devotee.phoneNumber || '');
+    setEditDobIso(devotee.dateOfBirth || '');
+    setEditDobDisplay(devotee.dateOfBirth ? formatDateToDevoteeFormat(devotee.dateOfBirth) : '');
+    setEditConnectIso(devotee.iskconConnectDate || '');
+    setEditConnectDisplay(devotee.iskconConnectDate ? formatDateToDevoteeFormat(devotee.iskconConnectDate) : '');
+    setEditRounds(String(devotee.declaredRounds || 16));
+    setEditStatus(devotee.status || 'approved');
+    setEditReminders(devotee.sadhanaRemindersEnabled !== false);
+  };
+
+  const handleSaveEditProfile = async () => {
+    if (!editingDevotee) return;
+    if (!editName.trim()) {
+      showCrossPlatformAlert('Required Field', 'Please enter devotee name.');
+      return;
+    }
+    const cleanPhone = editPhone.trim();
+    if (!cleanPhone || cleanPhone.length < 10) {
+      showCrossPlatformAlert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    const cleanWhatsapp = (editWhatsapp.trim() || cleanPhone);
+    const rounds = parseInt(editRounds, 10);
+    if (isNaN(rounds) || rounds <= 0) {
+      showCrossPlatformAlert('Invalid Rounds', 'Please specify a valid daily round commitment (e.g. 16).');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const updates: Partial<UserProfile> = {
+        displayName: editName.trim(),
+        phoneNumber: cleanPhone,
+        whatsappNumber: cleanWhatsapp,
+        dateOfBirth: editDobIso || undefined,
+        iskconConnectDate: editConnectIso || undefined,
+        declaredRounds: rounds,
+        status: editStatus,
+        sadhanaRemindersEnabled: editReminders,
+      };
+
+      // Optimistic local state update
+      setCounselees((prev) =>
+        prev.map((c) => (c.uid === editingDevotee.uid ? { ...c, ...updates } : c))
+      );
+
+      await authService.adminUpdateDevoteeProfile(editingDevotee.uid, updates);
+      showCrossPlatformAlert(
+        'Profile Updated 🙏',
+        `Devotee details for ${editName.trim()} have been successfully updated.`
+      );
+      setEditingDevotee(null);
+      loadCounselees(false);
+    } catch (err: any) {
+      showCrossPlatformAlert('Update Error', err?.message || 'Could not update devotee profile.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleCreateDevotee = async () => {
+    if (!addName.trim()) {
+      showCrossPlatformAlert('Required Field', 'Please enter devotee full name.');
+      return;
+    }
+    const cleanEmail = addEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      showCrossPlatformAlert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+    const cleanPhone = addPhone.trim();
+    if (!cleanPhone || cleanPhone.length < 10) {
+      showCrossPlatformAlert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    const cleanWhatsapp = (addWhatsapp.trim() || cleanPhone);
+    const rounds = parseInt(addRounds, 10);
+    if (isNaN(rounds) || rounds <= 0) {
+      showCrossPlatformAlert('Invalid Rounds', 'Please specify a valid daily round commitment (e.g. 16).');
+      return;
+    }
+    if (!addDobIso) {
+      showCrossPlatformAlert('Required Field', 'Please select Date of Birth.');
+      return;
+    }
+    if (!addConnectIso) {
+      showCrossPlatformAlert('Required Field', 'Please select Date of Association with ISKCON.');
+      return;
+    }
+
+    setIsCreatingDevotee(true);
+    try {
+      const newDevotee = await authService.adminCreateDevotee({
+        displayName: addName.trim(),
+        email: cleanEmail,
+        password: addPassword.trim() || 'Sadhana@108',
+        phoneNumber: cleanPhone,
+        whatsappNumber: cleanWhatsapp,
+        declaredRounds: rounds,
+        dateOfBirth: addDobIso,
+        iskconConnectDate: addConnectIso,
+        invitationCode: addInvitationCode.trim() || undefined,
+        status: 'approved',
+      });
+
+      setCounselees((prev) => [newDevotee, ...prev]);
+      showCrossPlatformAlert(
+        'Devotee Added! 🙏',
+        `${newDevotee.displayName} has been added and approved.\n\nThey can log in using:\nEmail: ${cleanEmail}\nPassword: ${addPassword.trim() || 'Sadhana@108'}`
+      );
+      setShowAddModal(false);
+      // Reset form fields
+      setAddName('');
+      setAddEmail('');
+      setAddPassword('');
+      setAddPhone('');
+      setAddWhatsapp('');
+      setAddDobIso('');
+      setAddDobDisplay('');
+      setAddConnectIso('');
+      setAddConnectDisplay('');
+      setAddRounds('16');
+      setAddInvitationCode('');
+      loadCounselees(false);
+    } catch (err: any) {
+      showCrossPlatformAlert('Add Devotee Error', err?.message || 'Could not add devotee.');
+    } finally {
+      setIsCreatingDevotee(false);
     }
   };
 
@@ -327,14 +501,24 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
       {/* Search & Filter Bar (Shown in All Devotees tab) */}
       {activeTab === 'all' && (
         <View style={styles.searchSection}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color={THEME.colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by devotee name, phone, or email..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+          <View style={styles.searchBarRow}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={18} color={THEME.colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by devotee name, phone, or email..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.addDevoteeBtn, { backgroundColor: theme.thickColor }]}
+              onPress={() => setShowAddModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="person-add" size={15} color="#FFFFFF" />
+              <Text style={styles.addDevoteeBtnText}>+ Add Devotee</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.filterRow}>
@@ -426,6 +610,10 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                       <Text style={styles.detailValue}>{devotee.phoneNumber || 'N/A'}</Text>
                     </View>
                     <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>WhatsApp</Text>
+                      <Text style={styles.detailValue}>{devotee.whatsappNumber || devotee.phoneNumber || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={styles.detailLabel}>Chanting Rounds</Text>
                         <TouchableOpacity
@@ -441,12 +629,20 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                       <Text style={[styles.detailValueBold, { color: theme.thickColor }]}>{devotee.declaredRounds || 16} Rounds</Text>
                     </View>
                     <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>Age</Text>
-                      <Text style={styles.detailValue}>{age > 0 ? `${age} yrs` : 'N/A'}</Text>
+                      <Text style={styles.detailLabel}>Date of Birth (Age)</Text>
+                      <Text style={styles.detailValue}>
+                        {devotee.dateOfBirth
+                          ? `${formatDateToDevoteeFormat(devotee.dateOfBirth)}${age > 0 ? ` (${age} yrs)` : ''}`
+                          : 'N/A'}
+                      </Text>
                     </View>
-                    <View style={styles.detailItem}>
-                      <Text style={styles.detailLabel}>ISKCON Duration</Text>
-                      <Text style={styles.detailValue}>{connection.text}</Text>
+                    <View style={[styles.detailItem, { width: '100%' }]}>
+                      <Text style={styles.detailLabel}>ISKCON Association</Text>
+                      <Text style={styles.detailValue}>
+                        {devotee.iskconConnectDate
+                          ? `${formatDateToDevoteeFormat(devotee.iskconConnectDate)} (${connection.text})`
+                          : connection.text}
+                      </Text>
                     </View>
                   </View>
 
@@ -515,6 +711,14 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
 
                   <View style={styles.actionsRow}>
                     <TouchableOpacity
+                      style={styles.actionBtnEdit}
+                      onPress={() => handleOpenEditModal(devotee)}
+                    >
+                      <Ionicons name="create-outline" size={14} color="#0284C7" />
+                      <Text style={styles.actionBtnEditText}>Edit Profile</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
                       style={
                         devotee.sadhanaRemindersEnabled !== false
                           ? styles.actionBtnReminderOff
@@ -534,7 +738,7 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                             : styles.actionBtnReminderOnText
                         }
                       >
-                        {devotee.sadhanaRemindersEnabled !== false ? 'Switch Off Reminders' : 'Activate Reminders'}
+                        {devotee.sadhanaRemindersEnabled !== false ? 'Reminders Off' : 'Reminders On'}
                       </Text>
                     </TouchableOpacity>
 
@@ -619,6 +823,13 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
                           >
                             <Text style={styles.invDevoteeName}>{devotee.displayName}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <TouchableOpacity
+                                style={styles.invEditBtn}
+                                onPress={() => handleOpenEditModal(devotee)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Ionicons name="create-outline" size={16} color="#0284C7" />
+                              </TouchableOpacity>
                               <StatusBadge type="status" value={devotee.status} />
                               {devotee.status === 'pending' && (
                                 <TouchableOpacity
@@ -746,6 +957,424 @@ export const ManageCounseleesScreen = ({ navigation }: any) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Counsellor Edit Devotee Full Profile Modal */}
+      <Modal
+        visible={!!editingDevotee}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingDevotee(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setEditingDevotee(null)}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.editProfileModalCard, { backgroundColor: theme.colors.card }]}>
+                <View style={styles.modalHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="person-circle" size={24} color={theme.thickColor} />
+                    <Text style={[styles.modalTitleText, { color: theme.thickColor }]}>Edit Devotee Profile</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setEditingDevotee(null)}>
+                    <Ionicons name="close" size={22} color={THEME.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.modalSubtitleText}>
+                  Update contact, spiritual commitment & record details for {editingDevotee?.displayName}:
+                </Text>
+
+                <ScrollView style={styles.formScrollContainer} keyboardShouldPersistTaps="handled">
+                  {/* Full Name */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Full Name *</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={editName}
+                      onChangeText={setEditName}
+                      placeholder="Devotee name"
+                    />
+                  </View>
+
+                  {/* Mobile & WhatsApp Numbers */}
+                  <View style={styles.formRow}>
+                    <View style={[styles.formGroup, { flex: 1, marginRight: 6 }]}>
+                      <Text style={styles.formLabel}>Mobile Number *</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editPhone}
+                        onChangeText={setEditPhone}
+                        keyboardType="phone-pad"
+                        placeholder="10-digit mobile"
+                      />
+                    </View>
+                    <View style={[styles.formGroup, { flex: 1, marginLeft: 6 }]}>
+                      <Text style={styles.formLabel}>WhatsApp Number</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editWhatsapp}
+                        onChangeText={setEditWhatsapp}
+                        keyboardType="phone-pad"
+                        placeholder="WhatsApp number"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Chanting Rounds Target */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Daily Chanting Commitment (Rounds) *</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={editRounds}
+                      onChangeText={setEditRounds}
+                      keyboardType="numeric"
+                      placeholder="e.g. 16"
+                    />
+                  </View>
+
+                  {/* Date of Birth Picker */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Date of Birth</Text>
+                    <TouchableOpacity
+                      style={styles.datePickerTrigger}
+                      onPress={() => setShowEditDobPicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="calendar-outline" size={18} color="#D97706" />
+                        <Text style={[styles.datePickerTriggerText, !editDobDisplay && { color: THEME.colors.textMuted }]}>
+                          {editDobDisplay || 'Tap to select Date of Birth'}
+                        </Text>
+                      </View>
+                      <Text style={styles.datePickerTriggerAction}>Choose</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Date of ISKCON Association Picker */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Date of Association with ISKCON</Text>
+                    <TouchableOpacity
+                      style={styles.datePickerTrigger}
+                      onPress={() => setShowEditConnectPicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="heart-outline" size={18} color="#EA580C" />
+                        <Text style={[styles.datePickerTriggerText, !editConnectDisplay && { color: THEME.colors.textMuted }]}>
+                          {editConnectDisplay || 'Tap to select ISKCON Association date'}
+                        </Text>
+                      </View>
+                      <Text style={styles.datePickerTriggerAction}>Choose</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Account Status Selection */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Account Status</Text>
+                    <View style={styles.statusSelectRow}>
+                      {(['approved', 'pending', 'disabled'] as UserStatus[]).map((st) => (
+                        <TouchableOpacity
+                          key={st}
+                          style={[
+                            styles.statusSelectPill,
+                            editStatus === st && [styles.statusSelectPillActive, { backgroundColor: theme.thickColor }],
+                          ]}
+                          onPress={() => setEditStatus(st)}
+                        >
+                          <Text
+                            style={[
+                              styles.statusSelectPillText,
+                              editStatus === st && styles.statusSelectPillTextActive,
+                            ]}
+                          >
+                            {st.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Daily Sadhana Reminders */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Daily Sadhana Reminders (6 PM & 9 PM)</Text>
+                    <View style={styles.statusSelectRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.statusSelectPill,
+                          editReminders && { backgroundColor: '#15803D' },
+                        ]}
+                        onPress={() => setEditReminders(true)}
+                      >
+                        <Text style={[styles.statusSelectPillText, editReminders && styles.statusSelectPillTextActive]}>
+                          ACTIVE
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.statusSelectPill,
+                          !editReminders && { backgroundColor: '#DC2626' },
+                        ]}
+                        onPress={() => setEditReminders(false)}
+                      >
+                        <Text style={[styles.statusSelectPillText, !editReminders && styles.statusSelectPillTextActive]}>
+                          OFF
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalBtnRow}>
+                  <TouchableOpacity
+                    style={styles.modalCancelBtn}
+                    onPress={() => setEditingDevotee(null)}
+                    disabled={isSavingEdit}
+                  >
+                    <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalSubmitBtn, { backgroundColor: theme.thickColor }]}
+                    onPress={handleSaveEditProfile}
+                    disabled={isSavingEdit}
+                  >
+                    {isSavingEdit ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.modalSubmitBtnText}>Save Changes</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Counsellor Add Devotee Directly Modal */}
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowAddModal(false)}>
+          <View style={styles.modalBackdrop}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.editProfileModalCard, { backgroundColor: theme.colors.card }]}>
+                <View style={styles.modalHeaderRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="person-add" size={22} color={theme.thickColor} />
+                    <Text style={[styles.modalTitleText, { color: theme.thickColor }]}>Add New Devotee</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                    <Ionicons name="close" size={22} color={THEME.colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.modalSubtitleText}>
+                  Register & directly approve a new counselee into the sadhana portal:
+                </Text>
+
+                <ScrollView style={styles.formScrollContainer} keyboardShouldPersistTaps="handled">
+                  {/* Full Name */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Full Name *</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={addName}
+                      onChangeText={setAddName}
+                      placeholder="e.g. Radheshyam Das"
+                    />
+                  </View>
+
+                  {/* Email */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Email Address *</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={addEmail}
+                      onChangeText={setAddEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholder="devotee@example.com"
+                    />
+                  </View>
+
+                  {/* Password */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Login Password (Optional)</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={addPassword}
+                      onChangeText={setAddPassword}
+                      placeholder="Defaults to Sadhana@108"
+                    />
+                  </View>
+
+                  {/* Mobile & WhatsApp Numbers */}
+                  <View style={styles.formRow}>
+                    <View style={[styles.formGroup, { flex: 1, marginRight: 6 }]}>
+                      <Text style={styles.formLabel}>Mobile Number *</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={addPhone}
+                        onChangeText={setAddPhone}
+                        keyboardType="phone-pad"
+                        placeholder="10-digit mobile"
+                      />
+                    </View>
+                    <View style={[styles.formGroup, { flex: 1, marginLeft: 6 }]}>
+                      <Text style={styles.formLabel}>WhatsApp Number</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={addWhatsapp}
+                        onChangeText={setAddWhatsapp}
+                        keyboardType="phone-pad"
+                        placeholder="Leave blank if same"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Chanting Rounds */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Daily Chanting Target (Rounds) *</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={addRounds}
+                      onChangeText={setAddRounds}
+                      keyboardType="numeric"
+                      placeholder="16"
+                    />
+                  </View>
+
+                  {/* Date of Birth Picker */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Date of Birth *</Text>
+                    <TouchableOpacity
+                      style={styles.datePickerTrigger}
+                      onPress={() => setShowAddDobPicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="calendar-outline" size={18} color="#D97706" />
+                        <Text style={[styles.datePickerTriggerText, !addDobDisplay && { color: THEME.colors.textMuted }]}>
+                          {addDobDisplay || 'Select Date of Birth (e.g. 10-May-1995)'}
+                        </Text>
+                      </View>
+                      <Text style={styles.datePickerTriggerAction}>Choose</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Date of Association with ISKCON Picker */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Date of Association with ISKCON *</Text>
+                    <TouchableOpacity
+                      style={styles.datePickerTrigger}
+                      onPress={() => setShowAddConnectPicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="heart-outline" size={18} color="#EA580C" />
+                        <Text style={[styles.datePickerTriggerText, !addConnectDisplay && { color: THEME.colors.textMuted }]}>
+                          {addConnectDisplay || 'Select ISKCON Date (e.g. 15-Jan-2018)'}
+                        </Text>
+                      </View>
+                      <Text style={styles.datePickerTriggerAction}>Choose</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Invitation Code */}
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Invitation Code / Group (Optional)</Text>
+                    <TextInput
+                      style={styles.formInput}
+                      value={addInvitationCode}
+                      onChangeText={setAddInvitationCode}
+                      autoCapitalize="characters"
+                      placeholder="e.g. KRISHNA7"
+                    />
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalBtnRow}>
+                  <TouchableOpacity
+                    style={styles.modalCancelBtn}
+                    onPress={() => setShowAddModal(false)}
+                    disabled={isCreatingDevotee}
+                  >
+                    <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalSubmitBtn, { backgroundColor: theme.thickColor }]}
+                    onPress={handleCreateDevotee}
+                    disabled={isCreatingDevotee}
+                  >
+                    {isCreatingDevotee ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.modalSubmitBtnText}>+ Add Devotee</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* DateSelectorModal Dialogs */}
+      <DateSelectorModal
+        visible={showEditDobPicker}
+        title="Select Date of Birth"
+        subtitle="Devotee birth date"
+        mode="birth"
+        initialDate={editDobIso || '1995-05-10'}
+        onSelectDate={(display, iso) => {
+          setEditDobDisplay(display);
+          setEditDobIso(iso);
+          setShowEditDobPicker(false);
+        }}
+        onClose={() => setShowEditDobPicker(false)}
+      />
+
+      <DateSelectorModal
+        visible={showEditConnectPicker}
+        title="Date of ISKCON Association"
+        subtitle="When devotee first connected with ISKCON"
+        mode="association"
+        initialDate={editConnectIso || '2020-01-01'}
+        onSelectDate={(display, iso) => {
+          setEditConnectDisplay(display);
+          setEditConnectIso(iso);
+          setShowEditConnectPicker(false);
+        }}
+        onClose={() => setShowEditConnectPicker(false)}
+      />
+
+      <DateSelectorModal
+        visible={showAddDobPicker}
+        title="Select Date of Birth"
+        subtitle="Devotee birth date"
+        mode="birth"
+        initialDate={addDobIso || '1995-05-10'}
+        onSelectDate={(display, iso) => {
+          setAddDobDisplay(display);
+          setAddDobIso(iso);
+          setShowAddDobPicker(false);
+        }}
+        onClose={() => setShowAddDobPicker(false)}
+      />
+
+      <DateSelectorModal
+        visible={showAddConnectPicker}
+        title="Date of ISKCON Association"
+        subtitle="When devotee first connected with ISKCON"
+        mode="association"
+        initialDate={addConnectIso || '2020-01-01'}
+        onSelectDate={(display, iso) => {
+          setAddConnectDisplay(display);
+          setAddConnectIso(iso);
+          setShowAddConnectPicker(false);
+        }}
+        onClose={() => setShowAddConnectPicker(false)}
+      />
     </View>
   );
 };
@@ -1347,5 +1976,125 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 11,
+  },
+  searchBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addDevoteeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: THEME.borderRadius.md,
+    justifyContent: 'center',
+  },
+  addDevoteeBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  actionBtnEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: THEME.borderRadius.sm,
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    gap: 4,
+  },
+  actionBtnEditText: {
+    color: '#0369A1',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  editProfileModalCard: {
+    width: '92%',
+    maxWidth: 520,
+    maxHeight: '90%',
+    borderRadius: THEME.borderRadius.lg,
+    padding: 18,
+    ...THEME.shadows.medium,
+  },
+  formScrollContainer: {
+    marginVertical: 10,
+    maxHeight: 460,
+  },
+  formGroup: {
+    marginBottom: 12,
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  formLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.colors.textMuted,
+    marginBottom: 5,
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: THEME.colors.borderLight,
+    borderRadius: THEME.borderRadius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: THEME.colors.text,
+    backgroundColor: THEME.colors.surfaceVariant,
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: THEME.colors.borderLight,
+    borderRadius: THEME.borderRadius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: THEME.colors.surfaceVariant,
+  },
+  datePickerTriggerText: {
+    fontSize: 13,
+    color: THEME.colors.text,
+  },
+  datePickerTriggerAction: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: THEME.colors.goldDark,
+  },
+  statusSelectRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  statusSelectPill: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: THEME.borderRadius.sm,
+    backgroundColor: THEME.colors.surfaceVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: THEME.colors.borderLight,
+  },
+  statusSelectPillActive: {
+    borderColor: 'transparent',
+  },
+  statusSelectPillText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: THEME.colors.textMuted,
+  },
+  statusSelectPillTextActive: {
+    color: '#FFFFFF',
+  },
+  invEditBtn: {
+    padding: 4,
+    marginLeft: 6,
   },
 });

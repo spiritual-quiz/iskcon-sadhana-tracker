@@ -6,6 +6,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   phoneNumber: string;
+  whatsappNumber?: string;
   role: UserRole;
   status: UserStatus;
   counsellorId?: string;
@@ -23,6 +24,20 @@ export interface UserProfile {
   reminderOptOutRequestedAt?: string; // ISO string when requested
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
+}
+
+export interface AdminCreateDevoteeParams {
+  displayName: string;
+  email: string;
+  password?: string;
+  phoneNumber: string;
+  whatsappNumber?: string;
+  dateOfBirth?: string;
+  iskconConnectDate?: string;
+  declaredRounds?: number;
+  invitationCode?: string;
+  invitationName?: string;
+  status?: UserStatus;
 }
 
 export interface AuthState {

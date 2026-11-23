@@ -20,7 +20,7 @@ import { db } from '../../config/firebase';
 
 import { authService } from '../../services/authService';
 import { localStorageService } from '../../services/localStorageService';
-import { updateService } from '../../services/updateService';
+import { updateService, isNewerVersion } from '../../services/updateService';
 import { showCrossPlatformAlert } from '../../utils/alertUtils';
 
 export const SettingsExportScreen = ({ navigation }: any) => {
@@ -51,7 +51,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   const loadLiveBroadcast = async () => {
     try {
       const live = await updateService.getLatestBroadcast();
-      if (live && live.version) {
+      if (live && live.version && isNewerVersion(live.version, currentAppVersion.version)) {
         setBroadcastVersion(live.version);
         setBroadcastCode(String(live.versionCode || currentAppVersion.versionCode));
         if (live.title) setBroadcastTitle(live.title);
@@ -60,6 +60,7 @@ export const SettingsExportScreen = ({ navigation }: any) => {
         setBroadcastVersion(currentAppVersion.version);
         setBroadcastCode(String(currentAppVersion.versionCode));
         setBroadcastTitle(`Bhakti Unnati v${currentAppVersion.version}`);
+        if (live?.releaseNotes) setBroadcastNotes(live.releaseNotes);
       }
     } catch (e) {
       setBroadcastVersion(currentAppVersion.version);
@@ -135,20 +136,23 @@ export const SettingsExportScreen = ({ navigation }: any) => {
   const handlePublishUpgrade = async () => {
     setIsPublishingUpgrade(true);
     try {
+      const gitHubRelease = await updateService.getLatestGitHubRelease().catch(() => null);
+      const apkUrl = gitHubRelease?.apkDownloadUrl || 'https://github.com/spiritual-quiz/iskcon-sadhana-tracker/releases/latest/download/Bhakti-Unnati.apk';
+
       await updateService.publishSoftwareUpgrade({
         version: broadcastVersion.trim() || currentAppVersion.version,
         versionCode: parseInt(broadcastCode, 10) || currentAppVersion.versionCode,
         title: broadcastTitle.trim() || 'New Devotional Update Available',
         releaseNotes: broadcastNotes.trim(),
-        apkDownloadUrl: 'https://expo.dev/artifacts/eas/1ibgUrrK89ERZl2Mz4GOSd0DjHACyoD4BH7ljT9ckfk.apk',
+        apkDownloadUrl: apkUrl,
         isMandatory: false,
       });
-      Alert.alert(
+      showCrossPlatformAlert(
         'Software Upgrade Broadcasted! 🚀',
         `Version ${broadcastVersion} (code: ${broadcastCode}) is now live in Firestore. Devotees and counsellors will immediately see the update pop-up with the progress bar when they open the app.`
       );
     } catch (e: any) {
-      Alert.alert('Broadcast Error', e?.message || 'Could not publish update broadcast.');
+      showCrossPlatformAlert('Broadcast Error', e?.message || 'Could not publish update broadcast.');
     } finally {
       setIsPublishingUpgrade(false);
     }

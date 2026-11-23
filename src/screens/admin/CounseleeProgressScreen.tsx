@@ -95,7 +95,9 @@ export const CounseleeProgressScreen = ({ navigation }: any) => {
   }, [selectedDevotee, selectedYear, selectedMonth]);
 
   const loadCounselees = async (force = false) => {
-    setIsLoading(true);
+    if (counselees.length === 0) {
+      setIsLoading(true);
+    }
     try {
       const all = await authService.getAllCounselees(force);
       const approved = all

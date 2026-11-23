@@ -26,6 +26,7 @@ import {
 import { validateInvitationCode } from '../../services/invitationService';
 import { DateSelectorModal } from '../../components/DateSelectorModal';
 import { biometricService } from '../../services/biometricService';
+import { showCrossPlatformAlert } from '../../utils/alertUtils';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -116,7 +117,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   const handleVerifyInvitation = async () => {
     if (!invitationCode.trim()) {
-      Alert.alert('Missing Code', 'Please enter your counsellor invitation code.');
+      showCrossPlatformAlert('Missing Code', 'Please enter your counsellor invitation code.');
       return;
     }
     setIsValidatingCode(true);
@@ -126,11 +127,11 @@ export const RegisterScreen = ({ navigation }: any) => {
         setCodeValidated(true);
         const groupName = res.invitation?.notes || res.invitation?.code || 'Devotee Group';
         setInvitationGroupName(groupName);
-        Alert.alert('Code Verified ✓', `Invitation code valid for: "${groupName}"! Please complete your devotee profile.`);
+        showCrossPlatformAlert('Code Verified ✓', `Invitation code valid for: "${groupName}"! Please complete your devotee profile.`);
       } else {
         setCodeValidated(false);
         setInvitationGroupName('');
-        Alert.alert('Invalid Code', res.errorMessage || 'Invitation code is not valid.');
+        showCrossPlatformAlert('Invalid Code', res.errorMessage || 'Invitation code is not valid.');
       }
     } finally {
       setIsValidatingCode(false);
@@ -139,30 +140,41 @@ export const RegisterScreen = ({ navigation }: any) => {
 
   const handleRegister = async () => {
     if (!invitationCode.trim() || !displayName.trim() || !email.trim() || !password || !phoneNumber.trim()) {
-      Alert.alert('Required Fields', 'Please fill in all required fields (Invitation Code, Name, Email, Password, WhatsApp Number).');
+      showCrossPlatformAlert('Required Fields', 'Please fill in all required fields (Invitation Code, Name, Email, Password, WhatsApp Number).');
       return;
     }
 
     const cleanEmail = email.trim();
     if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      showCrossPlatformAlert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Password Too Short', 'Password must be at least 6 characters long.');
+      showCrossPlatformAlert('Password Too Short', 'Password must be at least 6 characters long.');
       return;
     }
 
     const cleanPhone = phoneNumber.trim();
     if (cleanPhone.length < 10) {
-      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit WhatsApp mobile number.');
+      showCrossPlatformAlert('Invalid Mobile Number', 'Please enter a valid 10-digit WhatsApp mobile number.');
       return;
     }
 
     const rounds = parseInt(declaredRounds, 10);
     if (isNaN(rounds) || rounds <= 0) {
-      Alert.alert('Invalid Rounds', 'Please specify a valid daily round commitment (e.g. 16).');
+      showCrossPlatformAlert('Invalid Rounds', 'Please specify a valid daily round commitment (e.g. 16).');
+      return;
+    }
+
+    // MANDATORY DATE OF BIRTH AND DATE OF ISKCON ASSOCIATION
+    if (!dateOfBirthIso) {
+      showCrossPlatformAlert('Required Field', 'Please select your Date of Birth. It is mandatory for devotee records.');
+      return;
+    }
+
+    if (!iskconConnectIso) {
+      showCrossPlatformAlert('Required Field', 'Please select your Date of Association with ISKCON. It is mandatory for devotee records.');
       return;
     }
 
@@ -174,8 +186,8 @@ export const RegisterScreen = ({ navigation }: any) => {
         displayName: displayName.trim(),
         phoneNumber: cleanPhone,
         invitationCode: invitationCode.trim(),
-        dateOfBirth: dateOfBirthIso || undefined,
-        iskconConnectDate: iskconConnectIso || undefined,
+        dateOfBirth: dateOfBirthIso,
+        iskconConnectDate: iskconConnectIso,
         declaredRounds: rounds,
       });
 
@@ -183,12 +195,12 @@ export const RegisterScreen = ({ navigation }: any) => {
         await biometricService.saveCredentials(cleanEmail, password, displayName.trim());
       }
 
-      Alert.alert(
+      showCrossPlatformAlert(
         'Registration Submitted',
         'Hare Krishna! Your registration has been submitted and is awaiting counsellor approval.'
       );
     } catch (err: any) {
-      Alert.alert('Registration Error', err.message || 'Could not complete registration.');
+      showCrossPlatformAlert('Registration Error', err.message || 'Could not complete registration.');
     } finally {
       setIsSubmitting(false);
     }
@@ -435,7 +447,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             style={styles.inputGroup}
             onLayout={(e) => handleFieldLayout('dob', e.nativeEvent.layout.y)}
           >
-            <Text style={styles.inputLabel}>Date of Birth (Day-Month-Year)</Text>
+            <Text style={styles.inputLabel}>Date of Birth (Day-Month-Year) *</Text>
             <TouchableOpacity
               style={styles.dateSelectorCard}
               onPress={() => {
@@ -473,7 +485,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             style={styles.inputGroup}
             onLayout={(e) => handleFieldLayout('association', e.nativeEvent.layout.y)}
           >
-            <Text style={styles.inputLabel}>Date of Association with ISKCON</Text>
+            <Text style={styles.inputLabel}>Date of Association with ISKCON *</Text>
             <TouchableOpacity
               style={styles.dateSelectorCard}
               onPress={() => {

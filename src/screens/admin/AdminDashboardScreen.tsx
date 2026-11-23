@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -103,103 +105,129 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    // 1. Initial metrics load with force = true so fresh database data is loaded immediately
-    loadDashboardMetrics(true);
-    checkMonitoringDismissed();
-
     let unsubscribeUsers: (() => void) | undefined;
     let unsubscribeToday: (() => void) | undefined;
 
-    // 2. Real-time listener for all users from Firestore (approved and pending)
-    try {
-      unsubscribeUsers = onSnapshot(
-        collection(db, 'users'),
-        (snap) => {
-          if (!snap.empty) {
-            const all = snap.docs.map((d) => d.data() as UserProfile);
-            const approved = all.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
-            const pending = all.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
-            const reminderReqs = all.filter(
-              (u) => u.role !== 'counsellor' && u.status === 'approved' && u.reminderOptOutRequested === true
-            );
-            const targetReqs = all.filter(
-              (u) =>
-                u.role !== 'counsellor' &&
-                u.status === 'approved' &&
-                u.targetRoundsRequested &&
-                u.targetRoundsRequested > 0
-            );
-            setApprovedCount(approved.length);
-            setPendingCount(pending.length);
-            setReminderRequestsCount(reminderReqs.length);
-            setTargetRequestsCount(targetReqs.length);
+    const setupListeners = () => {
+      // 1. Real-time listener for all users from Firestore (approved and pending)
+      try {
+        if (unsubscribeUsers) unsubscribeUsers();
+        unsubscribeUsers = onSnapshot(
+          collection(db, 'users'),
+          (snap) => {
+            if (!snap.empty) {
+              const all = snap.docs.map((d) => d.data() as UserProfile);
+              const approved = all.filter((u) => u.role !== 'counsellor' && u.status === 'approved');
+              const pending = all.filter((u) => u.role !== 'counsellor' && u.status === 'pending');
+              const reminderReqs = all.filter(
+                (u) => u.role !== 'counsellor' && u.status === 'approved' && u.reminderOptOutRequested === true
+              );
+              const targetReqs = all.filter(
+                (u) =>
+                  u.role !== 'counsellor' &&
+                  u.status === 'approved' &&
+                  u.targetRoundsRequested &&
+                  u.targetRoundsRequested > 0
+              );
+              setApprovedCount(approved.length);
+              setPendingCount(pending.length);
+              setReminderRequestsCount(reminderReqs.length);
+              setTargetRequestsCount(targetReqs.length);
 
-            const chanters = approved
-              .map((u) => ({
-                uid: u.uid,
-                name: u.displayName || 'Devotee',
-                rounds: u.declaredRounds || 16,
-              }))
-              .sort((a, b) => {
-                if (b.rounds !== a.rounds) return b.rounds - a.rounds;
-                return a.name.localeCompare(b.name);
-              });
-            setChantersList(chanters);
+              const chanters = approved
+                .map((u) => ({
+                  uid: u.uid,
+                  name: u.displayName || 'Devotee',
+                  rounds: u.declaredRounds || 16,
+                }))
+                .sort((a, b) => {
+                  if (b.rounds !== a.rounds) return b.rounds - a.rounds;
+                  return a.name.localeCompare(b.name);
+                });
+              setChantersList(chanters);
 
-            // Find any newly arrived pending devotee who has not been popped up yet today
-            const unalerted = pending.filter((d) => !alertedPendingUidsRef.current.has(d.uid));
-            if (unalerted.length > 0) {
-              unalerted.forEach((d) => alertedPendingUidsRef.current.add(d.uid));
-              const checkAndShowPopup = async () => {
-                const todayStrIST = getTodayDateStringIST();
-                const lastPopupDate = await AsyncStorage.getItem('bhakti_admin_pending_popup_date');
-                if (lastPopupDate === todayStrIST) return;
-                await AsyncStorage.setItem('bhakti_admin_pending_popup_date', todayStrIST);
-                Alert.alert(
-                  'New Counselee Registration',
-                  `Hare Krishna! ${unalerted[0].displayName}${
-                    unalerted.length > 1 ? ` and ${unalerted.length - 1} more devotee(s)` : ''
-                  } registered and are awaiting your approval.`,
-                  [
-                    { text: 'Review Later', style: 'cancel' },
-                    {
-                      text: 'Review Now',
-                      onPress: () => navigation.navigate('PendingRegistrations'),
-                    },
-                  ]
-                );
-              };
-              checkAndShowPopup();
+              // Find any newly arrived pending devotee who has not been popped up yet today
+              const unalerted = pending.filter((d) => !alertedPendingUidsRef.current.has(d.uid));
+              if (unalerted.length > 0) {
+                unalerted.forEach((d) => alertedPendingUidsRef.current.add(d.uid));
+                const checkAndShowPopup = async () => {
+                  const todayStrIST = getTodayDateStringIST();
+                  const lastPopupDate = await AsyncStorage.getItem('bhakti_admin_pending_popup_date');
+                  if (lastPopupDate === todayStrIST) return;
+                  await AsyncStorage.setItem('bhakti_admin_pending_popup_date', todayStrIST);
+                  showCrossPlatformAlert(
+                    'New Counselee Registration',
+                    `Hare Krishna! ${unalerted[0].displayName}${
+                      unalerted.length > 1 ? ` and ${unalerted.length - 1} more devotee(s)` : ''
+                    } registered and are awaiting your approval.`,
+                    [
+                      { text: 'Review Later', style: 'cancel' },
+                      {
+                        text: 'Review Now',
+                        onPress: () => navigation.navigate('PendingRegistrations'),
+                      },
+                    ]
+                  );
+                };
+                checkAndShowPopup();
+              }
             }
+          },
+          (error) => {
+            console.warn('Real-time users listener warning:', error?.message);
           }
-        },
-        (error) => {
-          console.warn('Real-time users listener warning:', error?.message);
-        }
-      );
-    } catch {}
+        );
+      } catch {}
 
-    // 3. Real-time listener for today's sadhana submissions from Firestore
-    try {
-      const qToday = query(collection(db, 'sadhana_entries'), where('date', '==', todayStr));
-      unsubscribeToday = onSnapshot(
-        qToday,
-        (snap) => {
-          if (!snap.empty) {
-            const entries = snap.docs.map((d) => d.data() as any);
-            setTodaySubmissionsCount(entries.length);
-            const dailyLow = entries.filter((e) => (e.percentage ?? 0) < 50).length;
-            setDailyLowScoreCount(dailyLow);
-          } else {
-            setTodaySubmissionsCount(0);
-            setDailyLowScoreCount(0);
+      // 2. Real-time listener for today's sadhana submissions from Firestore
+      try {
+        if (unsubscribeToday) unsubscribeToday();
+        const qToday = query(collection(db, 'sadhana_entries'), where('date', '==', todayStr));
+        unsubscribeToday = onSnapshot(
+          qToday,
+          (snap) => {
+            if (!snap.empty) {
+              const entries = snap.docs.map((d) => d.data() as any);
+              setTodaySubmissionsCount(entries.length);
+              const dailyLow = entries.filter((e) => (e.percentage ?? 0) < 50).length;
+              setDailyLowScoreCount(dailyLow);
+            } else {
+              setTodaySubmissionsCount(0);
+              setDailyLowScoreCount(0);
+            }
+          },
+          (error) => {
+            console.warn('Real-time today entries listener warning:', error?.message);
           }
-        },
-        (error) => {
-          console.warn('Real-time today entries listener warning:', error?.message);
-        }
-      );
-    } catch {}
+        );
+      } catch {}
+    };
+
+    const cleanupListeners = () => {
+      if (unsubscribeUsers) {
+        unsubscribeUsers();
+        unsubscribeUsers = undefined;
+      }
+      if (unsubscribeToday) {
+        unsubscribeToday();
+        unsubscribeToday = undefined;
+      }
+    };
+
+    // Initial load
+    setupListeners();
+    loadDashboardMetrics(true);
+    checkMonitoringDismissed();
+
+    // AppState listener: tear down listeners when backgrounded to prevent battery drain
+    const appStateSub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        setupListeners();
+        loadDashboardMetrics(false);
+      } else {
+        cleanupListeners();
+      }
+    });
 
     const checkPostLoginBio = async () => {
       if (user?.email) {
@@ -217,8 +245,8 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
     checkPostLoginBio();
 
     return () => {
-      if (unsubscribeUsers) unsubscribeUsers();
-      if (unsubscribeToday) unsubscribeToday();
+      cleanupListeners();
+      appStateSub.remove();
     };
   }, []);
 
