@@ -1,6 +1,6 @@
 {
   "name": "iskcon-sadhana-tracker",
-  "version": "1.0.59",
+  "version": "1.0.61",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",

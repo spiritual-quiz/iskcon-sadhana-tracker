@@ -208,24 +208,30 @@ export const notificationService = {
   /**
    * Dispatch system notification for app update available
    */
-  triggerAppUpdateNotification: async (): Promise<boolean> => {
+  triggerAppUpdateNotification: async (version?: string, releaseNotes?: string): Promise<boolean> => {
     if (!Notifications?.scheduleNotificationAsync) return false;
     try {
       const todayStr = getTodayDateStringIST();
-      const identifier = `app_update_available_${todayStr}`;
+      const identifier = version ? `app_update_available_v${version}` : `app_update_available_${todayStr}`;
       if (await hasAlertBeenNotified(identifier)) return false;
       await markAlertAsNotified(identifier);
+
+      const title = version ? `Bhakti Unnati v${version} Available! 🚀` : 'Bhakti Unnati Update Available! 🚀';
+      const cleanNotes = releaseNotes ? releaseNotes.replace(/\r?\n/g, ' ').trim() : '';
+      const body = cleanNotes
+        ? `New update ready: ${cleanNotes.slice(0, 90)}${cleanNotes.length > 90 ? '...' : ''}. Tap to install.`
+        : 'A fresh devotional update is ready. Tap to install the latest features and enhancements.';
 
       await Notifications.scheduleNotificationAsync({
         identifier,
         content: {
-          title: 'Bhakti Unnati Update Available! 🚀',
-          body: 'A fresh devotional update is ready. Tap to install the latest features and enhancements.',
+          title,
+          body,
           sound: 'default',
           vibrate: [0, 250, 250, 250],
           priority: Notifications.AndroidNotificationPriority.MAX,
           channelId: NOTIFICATION_CHANNELS.APP_UPDATES,
-          data: { screen: 'AppUpdate' },
+          data: { screen: 'AppUpdate', version },
         },
         trigger: null,
       });

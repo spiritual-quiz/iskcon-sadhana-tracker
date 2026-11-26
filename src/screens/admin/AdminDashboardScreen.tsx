@@ -67,6 +67,11 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const alertedPendingUidsRef = useRef<Set<string>>(new Set());
   const lastFetchedTimeRef = useRef<number>(0);
 
+  useEffect(() => {
+    // Battery-safe check for app updates when opening the dashboard
+    updateService.checkAndPromptAutoUpdate().catch(() => {});
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       // Re-check metrics with cache (<1ms response time) without freezing the UI

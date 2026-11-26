@@ -44,6 +44,11 @@ export const HomeScreen = ({ navigation }: any) => {
   const lastLoadedAtRef = React.useRef<number>(0);
 
   useEffect(() => {
+    // Battery-safe check for app updates when opening the page
+    updateService.checkAndPromptAutoUpdate().catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const checkPostLoginBio = async () => {
       if (user?.email) {
         const isEnrolled = await biometricService.isUserEnrolled(user.email);

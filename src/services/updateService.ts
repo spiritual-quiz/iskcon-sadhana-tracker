@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import { Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { showCrossPlatformAlert } from '../utils/alertUtils';
+import { notificationService } from './notificationService';
 
 export interface AppVersionInfo {
   version: string;
@@ -16,8 +17,8 @@ export interface AppVersionInfo {
   publishedAt: string;
 }
 
-export const APP_CURRENT_VERSION = '1.0.59';
-export const APP_CURRENT_BUILD = 59;
+export const APP_CURRENT_VERSION = '1.0.61';
+export const APP_CURRENT_BUILD = 61;
 
 const GITHUB_REPO = 'spiritual-quiz/iskcon-sadhana-tracker';
 const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
@@ -331,8 +332,16 @@ export const updateService = {
   promptUserForUpdate: (versionInfo: AppVersionInfo) => {
     const isWeb = (Platform.OS as string) === 'web';
     const cleanVer = (versionInfo.version || '').replace(/^v/i, '').trim();
-    const targetTag = cleanVer ? `v${cleanVer}` : 'v1.0.59';
+    const targetTag = cleanVer ? `v${cleanVer}` : 'v1.0.61';
     const releasePageUrl = `https://github.com/${GITHUB_REPO}/releases/tag/${targetTag}`;
+
+    const handleDismiss = async () => {
+      try {
+        if (versionInfo?.version) {
+          await AsyncStorage.setItem('bhakti_dismissed_update_version', versionInfo.version);
+        }
+      } catch {}
+    };
 
     showCrossPlatformAlert(
       'New Software Update Available',
@@ -341,7 +350,7 @@ export const updateService = {
       }\n\nWould you like to ${isWeb ? 'refresh and update' : 'download and install'} now?`,
       isWeb
         ? [
-            { text: 'Later', style: 'cancel' },
+            { text: 'Later', style: 'cancel', onPress: handleDismiss },
             {
               text: 'Update Now',
               onPress: async () => {
@@ -354,7 +363,7 @@ export const updateService = {
             },
           ]
         : [
-            { text: 'Later', style: 'cancel' },
+            { text: 'Later', style: 'cancel', onPress: handleDismiss },
             {
               text: 'Release Page',
               onPress: async () => {
@@ -379,25 +388,51 @@ export const updateService = {
 
   /**
    * Automatically check on app startup for counsellors and counselees.
-   * Prompts user once per day when a new GitHub release is available.
+   * Battery-safe: Throttled to at most once every 6 hours (zero background polling/loops).
+   * Dispatches system notification and presents update prompt when a new release is available.
+   * Does NOT repeat again for the same version if already dismissed or downloaded.
    */
-  checkAndPromptAutoUpdate: async () => {
+  checkAndPromptAutoUpdate: async (): Promise<void> => {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const lastCheckKey = 'bhakti_last_update_prompt_date';
-      const lastPrompted = await AsyncStorage.getItem(lastCheckKey);
+      const now = Date.now();
+      const lastCheckStr = await AsyncStorage.getItem('bhakti_last_update_check_time');
+      const lastCheckTime = lastCheckStr ? parseInt(lastCheckStr, 10) : 0;
+
+      // Throttle: avoid checking remote network more than once every 6 hours
+      // This guarantees zero battery drain even if screens re-mount frequently
+      if (now - lastCheckTime < 6 * 60 * 60 * 1000) {
+        return;
+      }
+
+      await AsyncStorage.setItem('bhakti_last_update_check_time', now.toString());
 
       // Check for updates
-      const res = await updateService.checkForUpdate();
+      const res = await updateService.checkForUpdate(false);
       if (res.isAvailable && res.versionInfo) {
-        // If not already prompted today, show the notification
-        if (lastPrompted !== todayStr) {
-          await AsyncStorage.setItem(lastCheckKey, todayStr);
-          updateService.promptUserForUpdate(res.versionInfo);
+        const targetVer = res.versionInfo.version;
+        const lastDismissed = await AsyncStorage.getItem('bhakti_dismissed_update_version');
+        const lastDownloaded = await AsyncStorage.getItem('bhakti_last_downloaded_version');
+
+        // Do not notify or prompt if user has already dismissed or downloaded this version
+        if (targetVer === lastDismissed || targetVer === lastDownloaded) {
+          return;
         }
+
+        // 1. Dispatch high-priority heads-up notification (Android notification channel)
+        try {
+          await notificationService.triggerAppUpdateNotification(
+            targetVer,
+            res.versionInfo.releaseNotes
+          );
+        } catch (e) {
+          console.warn('Failed to send update notification:', e);
+        }
+
+        // 2. Prompt user with dialog when opening the page
+        updateService.promptUserForUpdate(res.versionInfo);
       }
     } catch {
-      // Silent background fail
+      // Silent background fail to never disrupt app launch
     }
   },
 
