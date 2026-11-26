@@ -27,6 +27,10 @@ import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { HonoursCard } from '../../components/HonoursCard';
 import { authService } from '../../services/authService';
 import { updateService } from '../../services/updateService';
+import { DailyQuoteCard } from '../../components/DailyQuoteCard';
+import { VaishnavaCalendarCard } from '../../components/VaishnavaCalendarCard';
+import { vaishnavaCalendarService } from '../../services/vaishnavaCalendarService';
+import { CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -46,6 +50,8 @@ export const HomeScreen = ({ navigation }: any) => {
   useEffect(() => {
     // Battery-safe check for app updates when opening the page
     updateService.checkAndPromptAutoUpdate().catch(() => {});
+    // Check and schedule upcoming Ekadashi fasting reminder (Pune Zone)
+    vaishnavaCalendarService.checkAndScheduleEkadashiReminder().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -159,15 +165,18 @@ export const HomeScreen = ({ navigation }: any) => {
       />
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading devotional dashboard...</Text>
+        <View style={{ paddingTop: 16 }}>
+          <CardSkeleton />
+          <RowListSkeleton rows={3} />
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
+          {/* Daily Prabhupada Quote / Verse of the Day */}
+          <DailyQuoteCard />
+
           {/* Today's Status Banner */}
           <View
             style={[
@@ -200,6 +209,31 @@ export const HomeScreen = ({ navigation }: any) => {
               <Text style={styles.bannerButtonText}>{todayEntry ? 'Edit' : 'Fill Now'}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Digital Japa Mala Quick Access Card */}
+          <TouchableOpacity
+            style={[styles.japaMalaCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            onPress={() => navigation.navigate('JapaCounter')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.japaMalaLeft}>
+              <View style={[styles.japaMalaIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="sparkles" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.japaMalaTitle, { color: theme.thickColor }]}>
+                  Digital Japa Counter (Mala Mode)
+                </Text>
+                <Text style={[styles.japaMalaSubtitle, { color: theme.colors.textMuted }]}>
+                  108 bead counter with gentle vibration for traveling & daily japa
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* Vaishnava Calendar & Ekadashi Fasting (Pune Zone) */}
+          <VaishnavaCalendarCard />
 
           {/* Quick Devotee Profile Pill */}
           <View style={[styles.quickProfileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
@@ -875,6 +909,43 @@ const styles = StyleSheet.create({
   },
   auditSubtitle: {
     fontSize: 11,
+    marginTop: 1,
+  },
+  japaMalaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    marginHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  japaMalaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 8,
+  },
+  japaMalaIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  japaMalaTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  japaMalaSubtitle: {
+    fontSize: 10.5,
     marginTop: 1,
   },
 });

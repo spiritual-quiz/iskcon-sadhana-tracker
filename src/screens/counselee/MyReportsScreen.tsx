@@ -25,13 +25,17 @@ import {
 import { WeeklyReport, MonthlyReport } from '../../types/report';
 import { SadhanaEntry } from '../../types/sadhana';
 import { MonthlyChampionsBanner } from '../../components/MonthlyChampionsBanner';
+import { MilestoneBadgesCard } from '../../components/MilestoneBadgesCard';
+import { ProgressTrendsChart } from '../../components/ProgressTrendsChart';
+import { streakMilestoneService } from '../../services/streakMilestoneService';
+import { CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const MyReportsScreen = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const todayStr = getTodayDateStringIST();
 
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly' | 'trends'>('weekly');
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
   const [recentDailyEntries, setRecentDailyEntries] = useState<SadhanaEntry[]>([]);
@@ -88,7 +92,7 @@ export const MyReportsScreen = () => {
 
       {/* Tabs */}
       <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        {(['weekly', 'monthly', 'daily'] as const).map((tab) => (
+        {(['weekly', 'monthly', 'daily', 'trends'] as const).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[
@@ -104,16 +108,16 @@ export const MyReportsScreen = () => {
                 activeTab === tab && styles.tabTextActive,
               ]}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)} Report
+              {tab === 'trends' ? '30D Trends' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.thickColor} />
-          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Generating report...</Text>
+        <View style={{ paddingTop: 16 }}>
+          <CardSkeleton />
+          <RowListSkeleton rows={3} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -334,6 +338,15 @@ export const MyReportsScreen = () => {
                   );
                 })
               )}
+            </View>
+          )}
+          {activeTab === 'trends' && (
+            <View>
+              {/* 30-Day Interactive Growth Curves */}
+              <ProgressTrendsChart entries={recentDailyEntries} />
+
+              {/* Private Devotional Milestone Badges */}
+              <MilestoneBadgesCard badges={streakMilestoneService.calculateMilestones(recentDailyEntries)} />
             </View>
           )}
         </ScrollView>

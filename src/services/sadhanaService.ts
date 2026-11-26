@@ -130,11 +130,16 @@ export const sadhanaService = {
     fastCache.invalidate(`monthly_report_${params.userId}`);
 
     // 5. Attempt Cloud Firestore sync (if permissions/network allow)
+    let isCloudSynced = false;
     try {
       await setDoc(entryRef, entry);
+      isCloudSynced = true;
     } catch (cloudErr) {
       // Gracefully saved in local storage
+      isCloudSynced = false;
     }
+    entry.isCloudSynced = isCloudSynced;
+    await localStorageService.saveSadhanaEntry(entry);
 
     // 6. Resolve any open missing-card alert for this user since a valid entry was submitted
     try {

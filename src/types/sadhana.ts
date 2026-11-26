@@ -68,6 +68,7 @@ export interface SadhanaEntry {
   isComplete: boolean;
   isZeroScore: boolean;
   submittedByDevotee?: boolean; // true when counselee has explicitly submitted their sadhana
+  isCloudSynced?: boolean; // true when uploaded to Firestore cloud
   correctionReason?: string;
   auditHistory?: AuditRecord[];
   createdAt: string;

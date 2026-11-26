@@ -16,6 +16,7 @@ import { NotificationsScreen } from '../screens/counselee/NotificationsScreen';
 import { SettingsScreen } from '../screens/counselee/SettingsScreen';
 import { HonoursScreen } from '../screens/counselee/HonoursScreen';
 import { SadhanaDaysFilledScreen } from '../screens/counselee/SadhanaDaysFilledScreen';
+import { JapaCounterScreen } from '../screens/counselee/JapaCounterScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -30,6 +31,7 @@ function HomeStack() {
       <Stack.Screen name="SadhanaDaysFilled" component={SadhanaDaysFilledScreen} />
       <Stack.Screen name="CommunityReports" component={CommunityReportsScreen} />
       <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <Stack.Screen name="JapaCounter" component={JapaCounterScreen} />
     </Stack.Navigator>
   );
 }

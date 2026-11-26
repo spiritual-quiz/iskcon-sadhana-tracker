@@ -38,6 +38,8 @@ import { BiometricEnrollModal } from '../../components/BiometricEnrollModal';
 import { updateService } from '../../services/updateService';
 import { showCrossPlatformAlert } from '../../utils/alertUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { VaishnavaCalendarCard } from '../../components/VaishnavaCalendarCard';
+import { DashboardMetricsSkeleton, CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -507,9 +509,10 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       />
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading counsellor console...</Text>
+        <View style={{ paddingTop: 16 }}>
+          <DashboardMetricsSkeleton />
+          <CardSkeleton />
+          <RowListSkeleton rows={3} />
         </View>
       ) : (
         <ScrollView
@@ -519,6 +522,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           ]}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
+          {/* Vaishnava Calendar (Pune Zone) */}
+          <VaishnavaCalendarCard />
+
           {/* Quick Theme Customization Card */}
           <TouchableOpacity
             style={[

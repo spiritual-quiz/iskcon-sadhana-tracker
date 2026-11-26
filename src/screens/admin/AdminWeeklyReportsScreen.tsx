@@ -23,6 +23,7 @@ import { authService } from '../../services/authService';
 import { getTodayDateStringIST, getWeekDetails, formatMinutesToHours, calculateSleepDurationMinutes } from '../../utils/dateUtils';
 import { WeeklyReport } from '../../types/report';
 import { useAuth } from '../../context/AuthContext';
+import { whatsappExportUtils } from '../../utils/whatsappExportUtils';
 
 export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -37,6 +38,35 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const handleExportWhatsApp = async () => {
+    const totalRounds = weeklyReports.reduce((sum, r) => sum + (r.totalRounds || 0), 0);
+    const totalReading = weeklyReports.reduce((sum, r) => sum + (r.totalReadingMinutes || 0), 0);
+    const activeDevotees = weeklyReports.filter((r) => r.totalScore > 0).length;
+    const brahmaCount = weeklyReports.reduce((sum, r) => {
+      return sum + (r.morningProgrammeMarks && r.morningProgrammeMarks > 0 ? 1 : 0);
+    }, 0);
+
+    const honours = weeklyReports
+      .filter((r) => r.totalScore > 0)
+      .sort((a, b) => b.percentage - a.percentage)
+      .slice(0, 5)
+      .map((r) => ({
+        name: r.counseleeName || 'Devotee',
+        score: Math.round(r.percentage),
+      }));
+
+    await whatsappExportUtils.exportToWhatsApp({
+      counsellorName: user?.displayName || 'Counsellor',
+      periodTitle: `Week ${weekId} (${startDate} to ${endDate})`,
+      totalCounselees: counselees.length,
+      activeSubmissions: activeDevotees,
+      totalRounds,
+      totalReadingMinutes: totalReading,
+      brahmaMuhurtaCount: brahmaCount,
+      topHonours: honours,
+    });
+  };
 
   useEffect(() => {
     loadWeeklyData();
@@ -119,6 +149,16 @@ export const AdminWeeklyReportsScreen = ({ navigation }: any) => {
               Tap attendance pills to mark devotee attendance.
             </Text>
           </View>
+
+          {/* Sanga WhatsApp Digest Export Button */}
+          <TouchableOpacity
+            style={styles.whatsappBtn}
+            onPress={handleExportWhatsApp}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+            <Text style={styles.whatsappBtnText}>Export Sanga WhatsApp Digest</Text>
+          </TouchableOpacity>
 
           {/* Quick Filter Bar */}
           <View style={styles.filterBar}>
@@ -533,5 +573,26 @@ const styles = StyleSheet.create({
   emptyText: {
     color: THEME.colors.textMuted,
     fontSize: THEME.typography.sizes.sm,
+  },
+  whatsappBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#16A34A',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 12,
+    shadowColor: '#16A34A',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  whatsappBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
 });

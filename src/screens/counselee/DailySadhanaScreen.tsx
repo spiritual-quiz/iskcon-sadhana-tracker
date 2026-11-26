@@ -36,6 +36,7 @@ import { SadhanaEntry, MonthlySatsangStatus } from '../../types/sadhana';
 import { TimeSelectorModal } from '../../components/TimeSelectorModal';
 import { PastDateSelectorModal } from '../../components/PastDateSelectorModal';
 import { showCrossPlatformAlert } from '../../utils/alertUtils';
+import { CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const DailySadhanaScreen = ({ navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -106,6 +107,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
   );
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'offline' | 'saving' | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
 
   useEffect(() => {
@@ -185,6 +187,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
               entry.correctionReason !== 'Recorded Online Reading Session attendance'))
       );
       if (isDevoteeSubmittedEntry && entry) {
+        setSyncStatus(entry.isCloudSynced === false ? 'offline' : 'synced');
         setDeclaredRounds(String(entry.declaredRounds));
         setCompletedRounds(String(entry.completedRounds));
         setCompletionTime(entry.completionTimeStr || '');
@@ -213,6 +216,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         setServiceAttended(entry?.serviceAttended ?? false);
         setMonthlyMeetingAttended(entry?.monthlyMeetingAttended ?? false);
         setCorrectionReason('');
+        setSyncStatus(null);
       }
 
       setHasLoadedInitial(true);
@@ -518,6 +522,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
     }
 
     setIsSaving(true);
+    setSyncStatus('saving');
     try {
       const saved = await sadhanaService.saveDailySadhana({
         userId: user.uid,
@@ -570,6 +575,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       const onlinePart = isWeekday()
         ? `\n• Online Reading Session: ${saved.onlineReadingMarks || 0}/10`
         : '';
+      setSyncStatus(saved.isCloudSynced === false ? 'offline' : 'synced');
       Alert.alert(
         'Sadhana Submitted!',
         `Your sadhana card for ${selectedDate} has been saved.\n\nScore: ${saved.dailyTotalScore}/50 (${saved.percentage}%, ${saved.grade})\n• Japa: ${saved.japaMarks}/10\n• Reading: ${
@@ -586,6 +592,7 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         { cancelable: false }
       );
     } catch (err: any) {
+      setSyncStatus('offline');
       Alert.alert('Error', err.message || 'Failed to save daily sadhana.');
     } finally {
       setIsSaving(false);
@@ -732,9 +739,9 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
       )}
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={THEME.colors.primary} />
-          <Text style={styles.loadingText}>Loading sadhana record...</Text>
+        <View style={{ paddingTop: 16 }}>
+          <CardSkeleton />
+          <RowListSkeleton rows={3} />
         </View>
       ) : (
         <ScrollView
@@ -749,6 +756,28 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         >
           {/* Live Score Preview Header Card */}
           <View style={styles.summaryCard}>
+            {/* Live Cloud Sync Indicator */}
+            {syncStatus && (
+              <View style={styles.syncStatusContainer}>
+                {syncStatus === 'synced' ? (
+                  <View style={styles.syncedPill}>
+                    <Ionicons name="cloud-done" size={13} color="#059669" />
+                    <Text style={styles.syncedText}>🟢 Synced with Counsellor</Text>
+                  </View>
+                ) : syncStatus === 'offline' ? (
+                  <View style={styles.offlinePill}>
+                    <Ionicons name="cloud-offline" size={13} color="#D97706" />
+                    <Text style={styles.offlineText}>🟠 Saved offline – will sync when online</Text>
+                  </View>
+                ) : (
+                  <View style={styles.savingPill}>
+                    <ActivityIndicator size="small" color="#2563EB" style={{ transform: [{ scale: 0.65 }] }} />
+                    <Text style={styles.savingText}>🔵 Syncing to cloud...</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             <View style={styles.scoreRow}>
               <View>
                 <Text style={styles.scoreLabel}>Daily Score Preview</Text>
@@ -2818,5 +2847,57 @@ const styles = StyleSheet.create({
   satsangPillTextActive: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  syncStatusContainer: {
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  syncedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+    borderWidth: 0.8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  syncedText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#065F46',
+  },
+  offlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+    borderWidth: 0.8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  offlineText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  savingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#DBEAFE',
+    borderColor: '#93C5FD',
+    borderWidth: 0.8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  savingText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#1E40AF',
   },
 });
