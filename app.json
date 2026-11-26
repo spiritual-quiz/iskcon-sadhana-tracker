@@ -30,6 +30,8 @@
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "WAKE_LOCK",
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE",
         "USE_BIOMETRIC",

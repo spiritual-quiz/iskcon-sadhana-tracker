@@ -49,6 +49,7 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
 
   const [weeklySummaries, setWeeklySummaries] = useState<DevoteeFillSummary[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<DevoteeFillSummary[]>([]);
+  const [monthlySortOrder, setMonthlySortOrder] = useState<'descending' | 'alphabetical'>('descending');
 
   const todayStr = getTodayDateStringIST();
 
@@ -190,7 +191,17 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
     loadData(true);
   };
 
-  const displayedList = activeTab === 'weekly' ? weeklySummaries : monthlySummaries;
+  const sortedMonthlySummaries = [...monthlySummaries].sort((a, b) => {
+    if (monthlySortOrder === 'descending') {
+      if (b.filledDays !== a.filledDays) {
+        return b.filledDays - a.filledDays;
+      }
+      return a.name.localeCompare(b.name);
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  const displayedList = activeTab === 'weekly' ? weeklySummaries : sortedMonthlySummaries;
   const monthName = MONTH_NAMES_SHORT[selectedMonth - 1];
   const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
 
@@ -318,6 +329,58 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
         </View>
       )}
 
+      {/* Under Monthly: Filter / Sort Options (Most Days Filled Descending vs A to Z) */}
+      {activeTab === 'monthly' && (
+        <View style={[styles.sortFilterContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Text style={[styles.sortFilterLabel, { color: theme.colors.textMuted }]}>Sort by:</Text>
+          <TouchableOpacity
+            style={[
+              styles.sortPill,
+              monthlySortOrder === 'descending' && [styles.sortPillActive, { backgroundColor: theme.thickColor }],
+            ]}
+            onPress={() => setMonthlySortOrder('descending')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="arrow-down-outline"
+              size={13}
+              color={monthlySortOrder === 'descending' ? '#FFFFFF' : theme.thickColor}
+            />
+            <Text
+              style={[
+                styles.sortPillText,
+                { color: monthlySortOrder === 'descending' ? '#FFFFFF' : theme.colors.text },
+              ]}
+            >
+              Most Days Filled
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.sortPill,
+              monthlySortOrder === 'alphabetical' && [styles.sortPillActive, { backgroundColor: theme.thickColor }],
+            ]}
+            onPress={() => setMonthlySortOrder('alphabetical')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="text-outline"
+              size={13}
+              color={monthlySortOrder === 'alphabetical' ? '#FFFFFF' : theme.thickColor}
+            />
+            <Text
+              style={[
+                styles.sortPillText,
+                { color: monthlySortOrder === 'alphabetical' ? '#FFFFFF' : theme.colors.text },
+              ]}
+            >
+              A to Z
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Sub-header info banner */}
       <View style={[styles.infoBanner, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
         <Ionicons name="information-circle-outline" size={18} color={theme.thickColor} />
@@ -326,7 +389,11 @@ export const SadhanaDaysFilledScreen = ({ navigation }: any) => {
             ? activeWeek
               ? `Showing ${activeWeek.label} (${activeWeek.rangeLabel}, Mon-Sun). Sorted A to Z across ${weeklySummaries.length} devotees.`
               : 'Weekly calendar view (Mon to Sun).'
-            : `Showing full month (${monthName} ${selectedYear}) submission count. Sorted A to Z across ${monthlySummaries.length} devotees.`}
+            : `Showing full month (${monthName} ${selectedYear}) submission count across ${monthlySummaries.length} devotees. ${
+                monthlySortOrder === 'descending'
+                  ? 'Sorted by Most Days Filled (Descending: High to Low).'
+                  : 'Sorted Alphabetically (A to Z).'
+              }`}
         </Text>
       </View>
 
@@ -676,5 +743,36 @@ const styles = StyleSheet.create({
   progressBar: {
     height: 6,
     borderRadius: 3,
+  },
+  sortFilterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 8,
+  },
+  sortFilterLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginRight: 2,
+  },
+  sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+  },
+  sortPillActive: {
+    borderColor: 'transparent',
+  },
+  sortPillText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

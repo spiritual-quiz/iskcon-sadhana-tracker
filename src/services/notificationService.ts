@@ -343,9 +343,9 @@ export const notificationService = {
           data: { screen: 'DailySadhana' },
         },
         trigger: {
-          type: 'daily',
           hour: 18,
           minute: 0,
+          repeats: true,
           channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
         },
       });
@@ -363,9 +363,9 @@ export const notificationService = {
           data: { screen: 'DailySadhana' },
         },
         trigger: {
-          type: 'daily',
           hour: 21,
           minute: 0,
+          repeats: true,
           channelId: NOTIFICATION_CHANNELS.SADHANA_REMINDER,
         },
       });
