@@ -97,45 +97,27 @@ export const JapaCounterScreen: React.FC<{ navigation: any }> = ({ navigation })
   };
 
   const handleSaveToDailySadhana = async () => {
-    if (!user?.uid) return;
     if (completedRounds <= 0) {
       showCrossPlatformAlert('No Rounds Yet', 'Complete at least 1 round to log it in your daily sadhana card.');
       return;
     }
     setIsSyncing(true);
     try {
-      const currentEntry = await sadhanaService.getDailyEntry(user.uid, todayStr);
-      const existingRounds = currentEntry?.completedRounds || 0;
-
-      if (completedRounds > existingRounds) {
-        await sadhanaService.saveDailySadhana({
-          userId: user.uid,
-          counseleeName: user.displayName,
-          date: todayStr,
-          input: {
-            declaredRounds: user.declaredRounds || 16,
-            completedRounds,
-            completionTimeStr: currentEntry?.completionTimeStr || '',
-            readingMinutes: currentEntry?.readingMinutes || 0,
-            hearingMinutes: currentEntry?.hearingMinutes || 0,
-            sleepTimeStr: currentEntry?.sleepTimeStr || '',
-            wakeUpTimeStr: currentEntry?.wakeUpTimeStr || '',
-            restMinutes: currentEntry?.restMinutes || 0,
+      // Save chanted rounds to local daily japa key
+      await AsyncStorage.setItem(`japa_rounds_${todayStr}`, completedRounds.toString());
+      showCrossPlatformAlert(
+        'Rounds Recorded! 📿',
+        `Hare Krishna! Your ${completedRounds} rounds are recorded for today.\n\nThey will be automatically pre-filled when you open your Daily Sadhana card, where you can enter your wake-up, sleep, reading & hearing details to submit your complete card.`,
+        [
+          { text: 'Keep Chanting', style: 'cancel' },
+          {
+            text: 'Open Daily Sadhana',
+            onPress: () => navigation.navigate('DailySadhana'),
           },
-          modifiedBy: user.uid,
-        });
-        showCrossPlatformAlert(
-          'Sadhana Card Updated! 📿',
-          `Successfully saved ${completedRounds} rounds into today's sadhana card.`
-        );
-      } else {
-        showCrossPlatformAlert(
-          'Already Recorded',
-          `Your sadhana card already has ${existingRounds} rounds recorded for today.`
-        );
-      }
+        ]
+      );
     } catch (e: any) {
-      showCrossPlatformAlert('Sync Error', e?.message || 'Could not update daily sadhana.');
+      showCrossPlatformAlert('Sync Error', e?.message || 'Could not record rounds.');
     } finally {
       setIsSyncing(false);
     }
@@ -252,9 +234,9 @@ export const JapaCounterScreen: React.FC<{ navigation: any }> = ({ navigation })
           disabled={isSyncing}
           activeOpacity={0.8}
         >
-          <Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF" />
+          <Ionicons name="bookmark-outline" size={18} color="#FFFFFF" />
           <Text style={styles.saveSadhanaText}>
-            {isSyncing ? 'Saving to Sadhana...' : `Update Daily Sadhana (${completedRounds} Rounds)`}
+            {isSyncing ? 'Recording...' : `Record ${completedRounds} Rounds for Today's Card`}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -344,13 +326,13 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   bigBead: {
-    width: 250,
-    height: 250,
-    borderRadius: 125,
+    width: 270,
+    height: 270,
+    borderRadius: 135,
     borderWidth: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     shadowColor: '#D97706',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
@@ -358,9 +340,9 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   innerBead: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -371,7 +353,7 @@ const styles = StyleSheet.create({
   },
   beadNumber: {
     color: '#FFFFFF',
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '900',
   },
   beadLabel: {
@@ -383,11 +365,12 @@ const styles = StyleSheet.create({
   },
   mahaMantraHint: {
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 8.5,
     fontStyle: 'italic',
-    lineHeight: 14,
-    marginTop: 12,
-    maxWidth: 200,
+    lineHeight: 12.5,
+    marginTop: 8,
+    maxWidth: 240,
+    paddingHorizontal: 8,
   },
   controlsRow: {
     flexDirection: 'row',

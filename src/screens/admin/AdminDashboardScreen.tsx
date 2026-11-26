@@ -39,6 +39,7 @@ import { updateService } from '../../services/updateService';
 import { showCrossPlatformAlert } from '../../utils/alertUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VaishnavaCalendarCard } from '../../components/VaishnavaCalendarCard';
+import { DailyQuoteCard } from '../../components/DailyQuoteCard';
 import { DashboardMetricsSkeleton, CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
@@ -524,6 +525,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
         >
           {/* Vaishnava Calendar (Pune Zone) */}
           <VaishnavaCalendarCard />
+
+          {/* Verse of the Day / Prabhupada Quote */}
+          <DailyQuoteCard />
 
           {/* Quick Theme Customization Card */}
           <TouchableOpacity

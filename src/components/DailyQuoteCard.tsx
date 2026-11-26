@@ -27,8 +27,6 @@ export const DailyQuoteCard: React.FC = () => {
             <Ionicons name="book" size={13} color="#D97706" />
           </View>
           <Text style={styles.badgeText}>VERSE OF THE DAY</Text>
-          <View style={styles.themeDot} />
-          <Text style={[styles.themeLabel, { color: theme.colors.textMuted }]}>{quote.theme}</Text>
         </View>
 
         <TouchableOpacity

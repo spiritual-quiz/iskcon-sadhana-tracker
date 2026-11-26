@@ -174,10 +174,35 @@ export const HomeScreen = ({ navigation }: any) => {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
         >
-          {/* Daily Prabhupada Quote / Verse of the Day */}
+          {/* 1. Daily Prabhupada Quote / Verse of the Day */}
           <DailyQuoteCard />
 
-          {/* Today's Status Banner */}
+          {/* 2. Vaishnava Calendar & Ekadashi Fasting (Pune Zone) */}
+          <VaishnavaCalendarCard />
+
+          {/* 3. Digital Japa Mala Quick Access Card */}
+          <TouchableOpacity
+            style={[styles.japaMalaCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            onPress={() => navigation.navigate('JapaCounter')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.japaMalaLeft}>
+              <View style={[styles.japaMalaIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="sparkles" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.japaMalaTitle, { color: theme.thickColor }]}>
+                  Digital Japa Counter (Mala Mode)
+                </Text>
+                <Text style={[styles.japaMalaSubtitle, { color: theme.colors.textMuted }]}>
+                  108 bead counter with gentle vibration for traveling & daily japa
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* 4. Today's Sadhana Status Banner */}
           <View
             style={[
               styles.todayBanner,
@@ -209,31 +234,6 @@ export const HomeScreen = ({ navigation }: any) => {
               <Text style={styles.bannerButtonText}>{todayEntry ? 'Edit' : 'Fill Now'}</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Digital Japa Mala Quick Access Card */}
-          <TouchableOpacity
-            style={[styles.japaMalaCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-            onPress={() => navigation.navigate('JapaCounter')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.japaMalaLeft}>
-              <View style={[styles.japaMalaIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="sparkles" size={18} color="#D97706" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.japaMalaTitle, { color: theme.thickColor }]}>
-                  Digital Japa Counter (Mala Mode)
-                </Text>
-                <Text style={[styles.japaMalaSubtitle, { color: theme.colors.textMuted }]}>
-                  108 bead counter with gentle vibration for traveling & daily japa
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Vaishnava Calendar & Ekadashi Fasting (Pune Zone) */}
-          <VaishnavaCalendarCard />
 
           {/* Quick Devotee Profile Pill */}
           <View style={[styles.quickProfileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>

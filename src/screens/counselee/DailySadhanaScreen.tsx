@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -204,7 +205,13 @@ export const DailySadhanaScreen = ({ navigation }: any) => {
         // Fresh unsubmitted entry (all inputs empty/clean until user enters):
         const defaultRounds = user.declaredRounds ? String(user.declaredRounds) : '16';
         setDeclaredRounds(defaultRounds);
-        setCompletedRounds(''); // Empty until user enters or selects
+        // Pre-fill rounds from Digital Japa Mala if chanted today
+        const savedMalaRounds = await AsyncStorage.getItem(`japa_rounds_${date}`);
+        if (savedMalaRounds && parseInt(savedMalaRounds, 10) > 0) {
+          setCompletedRounds(savedMalaRounds);
+        } else {
+          setCompletedRounds('');
+        }
         setCompletionTime('');
         setReadingMinutes(''); // Empty until devotee enters
         setHearingMinutes(''); // Empty until devotee enters
