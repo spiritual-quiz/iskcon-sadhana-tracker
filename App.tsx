@@ -25,28 +25,36 @@ const AppContent: React.FC = () => {
     notificationService.setupNotifications();
 
     // Check for updates via updateService (handles both Web & Native)
-    // Throttled to at most once per 24 hours automatically on cold start to preserve battery
+    // Battery-safe: Throttled to avoid network spam, asks at most once per day per new version
     const checkAppUpdates = async () => {
       // Automatic update checking is only for native mobile APK/OTA updates, never for website
       if ((Platform.OS as string) === 'web') return;
       if (isCheckingRef.current || isUpdatingRef.current || isUpdatePendingRef.current) return;
       isCheckingRef.current = true;
       try {
-        const todayDateStr = new Date().toISOString().split('T')[0];
-        const lastAutoDate = await AsyncStorage.getItem('bhakti_last_update_check_date');
-        if (lastAutoDate === todayDateStr) {
+        const now = Date.now();
+        // Cooldown: at most once every 3 minutes between network checks when app is open
+        if (now - lastCheckTimeRef.current < 3 * 60 * 1000 && lastCheckTimeRef.current !== 0) {
           return;
         }
-        await AsyncStorage.setItem('bhakti_last_update_check_date', todayDateStr);
+        lastCheckTimeRef.current = now;
 
-        const result = await updateService.checkForUpdate(false);
+        const result = await updateService.checkForUpdate(true);
         if (result.isAvailable && result.versionInfo?.version) {
           const v = result.versionInfo.version;
-          const dismissedVer = await AsyncStorage.getItem('bhakti_dismissed_update_version');
-          const downloadedVer = await AsyncStorage.getItem('bhakti_last_downloaded_version');
-          if (v === dismissedVer || v === downloadedVer) {
+          const todayDateStr = new Date().toISOString().split('T')[0];
+          const lastPromptDate = await AsyncStorage.getItem('bhakti_update_last_prompt_date');
+          const lastPromptVer = await AsyncStorage.getItem('bhakti_update_last_prompt_version');
+
+          // Daily one time it can ask: if already asked today for this version, skip
+          if (lastPromptDate === todayDateStr && lastPromptVer === v) {
             return;
           }
+
+          // Mark prompted for today so it does not ask again today
+          await AsyncStorage.setItem('bhakti_update_last_prompt_date', todayDateStr);
+          await AsyncStorage.setItem('bhakti_update_last_prompt_version', v);
+
           isUpdatePendingRef.current = true;
           setPendingUpdateInfo(result.versionInfo);
           setShowUpdateModal(true);
@@ -58,8 +66,19 @@ const AppContent: React.FC = () => {
       }
     };
 
-    // Initial check on cold mount only
+    // Initial check on cold mount
     checkAppUpdates();
+
+    // Check on app resume from background (opening the app)
+    const appStateSub = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkAppUpdates();
+      }
+    });
+
+    return () => {
+      appStateSub.remove();
+    };
   }, []);
 
   const handleApplyUpdate = async () => {
@@ -82,9 +101,10 @@ const AppContent: React.FC = () => {
   const handleDismissModal = async () => {
     setShowUpdateModal(false);
     isUpdatePendingRef.current = false;
+    const todayDateStr = new Date().toISOString().split('T')[0];
     if (pendingUpdateInfo?.version) {
-      await AsyncStorage.setItem('bhakti_dismissed_update_version', pendingUpdateInfo.version);
-      await AsyncStorage.setItem('bhakti_last_downloaded_version', pendingUpdateInfo.version);
+      await AsyncStorage.setItem('bhakti_update_last_prompt_date', todayDateStr);
+      await AsyncStorage.setItem('bhakti_update_last_prompt_version', pendingUpdateInfo.version);
     }
   };
 

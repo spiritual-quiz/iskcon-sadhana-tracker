@@ -73,8 +73,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const lastFetchedTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    // Battery-safe check for app updates when opening the dashboard
-    updateService.checkAndPromptAutoUpdate().catch(() => {});
+    // App updates are checked at the app root level (App.tsx)
   }, []);
 
   useFocusEffect(

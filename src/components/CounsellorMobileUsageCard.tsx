@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { THEME } from '../constants/theme';
 import { getTodayDateStringIST, formatDateToDevoteeFormat } from '../utils/dateUtils';
 import {
   mobileUsageService,
@@ -35,7 +34,8 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
   const [loading, setLoading] = useState<boolean>(false);
   const [records, setRecords] = useState<DailyMobileUsageRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<DailyMobileUsageRecord | null>(null);
-  const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
+  const [overviewModalVisible, setOverviewModalVisible] = useState<boolean>(false);
+  const [sessionDetailVisible, setSessionDetailVisible] = useState<boolean>(false);
 
   const todayStr = getTodayDateStringIST();
 
@@ -54,7 +54,6 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
       const wStr = w.toISOString().split('T')[0];
       return { start: wStr, end: todayStr };
     }
-    // month
     const m = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     const mStr = m.toISOString().split('T')[0];
     return { start: mStr, end: todayStr };
@@ -85,17 +84,14 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
   // Aggregate records by counselee UID
   const recordsByUid = new Map<string, DailyMobileUsageRecord>();
   records.forEach((r) => {
-    // If multiple records (weekly/monthly), keep or merge into latest record
     const existing = recordsByUid.get(r.uid);
     if (!existing) {
       recordsByUid.set(r.uid, { ...r });
     } else {
-      // Merge for multi-day period
       existing.totalScreenMinutes += r.totalScreenMinutes;
       existing.nightUsageMinutes += r.nightUsageMinutes;
       if (r.hasLateNightActivity) existing.hasLateNightActivity = true;
       existing.nightSessions = [...existing.nightSessions, ...r.nightSessions];
-      // merge app totals
       r.apps.forEach((app) => {
         const found = existing.apps.find((a) => a.packageName === app.packageName);
         if (found) {
@@ -106,7 +102,6 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
           existing.apps.push({ ...app });
         }
       });
-      // recalculate percentage
       if (existing.totalScreenMinutes > 0) {
         existing.apps.forEach((a) => {
           a.percentage = Math.round((a.totalMinutes / existing.totalScreenMinutes) * 100);
@@ -120,12 +115,11 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
     (r) => r.hasLateNightActivity
   ).length;
 
-  const handleOpenDetail = (record: DailyMobileUsageRecord) => {
+  const handleOpenDevoteeDetail = (record: DailyMobileUsageRecord) => {
     setSelectedRecord(record);
-    setDetailModalVisible(true);
+    setSessionDetailVisible(true);
   };
 
-  // Group sessions by time slot for the detail modal
   const groupSessionsBySlot = (sessions: AppSession[]) => {
     const sorted = [...sessions].sort((a, b) => a.startTime - b.startTime);
     const groups: Record<TimeSlot, AppSession[]> = {
@@ -141,172 +135,228 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
   };
 
   return (
-    <View style={[styles.containerCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
-          <Ionicons name="phone-portrait" size={20} color="#7E22CE" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={[styles.title, { color: theme.thickColor }]}>
-              Counselees Mobile & App Usage
-            </Text>
-            {lateNightAlertCount > 0 && (
-              <View style={styles.alertBadge}>
-                <Ionicons name="moon" size={10} color="#FFFFFF" />
-                <Text style={styles.alertBadgeText}>{lateNightAlertCount} Night</Text>
-              </View>
-            )}
+    <>
+      {/* Compact Dashboard Card (Same Small Size as other Cards) */}
+      <TouchableOpacity
+        style={[
+          styles.compactCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+        onPress={() => setOverviewModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.cardLeft}>
+          <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
+            <Ionicons name="phone-portrait" size={18} color="#7E22CE" />
           </View>
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-            Daily, weekly & monthly screen time with session intervals
-          </Text>
-        </View>
-      </View>
-
-      {/* Period Selector Tabs */}
-      <View style={[styles.tabsRow, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
-        {(['today', 'yesterday', 'week', 'month'] as FilterPeriod[]).map((p) => {
-          const isActive = period === p;
-          const labels: Record<FilterPeriod, string> = {
-            today: 'Today',
-            yesterday: 'Yesterday',
-            week: '7 Days',
-            month: '30 Days',
-          };
-          return (
-            <TouchableOpacity
-              key={p}
-              style={[
-                styles.tabBtn,
-                isActive && [styles.activeTabBtn, { backgroundColor: theme.thickColor }],
-              ]}
-              onPress={() => setPeriod(p)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: isActive ? '#FFFFFF' : theme.colors.textMuted },
-                  isActive && { fontWeight: '700' },
-                ]}
-              >
-                {labels[p]}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.compactTitle, { color: theme.colors.text }]}>
+                Counselees Mobile & App Usage
               </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Loading state */}
-      {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color={theme.thickColor} />
-          <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>
-            Loading screen usage...
-          </Text>
-        </View>
-      ) : recordsByUid.size === 0 ? (
-        <View style={styles.emptyBox}>
-          <Ionicons name="time-outline" size={28} color={theme.colors.textMuted} />
-          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-            No Mobile Usage Synced Yet
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
-            When counselees enable Screen Time Sync on their Android app, their daily app hours will appear here automatically.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.listContainer}>
-          {approvedCounselees.map((counselee) => {
-            const usage = recordsByUid.get(counselee.uid);
-            if (!usage) {
-              return (
-                <View
-                  key={counselee.uid}
-                  style={[styles.counseleeRow, { borderColor: theme.colors.borderLight }]}
-                >
-                  <View style={styles.devoteeInfo}>
-                    <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
-                      {counselee.displayName || 'Devotee'}
-                    </Text>
-                    <Text style={[styles.devoteeSub, { color: theme.colors.textMuted }]}>
-                      Permission pending
-                    </Text>
-                  </View>
-                  <View style={[styles.pendingPill, { backgroundColor: '#FEF3C7' }]}>
-                    <Text style={[styles.pendingPillText, { color: '#B45309' }]}>Not Synced</Text>
-                  </View>
+              {lateNightAlertCount > 0 && (
+                <View style={styles.alertBadge}>
+                  <Ionicons name="moon" size={9} color="#FFFFFF" />
+                  <Text style={styles.alertBadgeText}>{lateNightAlertCount} Night</Text>
                 </View>
-              );
-            }
-
-            return (
-              <TouchableOpacity
-                key={counselee.uid}
-                style={[styles.counseleeCard, { borderColor: theme.colors.borderLight }]}
-                onPress={() => handleOpenDetail(usage)}
-                activeOpacity={0.7}
-              >
-                {/* Top Row: Name, Total Time, Night Warning */}
-                <View style={styles.counseleeTopRow}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
-                        {counselee.displayName || usage.counseleeName}
-                      </Text>
-                      {usage.hasLateNightActivity && (
-                        <View style={styles.nightAlertPill}>
-                          <Ionicons name="moon" size={11} color="#DC2626" />
-                          <Text style={styles.nightAlertPillText}>
-                            Night: {formatMinutesToDisplay(usage.nightUsageMinutes)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.totalTimeText, { color: theme.thickColor }]}>
-                      Total: {formatMinutesToDisplay(usage.totalScreenMinutes)}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={[styles.viewDetailsText, { color: theme.thickColor }]}>Sessions</Text>
-                    <Ionicons name="chevron-forward" size={14} color={theme.thickColor} />
-                  </View>
-                </View>
-
-                {/* Top Apps Preview Bar */}
-                {usage.apps.length > 0 && (
-                  <View style={styles.appChipsRow}>
-                    {usage.apps.slice(0, 4).map((app) => (
-                      <View
-                        key={app.packageName}
-                        style={[styles.appChip, { backgroundColor: theme.liteColor }]}
-                      >
-                        <Ionicons name={app.iconName as any} size={12} color={app.iconColor} />
-                        <Text style={[styles.appChipText, { color: theme.colors.text }]}>
-                          {app.appName}: <Text style={{ fontWeight: '700' }}>{formatMinutesToDisplay(app.totalMinutes)}</Text> ({app.percentage}%)
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+              )}
+            </View>
+            <Text style={[styles.compactSubtitle, { color: theme.colors.textMuted }]}>
+              {recordsByUid.size > 0
+                ? `${recordsByUid.size} synced • Tap to view daily, weekly & night details`
+                : 'Tap to view daily, weekly & late-night app activity'}
+            </Text>
+          </View>
         </View>
-      )}
 
-      {/* Detail Modal: Exact App Sessions (Morning, Afternoon, Evening, Night) */}
+        <View style={[styles.detailsPill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
+          <Text style={[styles.detailsPillText, { color: theme.thickColor }]}>View</Text>
+          <Ionicons name="chevron-forward" size={13} color={theme.thickColor} />
+        </View>
+      </TouchableOpacity>
+
+      {/* Main Details Modal: Opens when card is tapped */}
       <Modal
-        visible={detailModalVisible}
+        visible={overviewModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setDetailModalVisible(false)}
+        onRequestClose={() => setOverviewModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: theme.colors.card }]}>
             {/* Modal Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                    Counselees Mobile & App Usage
+                  </Text>
+                  {lateNightAlertCount > 0 && (
+                    <View style={styles.alertBadge}>
+                      <Ionicons name="moon" size={10} color="#FFFFFF" />
+                      <Text style={styles.alertBadgeText}>{lateNightAlertCount} Night</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.modalSubtitle, { color: theme.colors.textMuted }]}>
+                  Detailed daily, weekly & monthly screen time breakdown
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setOverviewModalVisible(false)}
+                style={[styles.closeBtn, { backgroundColor: theme.liteColor }]}
+              >
+                <Ionicons name="close" size={20} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Period Selector Tabs */}
+            <View style={[styles.tabsRow, { backgroundColor: theme.liteColor, borderColor: theme.colors.border }]}>
+              {(['today', 'yesterday', 'week', 'month'] as FilterPeriod[]).map((p) => {
+                const isActive = period === p;
+                const labels: Record<FilterPeriod, string> = {
+                  today: 'Today',
+                  yesterday: 'Yesterday',
+                  week: '7 Days',
+                  month: '30 Days',
+                };
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[
+                      styles.tabBtn,
+                      isActive && [styles.activeTabBtn, { backgroundColor: theme.thickColor }],
+                    ]}
+                    onPress={() => setPeriod(p)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        { color: isActive ? '#FFFFFF' : theme.colors.textMuted },
+                        isActive && { fontWeight: '700' },
+                      ]}
+                    >
+                      {labels[p]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Counselee List inside Modal */}
+            <ScrollView contentContainerStyle={styles.modalScrollContent}>
+              {loading ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color={theme.thickColor} />
+                  <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>
+                    Loading screen usage...
+                  </Text>
+                </View>
+              ) : recordsByUid.size === 0 ? (
+                <View style={styles.emptyBox}>
+                  <Ionicons name="time-outline" size={32} color={theme.colors.textMuted} />
+                  <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+                    No Mobile Usage Synced Yet
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: theme.colors.textMuted }]}>
+                    When counselees enable Screen Time Sync on their Android app, their daily app hours will appear here automatically.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.listContainer}>
+                  {approvedCounselees.map((counselee) => {
+                    const usage = recordsByUid.get(counselee.uid);
+                    if (!usage) {
+                      return (
+                        <View
+                          key={counselee.uid}
+                          style={[styles.counseleeRow, { borderColor: theme.colors.borderLight }]}
+                        >
+                          <View style={styles.devoteeInfo}>
+                            <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                              {counselee.displayName || 'Devotee'}
+                            </Text>
+                            <Text style={[styles.devoteeSub, { color: theme.colors.textMuted }]}>
+                              Permission pending
+                            </Text>
+                          </View>
+                          <View style={[styles.pendingPill, { backgroundColor: '#FEF3C7' }]}>
+                            <Text style={[styles.pendingPillText, { color: '#B45309' }]}>Not Synced</Text>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    return (
+                      <TouchableOpacity
+                        key={counselee.uid}
+                        style={[styles.counseleeCard, { borderColor: theme.colors.borderLight }]}
+                        onPress={() => handleOpenDevoteeDetail(usage)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.counseleeTopRow}>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={[styles.devoteeName, { color: theme.colors.text }]}>
+                                {counselee.displayName || usage.counseleeName}
+                              </Text>
+                              {usage.hasLateNightActivity && (
+                                <View style={styles.nightAlertPill}>
+                                  <Ionicons name="moon" size={11} color="#DC2626" />
+                                  <Text style={styles.nightAlertPillText}>
+                                    Night: {formatMinutesToDisplay(usage.nightUsageMinutes)}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[styles.totalTimeText, { color: theme.thickColor }]}>
+                              Total: {formatMinutesToDisplay(usage.totalScreenMinutes)}
+                            </Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Text style={[styles.viewDetailsText, { color: theme.thickColor }]}>Sessions</Text>
+                            <Ionicons name="chevron-forward" size={14} color={theme.thickColor} />
+                          </View>
+                        </View>
+
+                        {usage.apps.length > 0 && (
+                          <View style={styles.appChipsRow}>
+                            {usage.apps.slice(0, 4).map((app) => (
+                              <View
+                                key={app.packageName}
+                                style={[styles.appChip, { backgroundColor: theme.liteColor }]}
+                              >
+                                <Ionicons name={app.iconName as any} size={12} color={app.iconColor} />
+                                <Text style={[styles.appChipText, { color: theme.colors.text }]}>
+                                  {app.appName}: <Text style={{ fontWeight: '700' }}>{formatMinutesToDisplay(app.totalMinutes)}</Text> ({app.percentage}%)
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sub-Modal: Exact App Sessions (Morning, Afternoon, Evening, Night) */}
+      <Modal
+        visible={sessionDetailVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSessionDetailVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: theme.colors.card }]}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
@@ -318,7 +368,7 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setDetailModalVisible(false)}
+                onPress={() => setSessionDetailVisible(false)}
                 style={[styles.closeBtn, { backgroundColor: theme.liteColor }]}
               >
                 <Ionicons name="close" size={20} color={theme.colors.text} />
@@ -328,7 +378,6 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
             <ScrollView contentContainerStyle={styles.modalContent}>
               {selectedRecord && (
                 <>
-                  {/* Late Night Banner Alert if active */}
                   {selectedRecord.hasLateNightActivity && (
                     <View style={styles.lateNightBanner}>
                       <Ionicons name="moon" size={18} color="#DC2626" />
@@ -343,7 +392,6 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
                     </View>
                   )}
 
-                  {/* App Summary List with Time Breakdown */}
                   <Text style={[styles.sectionHeading, { color: theme.thickColor }]}>
                     Apps Used & Session Times
                   </Text>
@@ -365,7 +413,6 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
                         </Text>
                       </View>
 
-                      {/* Sessions List */}
                       <View style={styles.sessionsList}>
                         {app.sessions.map((sess, idx) => (
                           <View key={idx} style={styles.sessionItemRow}>
@@ -388,7 +435,6 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
                     </View>
                   ))}
 
-                  {/* Chronological Timeline by Time Slots */}
                   <Text style={[styles.sectionHeading, { color: theme.thickColor, marginTop: 18 }]}>
                     Chronological Day Timeline
                   </Text>
@@ -445,56 +491,74 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  containerCard: {
+  compactCard: {
     marginHorizontal: 16,
-    marginVertical: 10,
-    borderRadius: 14,
+    marginVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
   },
   iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 15,
+  compactTitle: {
+    fontSize: 13.5,
     fontWeight: '700',
   },
-  subtitle: {
-    fontSize: 11.5,
+  compactSubtitle: {
+    fontSize: 11,
     marginTop: 2,
+  },
+  detailsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  detailsPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   alertBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: '#DC2626',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   alertBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
   },
   tabsRow: {
@@ -502,7 +566,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     padding: 3,
-    marginBottom: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
   },
   tabBtn: {
     flex: 1,
@@ -521,7 +587,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   loadingBox: {
-    paddingVertical: 20,
+    paddingVertical: 24,
     alignItems: 'center',
     gap: 8,
   },
@@ -529,19 +595,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   emptyBox: {
-    paddingVertical: 20,
+    paddingVertical: 30,
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
   },
   emptyTitle: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '600',
   },
   emptySubtitle: {
-    fontSize: 11.5,
+    fontSize: 12,
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 17,
   },
   listContainer: {
     gap: 10,
@@ -644,7 +710,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalSubtitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     marginTop: 2,
   },
   closeBtn: {
@@ -653,6 +719,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalScrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
   modalContent: {
     padding: 16,
