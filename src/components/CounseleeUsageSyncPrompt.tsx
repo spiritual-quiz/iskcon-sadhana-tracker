@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
+  Modal,
+  AppState,
+  AppStateStatus,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,34 +20,38 @@ export const CounseleeUsageSyncPrompt: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isOpeningSettings, setIsOpeningSettings] = useState<boolean>(false);
   const [todayRecord, setTodayRecord] = useState<DailyMobileUsageRecord | null>(null);
 
+  const checkPermissionState = async () => {
+    if (Platform.OS !== 'android' || !user || user.role === 'counsellor') {
+      return;
+    }
+    const granted = await mobileUsageService.hasUsagePermission();
+    setHasPermission(granted);
+
+    if (granted && user) {
+      const record = await mobileUsageService.syncCounseleeUsageIfDue(user);
+      if (record) setTodayRecord(record);
+    }
+  };
+
   useEffect(() => {
-    // Only relevant on Android devices for counselees
     if (Platform.OS !== 'android' || !user || user.role === 'counsellor') {
       return;
     }
 
-    let isMounted = true;
-    const checkState = async () => {
-      const granted = await mobileUsageService.hasUsagePermission();
-      if (!isMounted) return;
-      setHasPermission(granted);
+    checkPermissionState();
 
-      if (granted && user) {
-        setIsSyncing(true);
-        const record = await mobileUsageService.syncCounseleeUsageIfDue(user);
-        if (isMounted) {
-          if (record) setTodayRecord(record);
-          setIsSyncing(false);
-        }
+    // Re-check automatically when user returns from phone Settings to app
+    const appStateSub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        checkPermissionState();
       }
-    };
+    });
 
-    checkState();
     return () => {
-      isMounted = false;
+      appStateSub.remove();
     };
   }, [user]);
 
@@ -45,149 +59,111 @@ export const CounseleeUsageSyncPrompt: React.FC = () => {
     return null;
   }
 
-  const handleRequestPermission = async () => {
-    setIsSyncing(true);
-    const granted = await mobileUsageService.requestUsagePermission();
-    setHasPermission(granted);
-    if (granted && user) {
-      const record = await mobileUsageService.syncCounseleeUsageIfDue(user, true);
-      setTodayRecord(record);
+  const handleEnableClick = async () => {
+    setIsOpeningSettings(true);
+    try {
+      await mobileUsageService.requestUsagePermission();
+      // Permission will be checked again upon app resume via AppState listener
+      const granted = await mobileUsageService.hasUsagePermission();
+      setHasPermission(granted);
+      if (granted && user) {
+        const record = await mobileUsageService.syncCounseleeUsageIfDue(user, true);
+        if (record) setTodayRecord(record);
+      }
+    } finally {
+      setIsOpeningSettings(false);
     }
-    setIsSyncing(false);
   };
 
+  // Checking state initially
   if (hasPermission === null) {
-    return null; // checking
+    return null;
   }
 
-  // Permission already granted
-  if (hasPermission) {
-    return (
-      <View style={[styles.activeCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-        <View style={styles.activeRow}>
-          <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.activeTitle, { color: theme.colors.text }]}>
-              Screen Time Sync: <Text style={{ color: '#10B981', fontWeight: 'bold' }}>Active</Text>
-            </Text>
-            <Text style={[styles.activeSubtitle, { color: theme.colors.textMuted }]}>
-              {todayRecord
-                ? `Today's Screen Time: ${formatMinutesToDisplay(todayRecord.totalScreenMinutes)} synced with counsellor`
-                : 'Accountability sync active • Zero background battery drain'}
-            </Text>
-          </View>
-          <Ionicons name="shield-checkmark" size={20} color="#10B981" />
-        </View>
-      </View>
-    );
-  }
-
-  // Permission not yet granted
   return (
-    <View style={[styles.promptCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-      <View style={styles.headerRow}>
-        <View style={[styles.iconCircle, { backgroundColor: theme.liteColor }]}>
-          <Ionicons name="phone-portrait-outline" size={20} color={theme.thickColor} />
+    <>
+      {/* 1. Subtle Active Pill when permission is granted */}
+      {hasPermission && (
+        <View style={[styles.activeCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={styles.activeRow}>
+            <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.activeTitle, { color: theme.colors.text }]}>
+                Digital Sadhana Sync: <Text style={{ color: '#10B981', fontWeight: 'bold' }}>Active</Text>
+              </Text>
+              <Text style={[styles.activeSubtitle, { color: theme.colors.textMuted }]}>
+                {todayRecord
+                  ? `Today's Screen Time: ${formatMinutesToDisplay(todayRecord.totalScreenMinutes)} synced with counsellor`
+                  : 'Accountability sync active • Zero background battery drain'}
+              </Text>
+            </View>
+            <Ionicons name="shield-checkmark" size={20} color="#10B981" />
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.cardTitle, { color: theme.thickColor }]}>
-            Digital Sadhana & Screen Time Sync
-          </Text>
-          <Text style={[styles.cardDescription, { color: theme.colors.textMuted }]}>
-            Share daily screen time with your counsellor to protect chanting & reading hours from social media distractions.
-          </Text>
-        </View>
-      </View>
+      )}
 
-      <View style={styles.privacyNotice}>
-        <Ionicons name="lock-closed" size={14} color={theme.colors.textMuted} />
-        <Text style={[styles.privacyText, { color: theme.colors.textMuted }]}>
-          Only total app hours are shared. Personal messages, searches, and chats are never accessed.
-        </Text>
-      </View>
+      {/* 2. Mandatory Full-Screen Modal when permission is NOT granted */}
+      {!hasPermission && (
+        <Modal
+          visible={!hasPermission}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => {}} // Cannot be dismissed via back button
+        >
+          <View style={styles.mandatoryOverlay}>
+            <View style={[styles.mandatoryCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              {/* Devotional Icon */}
+              <View style={[styles.mandatoryIconCircle, { backgroundColor: theme.liteColor }]}>
+                <Ionicons name="phone-portrait-outline" size={32} color={theme.thickColor} />
+              </View>
 
-      <TouchableOpacity
-        style={[styles.actionBtn, { backgroundColor: theme.thickColor }]}
-        onPress={handleRequestPermission}
-        disabled={isSyncing}
-        activeOpacity={0.8}
-      >
-        {isSyncing ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.actionBtnText}>Enable Screen Time Sync</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    </View>
+              {/* Exact Message from User */}
+              <Text style={[styles.greetingText, { color: theme.thickColor }]}>
+                Hare Krishna,
+              </Text>
+
+              <Text style={[styles.bodyText, { color: theme.colors.text }]}>
+                As guided by your counsellor, Digital Sadhana Sync is mandatory to track and submit your sadhana.
+              </Text>
+
+              <Text style={[styles.instructionText, { color: theme.colors.textMuted }]}>
+                Please tap below to enable Usage Access in your phone settings to continue.
+              </Text>
+
+              {/* Privacy Note */}
+              <View style={styles.privacyBox}>
+                <Ionicons name="lock-closed" size={13} color={theme.colors.textMuted} />
+                <Text style={[styles.privacyBoxText, { color: theme.colors.textMuted }]}>
+                  Only total application hours are shared. Personal messages, searches, and chats are never accessed.
+                </Text>
+              </View>
+
+              {/* Mandatory Enable Button (Jumps directly to Settings) */}
+              <TouchableOpacity
+                style={[styles.enableBtn, { backgroundColor: theme.thickColor }]}
+                onPress={handleEnableClick}
+                disabled={isOpeningSettings}
+                activeOpacity={0.8}
+              >
+                {isOpeningSettings ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="settings-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.enableBtnText}>Enable Usage Access</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  promptCard: {
-    marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: 12.5,
-    lineHeight: 17,
-  },
-  privacyNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
-    marginBottom: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-  },
-  privacyText: {
-    fontSize: 11,
-    flex: 1,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  actionBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13.5,
-  },
   activeCard: {
     marginHorizontal: 16,
     marginVertical: 6,
@@ -213,5 +189,81 @@ const styles = StyleSheet.create({
   activeSubtitle: {
     fontSize: 11,
     marginTop: 1,
+  },
+  mandatoryOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mandatoryCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  mandatoryIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  greetingText: {
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  bodyText: {
+    fontSize: 14.5,
+    lineHeight: 21,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  instructionText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  privacyBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    marginBottom: 20,
+  },
+  privacyBoxText: {
+    fontSize: 11,
+    lineHeight: 15,
+    flex: 1,
+  },
+  enableBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  enableBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
