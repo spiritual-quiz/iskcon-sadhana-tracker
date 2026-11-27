@@ -40,7 +40,7 @@ import { showCrossPlatformAlert } from '../../utils/alertUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VaishnavaCalendarCard } from '../../components/VaishnavaCalendarCard';
 import { DailyQuoteCard } from '../../components/DailyQuoteCard';
-import { CounsellorMobileUsageCard } from '../../components/CounsellorMobileUsageCard';
+import { MobileUsageModal } from '../../components/CounsellorMobileUsageCard';
 import { DashboardMetricsSkeleton, CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
@@ -68,6 +68,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [isMonitoringDismissed, setIsMonitoringDismissed] = useState<boolean>(false);
   const [chantersList, setChantersList] = useState<{ uid: string; name: string; rounds: number }[]>([]);
   const [approvedCounselees, setApprovedCounselees] = useState<UserProfile[]>([]);
+  const [showMobileUsageModal, setShowMobileUsageModal] = useState<boolean>(false);
 
   const alertedPendingUidsRef = useRef<Set<string>>(new Set());
   const lastFetchedTimeRef = useRef<number>(0);
@@ -499,6 +500,14 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
       badge: null,
       color: theme.thickColor,
     },
+    {
+      id: 'MobileUsage',
+      title: 'Mobile Usage',
+      subtitle: 'Screen time & night audit',
+      icon: 'phone-portrait-outline',
+      badge: null,
+      color: theme.thickColor,
+    },
   ];
 
   return (
@@ -531,9 +540,6 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
           {/* Verse of the Day / Prabhupada Quote */}
           <DailyQuoteCard />
-
-          {/* Counselees Mobile & App Usage (Daily, Weekly, Monthly & Night Intervals) */}
-          <CounsellorMobileUsageCard approvedCounselees={approvedCounselees} />
 
           {/* Quick Theme Customization Card */}
           <TouchableOpacity
@@ -657,7 +663,13 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
               <TouchableOpacity
                 key={sec.id}
                 style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-                onPress={() => navigation.navigate(sec.id)}
+                onPress={() => {
+                  if (sec.id === 'MobileUsage') {
+                    setShowMobileUsageModal(true);
+                  } else {
+                    navigation.navigate(sec.id);
+                  }
+                }}
               >
                 <View style={styles.cardTopRow}>
                   <View style={[styles.iconContainer, { backgroundColor: theme.liteColor }]}>
@@ -714,6 +726,13 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
         visible={showAutoBioPrompt}
         user={user}
         onClose={() => setShowAutoBioPrompt(false)}
+      />
+
+      {/* Mobile Usage Modal */}
+      <MobileUsageModal
+        visible={showMobileUsageModal}
+        onClose={() => setShowMobileUsageModal(false)}
+        approvedCounselees={approvedCounselees}
       />
     </View>
   );

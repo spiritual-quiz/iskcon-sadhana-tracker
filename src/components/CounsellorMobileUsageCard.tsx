@@ -24,17 +24,18 @@ import { UserProfile } from '../types/auth';
 
 interface Props {
   approvedCounselees: UserProfile[];
+  visible: boolean;
+  onClose: () => void;
 }
 
 type FilterPeriod = 'today' | 'yesterday' | 'week' | 'month';
 
-export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees }) => {
+export const MobileUsageModal: React.FC<Props> = ({ approvedCounselees, visible, onClose }) => {
   const { theme } = useTheme();
   const [period, setPeriod] = useState<FilterPeriod>('today');
   const [loading, setLoading] = useState<boolean>(false);
   const [records, setRecords] = useState<DailyMobileUsageRecord[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<DailyMobileUsageRecord | null>(null);
-  const [overviewModalVisible, setOverviewModalVisible] = useState<boolean>(false);
   const [sessionDetailVisible, setSessionDetailVisible] = useState<boolean>(false);
 
   const todayStr = getTodayDateStringIST();
@@ -78,8 +79,10 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
   };
 
   useEffect(() => {
-    loadUsageData(period);
-  }, [period]);
+    if (visible) {
+      loadUsageData(period);
+    }
+  }, [period, visible]);
 
   // Aggregate records by counselee UID
   const recordsByUid = new Map<string, DailyMobileUsageRecord>();
@@ -136,54 +139,12 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
 
   return (
     <>
-      {/* Compact Dashboard Card (Same Small Size as other Cards) */}
-      <TouchableOpacity
-        style={[
-          styles.compactCard,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-        onPress={() => setOverviewModalVisible(true)}
-        activeOpacity={0.8}
-      >
-        <View style={styles.cardLeft}>
-          <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
-            <Ionicons name="phone-portrait" size={18} color="#7E22CE" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.compactTitle, { color: theme.colors.text }]}>
-                Counselees Mobile & App Usage
-              </Text>
-              {lateNightAlertCount > 0 && (
-                <View style={styles.alertBadge}>
-                  <Ionicons name="moon" size={9} color="#FFFFFF" />
-                  <Text style={styles.alertBadgeText}>{lateNightAlertCount} Night</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.compactSubtitle, { color: theme.colors.textMuted }]}>
-              {recordsByUid.size > 0
-                ? `${recordsByUid.size} synced • Tap to view daily, weekly & night details`
-                : 'Tap to view daily, weekly & late-night app activity'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={[styles.detailsPill, { backgroundColor: theme.liteColor, borderColor: theme.thickColor }]}>
-          <Text style={[styles.detailsPillText, { color: theme.thickColor }]}>View</Text>
-          <Ionicons name="chevron-forward" size={13} color={theme.thickColor} />
-        </View>
-      </TouchableOpacity>
-
-      {/* Main Details Modal: Opens when card is tapped */}
+      {/* Main Details Modal */}
       <Modal
-        visible={overviewModalVisible}
+        visible={visible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setOverviewModalVisible(false)}
+        onRequestClose={onClose}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { backgroundColor: theme.colors.card }]}>
@@ -192,7 +153,7 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                    Counselees Mobile & App Usage
+                    Mobile Usage
                   </Text>
                   {lateNightAlertCount > 0 && (
                     <View style={styles.alertBadge}>
@@ -202,11 +163,11 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
                   )}
                 </View>
                 <Text style={[styles.modalSubtitle, { color: theme.colors.textMuted }]}>
-                  Detailed daily, weekly & monthly screen time breakdown
+                  Daily, weekly & monthly screen time breakdown
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setOverviewModalVisible(false)}
+                onPress={onClose}
                 style={[styles.closeBtn, { backgroundColor: theme.liteColor }]}
               >
                 <Ionicons name="close" size={20} color={theme.colors.text} />
@@ -495,58 +456,9 @@ export const CounsellorMobileUsageCard: React.FC<Props> = ({ approvedCounselees 
   );
 };
 
+export const CounsellorMobileUsageCard = MobileUsageModal;
+
 const styles = StyleSheet.create({
-  compactCard: {
-    marginHorizontal: 16,
-    marginVertical: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  cardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    marginRight: 8,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  compactTitle: {
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  compactSubtitle: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  detailsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  detailsPillText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-  },
   alertBadge: {
     flexDirection: 'row',
     alignItems: 'center',
