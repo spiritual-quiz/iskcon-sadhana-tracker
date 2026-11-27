@@ -81,14 +81,25 @@
           navigator.serviceWorker.register('./sw.js').then(
             function(registration) {
               console.log('Bhakti Unnati PWA ServiceWorker registered with scope:', registration.scope);
+              // Actively check for updated service worker on every page load
+              registration.update();
             },
             function(err) {
               console.log('Bhakti Unnati PWA ServiceWorker registration failed:', err);
             }
           );
         });
+
+        // Auto-refresh once when newly deployed service worker activates
+        var hasRefreshed = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (!hasRefreshed) {
+            hasRefreshed = true;
+            window.location.reload();
+          }
+        });
       }
     </script>
-  <script src="/iskcon-sadhana-tracker/_expo/static/js/web/index-31fcd547d63ac5c847911407036fe4a3.js" defer></script>
+  <script src="/iskcon-sadhana-tracker/_expo/static/js/web/index-05124870958ebec5a1a96f0f13eb6260.js" defer></script>
 </body>
 </html>
