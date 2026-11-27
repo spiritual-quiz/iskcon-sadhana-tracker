@@ -1,5 +1,5 @@
 // Service Worker for Bhakti Unnati PWA
-const CACHE_NAME = 'bhakti-unnati-v2';
+const CACHE_NAME = 'bhakti-unnati-v1-0-66';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

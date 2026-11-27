@@ -81,11 +81,22 @@
           navigator.serviceWorker.register('./sw.js').then(
             function(registration) {
               console.log('Bhakti Unnati PWA ServiceWorker registered with scope:', registration.scope);
+              // Actively check for updated service worker on every page load
+              registration.update();
             },
             function(err) {
               console.log('Bhakti Unnati PWA ServiceWorker registration failed:', err);
             }
           );
+        });
+
+        // Auto-refresh once when newly deployed service worker activates
+        var hasRefreshed = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (!hasRefreshed) {
+            hasRefreshed = true;
+            window.location.reload();
+          }
         });
       }
     </script>

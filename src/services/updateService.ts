@@ -17,8 +17,8 @@ export interface AppVersionInfo {
   publishedAt: string;
 }
 
-export const APP_CURRENT_VERSION = '1.0.63';
-export const APP_CURRENT_BUILD = 63;
+export const APP_CURRENT_VERSION = '1.0.66';
+export const APP_CURRENT_BUILD = 66;
 
 const GITHUB_REPO = 'spiritual-quiz/iskcon-sadhana-tracker';
 const GITHUB_LATEST_RELEASE_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
