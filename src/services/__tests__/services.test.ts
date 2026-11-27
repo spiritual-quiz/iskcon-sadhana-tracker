@@ -70,6 +70,12 @@ import { reportService } from '../reportService';
 import { notificationService } from '../notificationService';
 import { fastCache } from '../fastCacheService';
 import { biometricService } from '../biometricService';
+import {
+  mobileUsageService,
+  formatMinutesToDisplay,
+  formatTimestampTime,
+  getTimeSlotForTimestamp,
+} from '../mobileUsageService';
 
 describe('Service Logic and Integration Verification', () => {
   describe('Invitation Code Logic', () => {
@@ -458,6 +464,46 @@ describe('Service Logic and Integration Verification', () => {
 
       // User A password never matches User B
       expect(authUserA?.password).not.toBe(authUserB?.password);
+    });
+  });
+
+  describe('mobileUsageService & Screen Time Tests', () => {
+    it('formats minutes to human readable display correctly', () => {
+      expect(formatMinutesToDisplay(0)).toBe('0m');
+      expect(formatMinutesToDisplay(25)).toBe('25m');
+      expect(formatMinutesToDisplay(60)).toBe('1h');
+      expect(formatMinutesToDisplay(75)).toBe('1h 15m');
+      expect(formatMinutesToDisplay(135)).toBe('2h 15m');
+    });
+
+    it('classifies time slots accurately including late night', () => {
+      const lateNight = new Date(2026, 10, 27, 23, 30, 0).getTime();
+      expect(getTimeSlotForTimestamp(lateNight)).toBe('night');
+
+      const earlyHours = new Date(2026, 10, 27, 1, 15, 0).getTime();
+      expect(getTimeSlotForTimestamp(earlyHours)).toBe('night');
+
+      const morning = new Date(2026, 10, 27, 11, 0, 0).getTime();
+      expect(getTimeSlotForTimestamp(morning)).toBe('morning');
+
+      const afternoon = new Date(2026, 10, 27, 14, 0, 0).getTime();
+      expect(getTimeSlotForTimestamp(afternoon)).toBe('afternoon');
+
+      const evening = new Date(2026, 10, 27, 18, 0, 0).getTime();
+      expect(getTimeSlotForTimestamp(evening)).toBe('evening');
+    });
+
+    it('formats timestamp time with AM/PM', () => {
+      const d1 = new Date(2026, 10, 27, 11, 0, 0).getTime();
+      expect(formatTimestampTime(d1)).toBe('11:00 AM');
+
+      const d2 = new Date(2026, 10, 27, 17, 30, 0).getTime();
+      expect(formatTimestampTime(d2)).toBe('5:30 PM');
+    });
+
+    it('checks usage permission safely without crashing', async () => {
+      const hasPerm = await mobileUsageService.hasUsagePermission();
+      expect(typeof hasPerm).toBe('boolean');
     });
   });
 });

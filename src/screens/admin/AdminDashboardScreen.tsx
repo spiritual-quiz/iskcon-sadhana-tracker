@@ -40,6 +40,7 @@ import { showCrossPlatformAlert } from '../../utils/alertUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VaishnavaCalendarCard } from '../../components/VaishnavaCalendarCard';
 import { DailyQuoteCard } from '../../components/DailyQuoteCard';
+import { CounsellorMobileUsageCard } from '../../components/CounsellorMobileUsageCard';
 import { DashboardMetricsSkeleton, CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
 export const AdminDashboardScreen = ({ navigation }: any) => {
@@ -66,6 +67,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
   const [showAutoBioPrompt, setShowAutoBioPrompt] = useState<boolean>(false);
   const [isMonitoringDismissed, setIsMonitoringDismissed] = useState<boolean>(false);
   const [chantersList, setChantersList] = useState<{ uid: string; name: string; rounds: number }[]>([]);
+  const [approvedCounselees, setApprovedCounselees] = useState<UserProfile[]>([]);
 
   const alertedPendingUidsRef = useRef<Set<string>>(new Set());
   const lastFetchedTimeRef = useRef<number>(0);
@@ -138,6 +140,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
                   u.targetRoundsRequested > 0
               );
               setApprovedCount(approved.length);
+              setApprovedCounselees(approved);
               setPendingCount(pending.length);
               setReminderRequestsCount(reminderReqs.length);
               setTargetRequestsCount(targetReqs.length);
@@ -299,6 +302,7 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
           u.targetRoundsRequested > 0
       );
       setApprovedCount(approved.length);
+      setApprovedCounselees(approved);
       setPendingCount(pendingDevotees.length);
       setReminderRequestsCount(reminderReqs.length);
       setTargetRequestsCount(targetReqs.length);
@@ -528,6 +532,9 @@ export const AdminDashboardScreen = ({ navigation }: any) => {
 
           {/* Verse of the Day / Prabhupada Quote */}
           <DailyQuoteCard />
+
+          {/* Counselees Mobile & App Usage (Daily, Weekly, Monthly & Night Intervals) */}
+          <CounsellorMobileUsageCard approvedCounselees={approvedCounselees} />
 
           {/* Quick Theme Customization Card */}
           <TouchableOpacity

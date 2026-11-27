@@ -1,6 +1,6 @@
 {
   "name": "iskcon-sadhana-tracker",
-  "version": "1.0.62",
+  "version": "1.0.63",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -34,7 +34,8 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "rn-app-usage-stats": "^2.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

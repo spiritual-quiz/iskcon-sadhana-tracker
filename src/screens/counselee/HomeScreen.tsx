@@ -29,6 +29,7 @@ import { authService } from '../../services/authService';
 import { updateService } from '../../services/updateService';
 import { DailyQuoteCard } from '../../components/DailyQuoteCard';
 import { VaishnavaCalendarCard } from '../../components/VaishnavaCalendarCard';
+import { CounseleeUsageSyncPrompt } from '../../components/CounseleeUsageSyncPrompt';
 import { vaishnavaCalendarService } from '../../services/vaishnavaCalendarService';
 import { CardSkeleton, RowListSkeleton } from '../../components/SkeletonLoader';
 
@@ -234,6 +235,9 @@ export const HomeScreen = ({ navigation }: any) => {
               <Text style={styles.bannerButtonText}>{todayEntry ? 'Edit' : 'Fill Now'}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Screen Time & Mobile Usage Sync (Android Opt-in) */}
+          <CounseleeUsageSyncPrompt />
 
           {/* Quick Devotee Profile Pill */}
           <View style={[styles.quickProfileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
